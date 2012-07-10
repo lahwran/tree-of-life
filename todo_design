@@ -1,0 +1,13 @@
+- it should have some way to help you figure out what projects you haven't written down yet
+    - to do this it should ask you what you're doing occasionally
+        - need to be able to specify when to ask next, because not all tasks are the same length
+        - this will create stress about doing things within a timeframe
+            - have an easy way to dismiss the reminder
+            - but we also don't want to make it too easy such that it becomes a ritual to dismiss it
+            - perhaps use machine learning to figure out how long to extend it to, based on previous extensions
+                - this will not be perfectly accurate as some tasks are Hard Problems to predict the length of
+                    - it has to always predict shorter, or near shorter, so it doesn't wait for an hour after you stop doing something
+                        - and it will need to be able to be specified to take shorter when necessary
+            - don't show a countdown
+- it should be able to be told "I'm in flow", and then it not bother you because you don't need help tracking current task while in flow (usually)
+    - however should you exit flow before it reminds you again, you need a way to tell it "I'm doing this thing" again immediately afterwards

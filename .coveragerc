@@ -1,0 +1,12 @@
+[report]
+exclude_lines = 
+#    pass
+	pragma: no cover
+#    def __repr__
+    class [^ ]+\(((zope\.)?interface\.)?Interface\)
+#    if __name__ == .__main__.
+    should_never_run\(\)
+    DEBUG
+
+[run]
+branch = True
