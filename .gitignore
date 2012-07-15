@@ -1,0 +1,5 @@
+/htmlcov/
+/.coverage
+*.pyc
+__pycache__/
+*.sw?
