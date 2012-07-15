@@ -10,3 +10,4 @@ exclude_lines =
 
 [run]
 branch = True
+omit = todo_tracker/ordereddict.py

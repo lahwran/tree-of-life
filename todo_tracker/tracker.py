@@ -1,14 +1,19 @@
 import re
 import collections
+import inspect
 
 from crow2.util import paramdecorator
+from crow2.adapterutil import IString
+from zope.interface import Interface
+
+from todo_tracker.ordereddict import OrderedDict
 
 class _NodeCreatorTracker(object):
     def __init__(self):
         self.creators = {}
 
-    def create(self, node_type, text, parent):
-        return self.creators[node_type](node_type, text, parent, self)
+    def create(self, node_type, text, parent, tracker):
+        return self.creators[node_type](node_type, text, parent, tracker)
 
     @paramdecorator
     def __call__(self, func, name=None):
@@ -17,31 +22,95 @@ class _NodeCreatorTracker(object):
 
 nodecreator = _NodeCreatorTracker()
 
-@nodecreator('category')
 class Tree(object):
     multiline = False
+    textless = False
+    toplevel = False
     options = ()
+    children_of = None
+    allowed_children = None
 
-    def __init__(self, node_type, text, parent, tracker=None):
+    def __init__(self, node_type, text, parent, tracker):
+        if self.toplevel and parent != tracker.root:
+            raise Exception("Days must be child of root node")
+        if self.textless and text is not None:
+            raise Exception("Days must not have text")
+        if self.children_of and parent.node_type not in self.children_of:
+            raise Exception("Must be child of what I belong to")
         self.text = text
         self.parent = parent
-        self.metadata = None
+        self.next_neighbor = None
+        self.previous_neighbor = None
         self.tracker = tracker
 
         self.node_type = node_type
 
+
         self.children = []
 
     def addchild(self, child):
+        if self.allowed_children and child.node_type not in self.allowed_children:
+            raise Exception("Herp Derp")
+
+        if self.children:
+            previous = self.children[-1]
+        else:
+            previous = None
+
         self.children.append(child)
 
-    def setoption(self, option, value):
-        if option not in self.options:
-            raise Exception("no such option")
-        setattr(self, option, value)
+        if previous is not None:
+            previous.next_neighbor = child
+            child.previous_neighbor = previous
 
-    def options_pairs(self):
-        return [(name, getattr(self, name)) for name in self.options]
+    def setoption(self, option, value):
+        options = self._option_dict()
+        try:
+            handler = options[option]
+        except KeyError:
+            raise Exception("no such option")
+
+        try:
+            handler.set(self, option, value)
+        except: # haw haw
+            print repr(self)
+            print option
+            print value
+            raise
+
+    def _option_dict(self):
+        # note: this will redo some elements, but that's not a problem
+        try:
+            return self._option_dict_cache
+        except AttributeError:
+            pass
+        
+        result = OrderedDict()
+        mro = [self] + list(inspect.getmro(type(self)))
+        seen = set()
+        for resolve_element in reversed(mro):
+            try:
+                options = resolve_element.options
+            except AttributeError:
+                continue
+
+            if id(options) in seen:
+                continue
+            seen.add(id(options))
+
+            for name, handler in options:
+                result[name] = handler
+        return result
+
+    def option_values(self):
+        result = []
+        for name, handler in self._option_dict().items():
+            show, item = handler.get(self, name)
+            result.append((name, item, show))
+        return result
+
+    def children_export(self):
+        return self.children
 
     def continue_text(self, text):
         if not self.multiline:
@@ -50,128 +119,91 @@ class Tree(object):
         self.text += "\n"
         self.text += text
 
-    def _serialize(self):
-        indent = " " * 4
+#    def __str__(self):
+#        return todo_tracker.file_storage.serialize(self)
 
-        lines = []
+    def __repr__(self):
+        result = [self]
+        while result[-1] != self.tracker.root:
+            result.append(result[-1].parent)
+        result_strings = []
+        indent_text = " "
+        for indent, item in enumerate(reversed(result)):
+            result_strings.append("%s<%s %r: %r>" % (indent * indent_text, type(item).__name__, item.node_type, item.text))
+        return "\n".join(result_strings)
 
-        if self.text:
-            text_lines = self.text.split("\n")
-            lines.append("%s: %s" % (self.node_type, text_lines[0]))
-            for line in text_lines[1:]:
-                lines.append(indent + "- %s" % line)
-        else:
-            lines.append(self.node_type)
+class SimpleOption(object):
+    def __init__(self, adapter):
+        self.adapter = adapter
 
-        for item in self.metadata.items():
-            lines.append("%s@%s: %s" % (indent, item[0], item[1]))
+    def set(self, node, name, value):
+        value = self.adapter(value)
+        setattr(node, name, value)
 
-        for child in self.children:
-            for line in child.serialize():
-                lines.append(indent + line)
-        return lines
+    def get(self, node, name):
+        try:
+            value = getattr(node, name)
+        except AttributeError:
+            return False, None
 
-    def __str__(self): # pragma: no cover
-        return "Tree(%r, %r, ...)" % (self.node_type, self.text)
+        show = True
+        if value is None:
+            show = False
 
-    def __repr__(self): # pragma: no cover
-        selfrepr = "Tree(%r, %r, %s)\n    metadata: %r" % (self.node_type,
-                self.text, self.parent, self.metadata)
-        lines = []
-        for child in self.children:
-            for line in repr(child).split('\n'):
-                lines.append(' '*4 + line)
-        return "%s\n%s" % (selfrepr, "\n".join(lines))
+        return show, value
+
+class BooleanOption(object):
+    def set(self, node, name, value):
+        setattr(node, name, True)
+
+    def get(self, node, name):
+        value = getattr(node, name)
+        show = bool(value)
+        return show, None
+        
 
 @nodecreator("_genericnode")
 class GenericNode(Tree):
     multiline = True
 
-    def __init__
+    def __init__(self, *args, **keywords):
+        super(GenericNode, self).__init__(*args, **keywords)
+        self.metadata = {}
+
+    def setoption(self, option, value):
+        self.metadata[option] = value
+
+    def option_values(self, adapter=None):
+        return [(x, y, True) for x, y in self.metadata.items()]
 
 @nodecreator('-')
-def continue_text(node_type, text, parent, self):
+def continue_text(node_type, text, parent, root):
     parent.continue_text(text)
-
-parsing_indent = 0
-parsing_type = 1
-parsing_type_text_sep = 2
-parsing_text = 3
 
 class LoadError(Exception):
     pass
-
-def parse_line(line):
-    parsing = 0
-    indent = 0
-    is_metadata = False
-
-    node_type = ""
-    text = None
-
-    for char in line:
-        last_parsing = parsing
-        if parsing == parsing_indent:
-            if char == " ":
-                indent += 1
-                continue
-            else:
-                if indent % 4 != 0:
-                    raise LoadError("bad indentation")
-                indent = indent / 4.0
-
-                parsing += 1
-
-        if char == "\n":
-            continue
-                
-        if parsing == parsing_type:
-            if last_parsing == parsing_indent:
-                if char == "@":
-                    is_metadata = True
-                    continue
-                elif char == "-":
-                    node_type = "-"
-                    parsing += 1
-                    continue
-            if char == ":":
-                parsing += 1
-                continue
-                
-            node_type += char
-            continue
-
-        if parsing == parsing_type_text_sep:
-            if char != " ":
-                raise LoadError("must be space separated")
-            parsing += 1
-            continue
-
-        if text is None:
-            text = ""
-
-        text += char 
-    return indent, is_metadata, node_type, text
 
 class Tracker(object):
     def __init__(self, nodecreator=nodecreator):
         self.nodecreator = nodecreator
         self.root = Tree("root", "root", None, self)
+        self.active_node = None
 
     def load(self, reader):
         self.root.children = []
-        stack = collections.deque()
+        stack = []
         lastnode = self.root
         lastindent = -1
         metadata_allowed_here = False
         
-        for line in reader:
-            indent, is_metadata, node_type, text = parse_line(line)
+        for indent, is_metadata, node_type, text in IParser(reader):
             if indent > lastindent:
+                if indent > lastindent + 1:
+                    raise NotImplementedError()
                 stack.append(lastnode)
                 metadata_allowed_here = True
             elif indent < lastindent:
-                stack.pop()
+                stack = stack[:int(indent)+1]
             lastindent = indent
 
             parent = stack[-1]
@@ -185,15 +217,54 @@ class Tracker(object):
                 if node_type != "-":
                     metadata_allowed_here = False
 
-                node = self.nodecreator.create(node_type, text, parent)
+                node = self.nodecreator.create(node_type, text, parent, self)
                 if node is not None:
                     parent.addchild(node)
                 lastnode = node
 
     def save(self, writer):
-        lines = []
-        for child in self.root.children:
-            lines.extend(child.serialize())
-        writer.write('\n'.join(lines))
+        serializer = ISerializer(writer)
+        serializer.serialize(self.root)
+
+    def activate(self, node):
+        # jump to a particular node as active
+        if self.active_node:
+            self.active_node.active = False
+
+        node.active = True
+        self.active_node = node
+
+    def activate_next(self, ascend=True, descend=True):
+        #TODO: does not take skipping already-done ones into account
+        node = self.active_node
+        seen = set()
+        if ascend:
+            while node.next_neighbor is None and id(node) not in seen:
+                seen.add(id(node))
+                node = node.parent
+        if node is self.root:
+            raise NotImplementedError()
+
+        node = node.next_neighbor
+
+        if descend:
+            while len(node.children) and id(node) not in seen:
+                node = node.children[0]
+                seen.add(node)
+
+        self.activate(node)
+
+
+class IParser(Interface):
+    def __iter__():
+        pass
+
+    def next():
+        pass
+
+class ISerializer(Interface):
+    def serialize(tree):
+        pass
 
 import todo_tracker.nodes
+import todo_tracker.file_storage
