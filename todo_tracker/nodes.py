@@ -101,7 +101,7 @@ class Days(Tree):
         prefix = []
         if self.minor_tasks is not None:
             prefix.append(self.minor_tasks)
-        return prefix + self.children
+        return prefix + list(self.children)
 
 @nodecreator("category")
 class Category(Tree):

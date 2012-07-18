@@ -29,8 +29,8 @@ def parse_line(line):
 
                 parsing += 1
 
-#        if char == "\n":
-#            continue
+        if char == "\n":
+            continue
                 
         if parsing == parsing_type:
             if last_parsing == parsing_indent:
@@ -104,8 +104,8 @@ def serialize(tree, is_root=False):
             lines.append(indent + line)
     return lines
 
-def serialize_to_str(root):
-    lines = serialize(root, is_root=True)
+def serialize_to_str(root, is_root=True):
+    lines = serialize(root, is_root=is_root)
     return '\n'.join(lines) + "\n"
 
 @adapter_for(IFile)

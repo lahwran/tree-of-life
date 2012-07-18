@@ -20,18 +20,22 @@ class TestTrackerLoad(object):
         tracker_obj.load(lines)
 
         root = tracker_obj.root
-        assert root.children[0].text == "args"
-        assert root.children[0].node_type == "firstchild"
+        root_child0 = root.children.next_neighbor
+        assert root_child0.text == "args"
+        assert root_child0.node_type == "firstchild"
 
-        assert root.children[0].children[0].text == "other args"
-        assert root.children[0].children[0].node_type == "secondchild"
-        assert root.children[0].children[0].metadata["option"] == "data"
+        root_child0_child0 = root_child0.children.next_neighbor
+        assert root_child0_child0.text == "other args"
+        assert root_child0_child0.node_type == "secondchild"
+        assert root_child0_child0.metadata["option"] == "data"
 
-        assert root.children[0].children[0].children[0].text == "herp derp"
-        assert root.children[0].children[0].children[0].node_type == "thirdchild"
+        root_child0_child0_child0 = root_child0_child0.children.next_neighbor
+        assert root_child0_child0_child0.text == "herp derp"
+        assert root_child0_child0_child0.node_type == "thirdchild"
 
-        assert root.children[0].children[1].text == "ark dark"
-        assert root.children[0].children[1].node_type == "fourthchild"
+        root_child0_child1 = root_child0_child0.next_neighbor
+        assert root_child0_child1.text == "ark dark"
+        assert root_child0_child1.node_type == "fourthchild"
 
     def test_bad_order(self):
         tracker_obj = Tracker(nodecreator=FakeNodeCreator())
@@ -145,3 +149,53 @@ def test_activate_next():
     print asdf
     print output_str
     assert asdf == output_str
+
+def test_random_insertion(monkeypatch):
+    tracker = Tracker()
+
+    input_str = (
+        "task: 0\n"
+        "task: 2\n"
+        "    @active\n"
+        "task: 4\n"
+    )
+
+    tracker.load(input_str)
+
+    tracker.create_before("task", "1")
+    tracker.create_after("task", "1.5")
+
+    tracker.activate_next()
+
+    tracker.create_after("task", "3")
+
+    while True:
+        try:
+            tracker.activate_next()
+        except StopIteration:
+            break
+
+    while True:
+        try:
+            tracker.activate_prev()
+        except StopIteration:
+            break
+
+    while True:
+        try:
+            tracker.activate_next()
+        except StopIteration:
+            break
+
+    expected_str = (
+        "task: 0\n"
+        "task: 1\n"
+        "task: 1.5\n"
+        "task: 2\n"
+        "task: 3\n"
+        "task: 4\n"
+        "    @active\n"
+    )
+
+    serialized = serialize_to_str(tracker.root)
+    assert serialized == expected_str

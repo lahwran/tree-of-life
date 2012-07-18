@@ -1,6 +1,7 @@
 import re
 import collections
 import inspect
+import operator
 
 from crow2.util import paramdecorator
 from crow2.adapterutil import IString
@@ -22,6 +23,44 @@ class _NodeCreatorTracker(object):
 
 nodecreator = _NodeCreatorTracker()
 
+class _NodeListIter(object):
+    def __init__(self, nodelist):
+        self.nodelist = self.node = nodelist
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self.node._next_node is self.nodelist:
+            raise StopIteration
+        self.node = self.node._next_node
+
+        return self.node
+
+class _NodeListRoot(object):
+    def __init__(self):
+        self._next_node = self
+        self._prev_node = self
+        self.length = 0
+
+    @property
+    def next_neighbor(self):
+        if self._next_node is not self:
+            return self._next_node
+        return None
+
+    @property
+    def prev_neighbor(self):
+        if self._prev_node is not self:
+            return self._prev_node
+        return None
+
+    def __iter__(self):
+        return _NodeListIter(self)
+
+    def __len__(self):
+        return self.length
+
 class Tree(object):
     multiline = False
     textless = False
@@ -37,31 +76,72 @@ class Tree(object):
             raise Exception("Days must not have text")
         if self.children_of and parent.node_type not in self.children_of:
             raise Exception("Must be child of what I belong to")
+        self.node_type = node_type
         self.text = text
         self.parent = parent
-        self.next_neighbor = None
-        self.previous_neighbor = None
         self.tracker = tracker
 
-        self.node_type = node_type
+        self._next_node = None
+        self._prev_node = None
+        self.parent_index = None
 
+        self.children = _NodeListRoot()
 
-        self.children = []
+    def iter_parents(self):
+        node = self
+        yield node
 
-    def addchild(self, child):
+        while node.parent is not None:
+            yield node.parent
+            node = node.parent
+
+    @property
+    def next_neighbor(self):
+        if self._next_node and self._next_node is self.parent.children:
+            return None
+        return self._next_node
+
+    @property
+    def prev_neighbor(self):
+        if self._prev_node and self._prev_node is self.parent.children:
+            return None
+        return self._prev_node
+
+    def addchild(self, child, before=None, after=None):
+        # note: this method makes a lot of assumptions about valid state!
         if self.allowed_children and child.node_type not in self.allowed_children:
             raise Exception("Herp Derp")
+        next_n = before
+        prev_n = after
 
-        if self.children:
-            previous = self.children[-1]
-        else:
-            previous = None
+        if not next_n and not prev_n:
+            next_n = self.children
+            prev_n = self.children._prev_node
 
-        self.children.append(child)
+        elif next_n and not prev_n:
+            prev_n = next_n._prev_node
+        elif prev_n and not next_n:
+            next_n = prev_n._next_node
 
-        if previous is not None:
-            previous.next_neighbor = child
-            child.previous_neighbor = previous
+        if prev_n._next_node is not next_n:
+            print prev_n
+            print next_n
+            print prev_n._next_node
+            raise Exception("derp")
+        if next_n._prev_node is not prev_n:
+            raise Exception("herp")
+
+        next_n._prev_node = child
+        child._next_node = next_n
+
+        prev_n._next_node = child
+        child._prev_node = prev_n
+        self.children.length += 1
+
+    def createchild(self, node_type, text=None, before=None, after=None):
+        node = self.tracker.nodecreator.create(node_type, text, self, self.tracker)
+        self.addchild(node, before=before, after=after)
+        return node
 
     def setoption(self, option, value):
         options = self._option_dict()
@@ -110,7 +190,7 @@ class Tree(object):
         return result
 
     def children_export(self):
-        return self.children
+        return list(self.children)
 
     def continue_text(self, text):
         if not self.multiline:
@@ -119,8 +199,8 @@ class Tree(object):
         self.text += "\n"
         self.text += text
 
-#    def __str__(self):
-#        return todo_tracker.file_storage.serialize(self)
+    def __str__(self):
+        return todo_tracker.file_storage.serialize(self)[0]
 
     def __repr__(self):
         result = [self]
@@ -187,10 +267,10 @@ class Tracker(object):
     def __init__(self, nodecreator=nodecreator):
         self.nodecreator = nodecreator
         self.root = Tree("root", "root", None, self)
-        self.active_node = None
+        self.active_node = self.root
 
     def load(self, reader):
-        self.root.children = []
+        self.__init__(self.nodecreator)
         stack = []
         lastnode = self.root
         lastindent = -1
@@ -234,26 +314,55 @@ class Tracker(object):
         node.active = True
         self.active_node = node
 
-    def activate_next(self, ascend=True, descend=True):
+    def _activate_attr(self, attr, ascend, descend):
         #TODO: does not take skipping already-done ones into account
+        attrgetter = operator.attrgetter(attr)
+
         node = self.active_node
         seen = set()
-        if ascend:
-            while node.next_neighbor is None and id(node) not in seen:
-                seen.add(id(node))
-                node = node.parent
-        if node is self.root:
-            raise NotImplementedError()
+        while node.parent and attrgetter(node) is None and id(node) not in seen:
+            seen.add(id(node))
+            node = node.parent
 
-        node = node.next_neighbor
+            if not ascend:
+                break # have to ascend at least one
 
-        if descend:
-            while len(node.children) and id(node) not in seen:
-                node = node.children[0]
-                seen.add(node)
+        if node is None:
+            raise StopIteration
+
+        if attrgetter(node):
+            node = attrgetter(node)
+
+            if descend:
+                while len(node.children) and id(node) not in seen:
+                    node = node.children._next_node
+                    seen.add(node)
 
         self.activate(node)
 
+    def activate_next(self, ascend=True, descend=True):
+        return self._activate_attr("next_neighbor", ascend, descend)
+
+    def activate_prev(self, ascend=True, descend=True):
+        return self._activate_attr("prev_neighbor", ascend, descend)
+
+    def _create_related(self, node_type, text, relation, activate):
+        newnode = self.active_node.parent.createchild(node_type, text,
+                **{relation: self.active_node})
+        if activate:
+            self.activate(newnode)
+        return newnode
+
+    def create_before(self, node_type, text, activate=True):
+        self._create_related(node_type, text, "before", activate)
+
+    def create_after(self, node_type, text, activate=True):
+        self._create_related(node_type, text, "after", activate)
+
+    def create_child(self, node_type, text, activate=True):
+        newnode = self.active_node.createchild(node_type, text)
+        if activate:
+            self.activate(newnode)
 
 class IParser(Interface):
     def __iter__():
