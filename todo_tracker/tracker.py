@@ -73,9 +73,9 @@ class Tree(object):
 
     def __init__(self, node_type, text, parent, tracker):
         if self.toplevel and parent != tracker.root:
-            raise Exception("Days must be child of root node")
+            raise Exception("Must be child of root node")
         if self.textless and text is not None:
-            raise Exception("Days must not have text")
+            raise Exception("Must not have text")
         if self.children_of and parent.node_type not in self.children_of:
             raise Exception("Must be child of what I belong to")
         self.node_type = node_type
@@ -140,9 +140,9 @@ class Tree(object):
         child._prev_node = prev_n
         self.children.length += 1
 
-    def createchild(self, node_type, text=None, before=None, after=None):
+    def createchild(self, node_type, text=None, *args, **keywords):
         node = self.tracker.nodecreator.create(node_type, text, self, self.tracker)
-        self.addchild(node, before=before, after=after)
+        self.addchild(node, *args, **keywords)
         return node
 
     def setoption(self, option, value):
@@ -268,12 +268,25 @@ class LoadError(Exception):
 class Tracker(object):
     def __init__(self, nodecreator=nodecreator):
         self.nodecreator = nodecreator
-        self.root = Tree("root", "life", None, self)
-        self.days = self.root.createchild('days')
-        self.active_node = self.days.createchild('day', 'today')
+        self._makeroot()
+
+        self._make_skeleton()
+
+    def _makeroot(self):
+        self.root = Tree("life", None, None, self)
+
+    def _make_skeleton(self):
+        self.days = None
+        self.root.createchild('days')
+
+        self.active_node = None
+        self.activate(self.days.createchild('day', 'today'))
+        self.repeating_tasks = self.days.createchild('repeating tasks')
+
+        self.todo = self.root.createchild('todo')
 
     def load(self, reader):
-        self.__init__(self.nodecreator)
+        self._makeroot()
         stack = []
         lastnode = self.root
         lastindent = -1
@@ -313,7 +326,6 @@ class Tracker(object):
         # jump to a particular node as active
         if self.active_node:
             self.active_node.active = False
-            self.active_node.finish()
 
         node.active = True
         self.active_node = node
@@ -336,7 +348,7 @@ class Tracker(object):
                 break
         return node
 
-    def _find_peer(self, peerattr):
+    def _navigate(self, peerattr):
         #TODO: does not take skipping already-done ones into account
         peergetter = operator.attrgetter(peerattr)
 
@@ -344,28 +356,28 @@ class Tracker(object):
 
         newnode = self._descend(peergetter, node)
         if newnode is not node:
-            return newnode
+            self.activate(newnode)
+            return
 
-        newnode = peergetter(node)
+        newnode = self._skip_ignored(peergetter, peergetter(node))
         if newnode is not None:
-            return newnode
+            self.activate(newnode)
+            node.finish()
+            return
 
-        if node.parent:
-            node = node.parent
-
-        if node is self.root:
-            raise StopIteration #TODO FIXME XXX: use something other than stopiteration
-
-        return node
-
-    def _activate_attr(self, *args, **keywords):
-        self.activate(self._find_peer(*args, **keywords))
+        newnode = self._skip_ignored(peergetter, node.parent)
+        if newnode:
+            if newnode is self.root:
+                raise StopIteration
+            self.activate(newnode)
+            node.finish()
+            return
 
     def activate_next(self, *args, **keywords):
-        return self._activate_attr("next_neighbor", *args, **keywords)
+        return self._navigate("next_neighbor", *args, **keywords)
 
     def activate_prev(self, *args, **keywords):
-        return self._activate_attr("prev_neighbor", *args, **keywords)
+        return self._navigate("prev_neighbor", *args, **keywords)
 
     def _create_related(self, node_type, text, relation, activate):
         newnode = self.active_node.parent.createchild(node_type, text,

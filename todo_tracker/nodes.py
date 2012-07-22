@@ -69,20 +69,25 @@ class Day(BaseTask):
     def text(self, new):
         self.date = IDate(new)
 
-@nodecreator("minor tasks")
-class MinorTasks(Tree):
+    @property
+    def can_activate(self):
+        if not datetime.datetime.now().date() == self.date:
+            return False
+        return super(Day, self).can_activate
+
+@nodecreator("repeating tasks")
+class RepeatingTasks(Tree):
     textless = True
 
 @nodecreator("days")
 class Days(Tree):
     textless = True
     toplevel = True
-    children_of = ["root"]
-    allowed_children = ["minor_tasks", "day"]
+    allowed_children = ["repeating tasks", "day"]
 
     def __init__(self, node_type, text, parent, tracker):
         super(Days, self).__init__(node_type, text, parent, tracker)
-        self.minor_tasks = None
+        self.repeating_tasks = None
         tracker.days = self
         self.day_children = {}
 
@@ -92,22 +97,32 @@ class Days(Tree):
         try:
             result = self.day_children[today]
         except KeyError:
-            result = self.day_children[today] = Day("day", today, self, self.tracker)
+            result = self.createchild("day", today)
         return result
 
-    def addchild(self, child, *args, **keywords):
-        if child.node_type == "minor tasks":
-            if self.minor_tasks is not None:
+    def addchild(self, child):
+        if child.node_type == "repeating tasks":
+            if self.repeating_tasks is not None:
                 raise Exception("herp derp")
-            self.minor_tasks = child
+            self.repeating_tasks = child
             return
 
-        super(Days, self).addchild(child, *args, **keywords)
+        before = None
+        after = None
+
+        for existing_child in self.children:
+            if existing_child.date < child.date:
+                after = existing_child
+            elif existing_child.date > child.date:
+                before = existing_child
+
+        super(Days, self).addchild(child, before=before, after=after)
+        self.day_children[child.date] = child
 
     def children_export(self):
         prefix = []
-        if self.minor_tasks is not None:
-            prefix.append(self.minor_tasks)
+        if self.repeating_tasks is not None:
+            prefix.append(self.repeating_tasks)
         return prefix + list(self.children)
 
 @nodecreator("category")
@@ -126,3 +141,8 @@ class Event(BaseTask):
         ("when", SimpleOption(IEstimatedDatetime)),
         ("where", SimpleOption(IString)),
     )
+
+@nodecreator("todo")
+class TodoList(Tree):
+    toplevel = True
+

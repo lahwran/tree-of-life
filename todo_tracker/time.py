@@ -1,4 +1,4 @@
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 
 from zope.interface import Interface, implementer
 from crow2.adapterutil import register, adapter_for, IString
@@ -23,6 +23,8 @@ class IEstimatedDatetime(Interface):
 def adapt(string):
     if string.lower() == "today":
         return date.today()
+    if string.lower() == "tomorrow":
+        return (datetime.now() + timedelta(days=1)).date()
     return datetime.strptime(string, date_format).date()
 register(lambda string: datetime.strptime(string, time_format).time(), IString, ITime)
 register(lambda string: datetime.strptime(string, datetime_format), IString, IDateTime)
