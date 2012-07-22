@@ -2,6 +2,7 @@ import re
 import collections
 import inspect
 import operator
+import itertools
 
 from crow2.util import paramdecorator
 from crow2.adapterutil import IString
@@ -65,6 +66,7 @@ class Tree(object):
     multiline = False
     textless = False
     toplevel = False
+    can_activate = False
     options = ()
     children_of = None
     allowed_children = None
@@ -266,8 +268,8 @@ class LoadError(Exception):
 class Tracker(object):
     def __init__(self, nodecreator=nodecreator):
         self.nodecreator = nodecreator
-        self.root = Tree("root", "root", None, self)
-        self.active_node = self.root
+        self.root = Tree("root", "life", None, self)
+        self.active_node = None
 
     def load(self, reader):
         self.__init__(self.nodecreator)
@@ -310,41 +312,59 @@ class Tracker(object):
         # jump to a particular node as active
         if self.active_node:
             self.active_node.active = False
+            self.active_node.finish()
 
         node.active = True
         self.active_node = node
+        node.start()
 
-    def _activate_attr(self, attr, ascend, descend):
+    def _skip_ignored(self, peergetter, node):
+        while node is not None:
+            if node.can_activate:
+                return node
+            node = peergetter(node)
+        return None
+
+    def _descend(self, peergetter, node):
+        while peergetter(node.children):
+            next_node = peergetter(node.children)
+            next_node = self._skip_ignored(peergetter, next_node)
+            if next_node:
+                node = next_node
+            else:
+                break
+        return node
+
+    def _find_peer(self, peerattr):
         #TODO: does not take skipping already-done ones into account
-        attrgetter = operator.attrgetter(attr)
+        peergetter = operator.attrgetter(peerattr)
 
         node = self.active_node
-        seen = set()
-        while node.parent and attrgetter(node) is None and id(node) not in seen:
-            seen.add(id(node))
+
+        newnode = self._descend(peergetter, node)
+        if newnode is not node:
+            return newnode
+
+        newnode = peergetter(node)
+        if newnode is not None:
+            return newnode
+
+        if node.parent:
             node = node.parent
 
-            if not ascend:
-                break # have to ascend at least one
+        if node is self.root:
+            raise StopIteration #TODO FIXME XXX: use something other than stopiteration
 
-        if node is None:
-            raise StopIteration
+        return node
 
-        if attrgetter(node):
-            node = attrgetter(node)
+    def _activate_attr(self, *args, **keywords):
+        self.activate(self._find_peer(*args, **keywords))
 
-            if descend:
-                while len(node.children) and id(node) not in seen:
-                    node = node.children._next_node
-                    seen.add(node)
+    def activate_next(self, *args, **keywords):
+        return self._activate_attr("next_neighbor", *args, **keywords)
 
-        self.activate(node)
-
-    def activate_next(self, ascend=True, descend=True):
-        return self._activate_attr("next_neighbor", ascend, descend)
-
-    def activate_prev(self, ascend=True, descend=True):
-        return self._activate_attr("prev_neighbor", ascend, descend)
+    def activate_prev(self, *args, **keywords):
+        return self._activate_attr("prev_neighbor", *args, **keywords)
 
     def _create_related(self, node_type, text, relation, activate):
         newnode = self.active_node.parent.createchild(node_type, text,

@@ -14,19 +14,21 @@ def _makenode(string):
 command = HookMultiplexer(hook_class=CommandHook, childarg="command")
 
 @command
+@command("finished")
+@command("next")
 def done(event):
-    event.tracker.activate_next(ascend=False, descend=True)
-
-@command
-def activate_next(event):
     event.tracker.activate_next()
 
 @command
+@command("donext")
+@command(">")
 def after(event):
     node_type, text = _makenode(event.text)
     event.tracker.create_after(node_type, text, activate=False)
 
 @command
+@command("dofirst")
+@command("<")
 def before(event):
     node_type, text = _makenode(event.text)
     event.tracker.create_before(node_type, text, activate=True)
@@ -37,12 +39,35 @@ def createchild(event):
     event.tracker.create_child(node_type, text, activate=True)
 
 @command
+@command("edit")
 def vim(event):
     event.ui.vim()
 
-#@command("list")
-#def list_current(event):
-#    pass
+def _generate_listing(active, root, node, lines=None, indent=0):
+    if lines is None:
+        lines = []
+
+    indent_text = " " * 4
+    if active is node:
+        prefix = "> "
+    else:
+        prefix = "  "
+
+    if node is root:
+        indent = -1
+    else:
+        lines.append(prefix + (indent_text * indent) + str(node))
+
+    for child in node.children:
+        _generate_listing(active, root, child, lines, indent+1)
+    return lines
+
+@command("list")
+def list_current(event):
+    active = event.tracker.active_node
+    root = event.tracker.root
+    lines = _generate_listing(active, root, event.ui.displaychain()[-1])
+    event.ui.display_lines(lines)
 
 class CommandLineInterface(object):
     def __init__(self, tracker):
@@ -68,7 +93,6 @@ class CommandLineInterface(object):
 
         self._command(command_name, text)
 
-
     def vim(self):
         import tempfile
         import os
@@ -91,15 +115,16 @@ class CommandLineInterface(object):
 
             os.unlink(tmp)
         self.term_subprocess(["vim", "--", tmp], callback)
-    
+
+    def displaychain(self):
+        return [x[0] for x in zip(self.tracker.active_node.iter_parents(), range(self.max_format_depth))]
+
     def _format_active(self):
         items = []
         result = ""
-        for node in self.tracker.active_node.iter_parents():
+        for node in self.displaychain():
             items.append(str(node))
             result = " > ".join(items[::-1])
-            if len(items) >= self.max_ps1_len:
-                break
             if len(result) > self.max_ps1_len:
                 break
             
@@ -120,3 +145,6 @@ class CommandLineInterface(object):
 
     def errormessage(self, message):
         print message
+
+    def display_lines(self, lines):
+        print "\n".join(lines)

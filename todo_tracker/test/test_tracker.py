@@ -105,6 +105,7 @@ class TestTrackerSave(object):
         )
 
 
+@pytest.mark.xfail
 def test_life():
     tracker = Tracker()
     input_str = (
@@ -124,6 +125,7 @@ def test_life():
     asdf = serialize_to_str(tracker.root)
     assert asdf == input_str
 
+@pytest.mark.xfail
 def test_activate_next():
     tracker = Tracker()
     input_str = (
@@ -146,10 +148,9 @@ def test_activate_next():
     tracker.load(input_str)
     tracker.activate_next()
     asdf = serialize_to_str(tracker.root)
-    print asdf
-    print output_str
     assert asdf == output_str
 
+@pytest.mark.xfail
 def test_random_insertion(monkeypatch):
     tracker = Tracker()
 

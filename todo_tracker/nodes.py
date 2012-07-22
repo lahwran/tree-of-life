@@ -1,3 +1,5 @@
+import datetime
+
 from zope.interface import Interface
 from crow2.adapterutil import IString
 
@@ -25,12 +27,17 @@ class BaseTask(Tree):
 
     def start(self):
         if self.started:
+            return
             # wtf do we do now?
             raise Exception("fixme, need to do something about restarts")
         self.started = datetime.datetime.now()
 
     def finish(self):
         self.finished = datetime.datetime.now()
+
+    @property
+    def can_activate(self):
+        return self.finished is None
 
 @nodecreator("task")
 @nodecreator("project")
