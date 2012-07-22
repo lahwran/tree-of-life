@@ -95,14 +95,14 @@ class Days(Tree):
             result = self.day_children[today] = Day("day", today, self, self.tracker)
         return result
 
-    def addchild(self, child):
+    def addchild(self, child, *args, **keywords):
         if child.node_type == "minor tasks":
             if self.minor_tasks is not None:
                 raise Exception("herp derp")
             self.minor_tasks = child
             return
 
-        super(Days, self).addchild(child)
+        super(Days, self).addchild(child, *args, **keywords)
 
     def children_export(self):
         prefix = []

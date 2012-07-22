@@ -269,7 +269,8 @@ class Tracker(object):
     def __init__(self, nodecreator=nodecreator):
         self.nodecreator = nodecreator
         self.root = Tree("root", "life", None, self)
-        self.active_node = None
+        self.days = self.root.createchild('days')
+        self.active_node = self.days.createchild('day', 'today')
 
     def load(self, reader):
         self.__init__(self.nodecreator)

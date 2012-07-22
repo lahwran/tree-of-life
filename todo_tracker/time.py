@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 
 from zope.interface import Interface, implementer
-from crow2.adapterutil import register, IString
+from crow2.adapterutil import register, adapter_for, IString
 
 date_format = "%B %d, %Y"
 time_format = "%I:%M %p"
@@ -19,7 +19,11 @@ class IDateTime(Interface):
 class IEstimatedDatetime(Interface):
     pass
 
-register(lambda string: datetime.strptime(string, date_format).date(), IString, IDate)
+@adapter_for(IString, IDate)
+def adapt(string):
+    if string.lower() == "today":
+        return date.today()
+    return datetime.strptime(string, date_format).date()
 register(lambda string: datetime.strptime(string, time_format).time(), IString, ITime)
 register(lambda string: datetime.strptime(string, datetime_format), IString, IDateTime)
 
