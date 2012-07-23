@@ -69,6 +69,17 @@ def list_current(event):
     lines = _generate_listing(active, root, event.ui.displaychain()[-1])
     event.ui.display_lines(lines)
 
+@command
+def todo(event):
+#    node_type, text = _makenode(event.text)
+    if event.text:
+        event.tracker.todo.createchild("todo", event.text)
+    else:
+        for child in event.tracker.todo.children:
+#           if len(child.children):
+#               do something
+            print child
+
 class CommandLineInterface(object):
     def __init__(self, tracker):
         self.tracker = tracker

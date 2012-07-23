@@ -283,7 +283,8 @@ class Tracker(object):
         self.activate(self.days.createchild('day', 'today'))
         self.repeating_tasks = self.days.createchild('repeating tasks')
 
-        self.todo = self.root.createchild('todo')
+        self.todo = None
+        self.root.createchild('todo bucket')
 
     def load(self, reader):
         self._makeroot()

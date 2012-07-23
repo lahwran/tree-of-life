@@ -131,6 +131,7 @@ class Category(Tree):
 
 @nodecreator("comment")
 @nodecreator("IGNORE")
+@nodecreator("todo")
 class Comment(Tree):
     multiline = True
 
@@ -142,7 +143,11 @@ class Event(BaseTask):
         ("where", SimpleOption(IString)),
     )
 
-@nodecreator("todo")
-class TodoList(Tree):
+@nodecreator("todo bucket")
+class TodoBucket(Tree):
     toplevel = True
+    allowed_children = ["todo"]
 
+    def __init__(self, node_type, text, parent, tracker):
+        super(TodoBucket, self).__init__(node_type, text, parent, tracker)
+        tracker.todo = self
