@@ -100,13 +100,15 @@ class Days(Tree):
             result = self.createchild("day", today)
         return result
 
-    def addchild(self, child):
+    def addchild(self, child, *args, **keywords):
         if child.node_type == "repeating tasks":
             if self.repeating_tasks is not None:
                 raise Exception("herp derp")
             self.repeating_tasks = child
             return
 
+        if len(args) or len(keywords):
+            raise Exception("this addchild does not take any special arguments")
         before = None
         after = None
 
@@ -131,7 +133,6 @@ class Category(Tree):
 
 @nodecreator("comment")
 @nodecreator("IGNORE")
-@nodecreator("todo")
 class Comment(Tree):
     multiline = True
 
@@ -143,6 +144,12 @@ class Event(BaseTask):
         ("where", SimpleOption(IString)),
     )
 
+@nodecreator("todo")
+class TodoItem(Tree):
+    children_of = ["todo bucket"]
+    allowed_children = []
+    multiline = True
+
 @nodecreator("todo bucket")
 class TodoBucket(Tree):
     toplevel = True
@@ -151,3 +158,48 @@ class TodoBucket(Tree):
     def __init__(self, node_type, text, parent, tracker):
         super(TodoBucket, self).__init__(node_type, text, parent, tracker)
         tracker.todo = self
+
+    def move_review_task(self):
+        todo_review = self.tracker.todo_review
+        if not len(self.children):
+            self.tracker.todo_review = None
+            todo_review.detach()
+            return
+
+
+        after_node = self.tracker.active_node
+        if not after_node:
+            return # not much we can do :(
+        for node in after_node.iter_parents():
+            after_node = node
+            newparent = after_node.parent
+            if newparent.node_type == "day":
+                break
+        if newparent == self:
+            raise Exception("about to have a fit")
+
+        if todo_review:
+            todo_review.detach()
+            todo_review = todo_review.copy(parent=newparent)
+            newparent.addchild(todo_review, after=after_node)
+        else:
+            todo_review = newparent.createchild("todo review", after=after_node)
+
+        self.tracker.todo_review = todo_review
+
+    def addchild(self, child, *args, **keywords):
+        super(TodoBucket, self).addchild(child, *args, **keywords)
+        self.move_review_task()
+
+@nodecreator("todo review")
+class TodoReview(BaseTask):
+    textless = True
+    def __init__(self, node_type, text, parent, tracker):
+        super(TodoReview, self).__init__(node_type, text, parent, tracker)
+
+    def load_finished(self):
+        if (self.tracker.todo_review is not None and
+                self.tracker.todo_review is not self):
+            raise Exception("herp derp")
+        self.tracker.todo_review = self
+

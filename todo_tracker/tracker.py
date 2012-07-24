@@ -44,6 +44,48 @@ class _NodeListRoot(object):
         self._prev_node = self
         self.length = 0
 
+    def insert(self, child, before=None, after=None):
+        # note: this method makes a lot of assumptions about valid state!
+        next_n = before
+        prev_n = after
+
+        if not next_n and not prev_n:
+            next_n = self
+            prev_n = self._prev_node
+
+        elif next_n and not prev_n:
+            prev_n = next_n._prev_node
+        elif prev_n and not next_n:
+            next_n = prev_n._next_node
+
+        if prev_n._next_node is not next_n:
+            print prev_n
+            print next_n
+            print prev_n._next_node
+            raise Exception("derp")
+        if next_n._prev_node is not prev_n:
+            print prev_n
+            print next_n
+            print prev_n._next_node
+            print next_n._prev_node
+            raise Exception("herp")
+
+        next_n._prev_node = child
+        child._next_node = next_n
+
+        prev_n._next_node = child
+        child._prev_node = prev_n
+        self.length += 1
+
+    def remove(self, child):
+        before = child._prev_node
+        after = child._next_node
+        child._prev_node = None
+        child._next_node = None
+        before._next_node = after
+        after._prev_node = before
+        self.length -= 1
+
     @property
     def next_neighbor(self):
         if self._next_node is not self:
@@ -85,7 +127,6 @@ class Tree(object):
 
         self._next_node = None
         self._prev_node = None
-        self.parent_index = None
 
         self.children = _NodeListRoot()
 
@@ -96,6 +137,17 @@ class Tree(object):
         while node.parent is not None:
             yield node.parent
             node = node.parent
+
+    def iter_flat_children(self):
+        stack = [iter(self.children)]
+        while len(stack):
+            try:
+                item = next(stack[-1])
+            except StopIteration:
+                stack.pop()
+            else:
+                yield len(stack), item
+                stack.append(iter(item.children))
 
     @property
     def next_neighbor(self):
@@ -110,40 +162,33 @@ class Tree(object):
         return self._prev_node
 
     def addchild(self, child, before=None, after=None):
-        # note: this method makes a lot of assumptions about valid state!
         if self.allowed_children and child.node_type not in self.allowed_children:
             raise Exception("Herp Derp")
-        next_n = before
-        prev_n = after
-
-        if not next_n and not prev_n:
-            next_n = self.children
-            prev_n = self.children._prev_node
-
-        elif next_n and not prev_n:
-            prev_n = next_n._prev_node
-        elif prev_n and not next_n:
-            next_n = prev_n._next_node
-
-        if prev_n._next_node is not next_n:
-            print prev_n
-            print next_n
-            print prev_n._next_node
-            raise Exception("derp")
-        if next_n._prev_node is not prev_n:
-            raise Exception("herp")
-
-        next_n._prev_node = child
-        child._next_node = next_n
-
-        prev_n._next_node = child
-        child._prev_node = prev_n
-        self.children.length += 1
+        self.children.insert(child, before, after)
 
     def createchild(self, node_type, text=None, *args, **keywords):
         node = self.tracker.nodecreator.create(node_type, text, self, self.tracker)
         self.addchild(node, *args, **keywords)
         return node
+
+    def removechild(self, child):
+        self.children.remove(child)
+        child.parent = None
+
+    def detach(self):
+        if self.parent:
+            self.parent.removechild(self)
+
+    def copy(self, parent=None, tracker=None):
+        if parent is None:
+            parent = self.parent
+        if tracker is None:
+            tracker = self.tracker
+        newnode = nodecreator.create(self.node_type, self.text, parent, tracker)
+        for child in self.children_export():
+            child_copy = child.copy(parent=newnode, tracker=tracker)
+            newnode.addchild(child_copy)
+        return newnode
 
     def setoption(self, option, value):
         options = self._option_dict()
@@ -200,6 +245,9 @@ class Tree(object):
 
         self.text += "\n"
         self.text += text
+
+    def load_finished(self):
+        pass
 
     def __str__(self):
         return todo_tracker.file_storage.serialize(self)[0]
@@ -273,18 +321,19 @@ class Tracker(object):
         self._make_skeleton()
 
     def _makeroot(self):
+        self.days = None
+        self.active_node = None
+        self.todo = None
+        self.todo_review = None
         self.root = Tree("life", None, None, self)
 
     def _make_skeleton(self):
-        self.days = None
-        self.root.createchild('days')
-
-        self.active_node = None
-        self.activate(self.days.createchild('day', 'today'))
-        self.repeating_tasks = self.days.createchild('repeating tasks')
-
-        self.todo = None
-        self.root.createchild('todo bucket')
+        if not self.days:
+            self.root.createchild('days')
+        if not self.active_node:
+            self.activate(self.days.createchild('day', 'today'))
+        if not self.todo:
+            self.root.createchild('todo bucket')
 
     def load(self, reader):
         self._makeroot()
@@ -318,6 +367,12 @@ class Tracker(object):
                 if node is not None:
                     parent.addchild(node)
                 lastnode = node
+
+        self._make_skeleton()
+
+        for depth, node in self.root.iter_flat_children():
+            node.load_finished()
+        
 
     def save(self, writer):
         serializer = ISerializer(writer)
