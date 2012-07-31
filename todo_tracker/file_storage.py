@@ -1,7 +1,8 @@
 from crow2.adapterutil import adapter_for, IString, IFile
 from zope.interface import implementer
 
-from todo_tracker.tracker import IParser, ISerializer, LoadError
+from todo_tracker.tracker import IParser, ISerializer
+from todo_tracker.exceptions import LoadError
 
 parsing_indent = 0
 parsing_type = 1
@@ -29,7 +30,7 @@ def parse_line(line):
 
                 parsing += 1
 
-        if char == "\n":
+        if char == "\n": #pragma: no cover
             continue
                 
         if parsing == parsing_type:

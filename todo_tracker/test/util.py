@@ -1,6 +1,6 @@
 
-from todo_tracker import tracker
+from todo_tracker import nodes
 
 class FakeNodeCreator(object):
-    def __init__(self, create=tracker.GenericNode):
+    def __init__(self, create=nodes.GenericNode):
         self.create = create

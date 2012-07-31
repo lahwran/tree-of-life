@@ -9,6 +9,7 @@ from crow2.adapterutil import IString
 from zope.interface import Interface
 
 from todo_tracker.ordereddict import OrderedDict
+from todo_tracker.exceptions import ListIntegrityError, LoadError
 
 class _NodeCreatorTracker(object):
     def __init__(self):
@@ -25,18 +26,33 @@ class _NodeCreatorTracker(object):
 nodecreator = _NodeCreatorTracker()
 
 class _NodeListIter(object):
-    def __init__(self, nodelist):
+    def __init__(self, nodelist, reverse=False):
         self.nodelist = self.node = nodelist
+        self.reverse = reverse
 
     def __iter__(self):
         return self
 
-    def next(self):
+    def _prev(self):
+        if self.node._prev_node is self.nodelist:
+            raise StopIteration
+        self.node = self.node._prev_node
+
+        return self.node
+
+    def _next(self):
         if self.node._next_node is self.nodelist:
             raise StopIteration
         self.node = self.node._next_node
 
         return self.node
+
+    def next(self):
+        if self.reverse:
+            return self._prev()
+        else:
+            return self._next()
+
 
 class _NodeListRoot(object):
     def __init__(self):
@@ -46,6 +62,9 @@ class _NodeListRoot(object):
 
     def insert(self, child, before=None, after=None):
         # note: this method makes a lot of assumptions about valid state!
+        if child._next_node is not None or child._prev_node is not None:
+            raise ListIntegrityError("Child node %r is already connected to %r and %r"
+                    % (child, child._prev_node, child._next_node))
         next_n = before
         prev_n = after
 
@@ -59,16 +78,13 @@ class _NodeListRoot(object):
             next_n = prev_n._next_node
 
         if prev_n._next_node is not next_n:
-            print prev_n
-            print next_n
-            print prev_n._next_node
-            raise Exception("derp")
+            raise ListIntegrityError(("prev_node %r has next neighbor %r, "
+                    "but next_n is %r and has prev neighbor %r") %
+                    (prev_n, prev_n._next_node, next_n, next_n._prev_node))
         if next_n._prev_node is not prev_n:
-            print prev_n
-            print next_n
-            print prev_n._next_node
-            print next_n._prev_node
-            raise Exception("herp")
+            raise ListIntegrityError(("next_node %r has prev neighbor %r, "
+                    "but prev_n is %r and has next neighbor %r") %
+                    (next_n, next_n._prev_node, prev_n, prev_n._next_node))
 
         next_n._prev_node = child
         child._next_node = next_n
@@ -101,6 +117,9 @@ class _NodeListRoot(object):
     def __iter__(self):
         return _NodeListIter(self)
 
+    def __reversed__(self):
+        return _NodeListIter(self, reverse=True)
+
     def __len__(self):
         return self.length
 
@@ -114,12 +133,6 @@ class Tree(object):
     allowed_children = None
 
     def __init__(self, node_type, text, parent, tracker):
-        if self.toplevel and parent != tracker.root:
-            raise Exception("Must be child of root node")
-        if self.textless and text is not None:
-            raise Exception("Must not have text")
-        if self.children_of and parent.node_type not in self.children_of:
-            raise Exception("Must be child of what I belong to")
         self.node_type = node_type
         self.text = text
         self.parent = parent
@@ -129,6 +142,18 @@ class Tree(object):
         self._prev_node = None
 
         self.children = _NodeListRoot()
+
+        if self.toplevel and parent != tracker.root:
+            raise LoadError("%r node must be child of root node" % self)
+
+        if self.textless and text is not None:
+            raise LoadError("%r node cannot have text" % self)
+
+        if self.children_of and parent.node_type not in self.children_of:
+            raise LoadError("%s cannot be child of %s node" % (self._do_repr(parent=False), self.parent._do_repr(parent=False)))
+
+        if not self.multiline and text is not None and "\n" in text:
+            raise LoadError("%r node cannot have newlines in text" % self)
 
     def iter_parents(self):
         node = self
@@ -162,8 +187,10 @@ class Tree(object):
         return self._prev_node
 
     def addchild(self, child, before=None, after=None):
-        if self.allowed_children and child.node_type not in self.allowed_children:
-            raise Exception("Herp Derp")
+        if self.allowed_children is not None and child.node_type not in self.allowed_children:
+            raise LoadError("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
+        if child.parent is not self:
+            raise LoadError("node %r does not expect to be a child of %r" % (child, self))
         self.children.insert(child, before, after)
 
     def createchild(self, node_type, text=None, *args, **keywords):
@@ -180,11 +207,14 @@ class Tree(object):
             self.parent.removechild(self)
 
     def copy(self, parent=None, tracker=None):
-        if parent is None:
-            parent = self.parent
         if tracker is None:
             tracker = self.tracker
-        newnode = nodecreator.create(self.node_type, self.text, parent, tracker)
+            if parent is None:
+                parent = self.parent
+        elif parent is None:
+            raise LoadError("cannot copy to different tracker using old parent")
+
+        newnode = tracker.nodecreator.create(self.node_type, self.text, parent, tracker)
         for child in self.children_export():
             child_copy = child.copy(parent=newnode, tracker=tracker)
             newnode.addchild(child_copy)
@@ -195,7 +225,7 @@ class Tree(object):
         try:
             handler = options[option]
         except KeyError:
-            raise Exception("no such option")
+            raise LoadError("node %r has no such option %r" % (self, option))
 
         try:
             handler.set(self, option, value)
@@ -241,10 +271,19 @@ class Tree(object):
 
     def continue_text(self, text):
         if not self.multiline:
-            raise Exception("multiline text not allowed")
+            raise LoadError("%r node cannot have newline in text" % self)
+        if self.text is None:
+            raise LoadError("Cannot add new line to text of node %r, since it has no text set" % self)
 
         self.text += "\n"
         self.text += text
+
+    def start(self):
+        if not self.can_activate:
+            raise LoadError("can't start this node :<")
+
+    def finish(self):
+        pass
 
     def load_finished(self):
         pass
@@ -252,15 +291,17 @@ class Tree(object):
     def __str__(self):
         return todo_tracker.file_storage.serialize(self)[0]
 
+    def _do_repr(self, parent=True):
+        if parent:
+            parent_repr = "None"
+            if self.parent:
+                parent_repr = self.parent._do_repr(parent=False)
+            return "<%s %r: %r @ %s %r>" % (type(self).__name__, self.node_type, self.text, parent_repr, self.tracker)
+        else:
+            return "<%s %r: %r>" % (type(self).__name__, self.node_type, self.text)
+
     def __repr__(self):
-        result = [self]
-        while result[-1] != self.tracker.root:
-            result.append(result[-1].parent)
-        result_strings = []
-        indent_text = " "
-        for indent, item in enumerate(reversed(result)):
-            result_strings.append("%s<%s %r: %r>" % (indent * indent_text, type(item).__name__, item.node_type, item.text))
-        return "\n".join(result_strings)
+        return self._do_repr()
 
 class SimpleOption(object):
     def __init__(self, adapter):
@@ -290,35 +331,20 @@ class BooleanOption(object):
         value = getattr(node, name)
         show = bool(value)
         return show, None
-        
 
-@nodecreator("_genericnode")
-class GenericNode(Tree):
-    multiline = True
-
-    def __init__(self, *args, **keywords):
-        super(GenericNode, self).__init__(*args, **keywords)
-        self.metadata = {}
-
-    def setoption(self, option, value):
-        self.metadata[option] = value
-
-    def option_values(self, adapter=None):
-        return [(x, y, True) for x, y in self.metadata.items()]
 
 @nodecreator('-')
 def continue_text(node_type, text, parent, root):
     parent.continue_text(text)
 
-class LoadError(Exception):
-    pass
-
 class Tracker(object):
-    def __init__(self, nodecreator=nodecreator):
+    def __init__(self, nodecreator=nodecreator, auto_skeleton=True):
         self.nodecreator = nodecreator
         self._makeroot()
 
-        self._make_skeleton()
+        self.auto_skeleton = auto_skeleton
+        if auto_skeleton:
+            self.make_skeleton()
 
     def _makeroot(self):
         self.days = None
@@ -327,13 +353,14 @@ class Tracker(object):
         self.todo_review = None
         self.root = Tree("life", None, None, self)
 
-    def _make_skeleton(self):
-        if not self.days:
-            self.root.createchild('days')
-        if not self.active_node:
-            self.activate(self.days.createchild('day', 'today'))
-        if not self.todo:
-            self.root.createchild('todo bucket')
+    def make_skeleton(self):
+        self.days = self.find_node(["days"]) or self.root.createchild('days')
+        today = self.find_node(["days", "day: today"])
+        if not today:
+            today = self.days.createchild('day', 'today')
+        self.activate(today)
+
+        self.todo = self.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
 
     def load(self, reader):
         self._makeroot()
@@ -345,7 +372,7 @@ class Tracker(object):
         for indent, is_metadata, node_type, text in IParser(reader):
             if indent > lastindent:
                 if indent > lastindent + 1:
-                    raise NotImplementedError()
+                    raise LoadError("indented too far")
                 stack.append(lastnode)
                 metadata_allowed_here = True
             elif indent < lastindent:
@@ -368,7 +395,8 @@ class Tracker(object):
                     parent.addchild(node)
                 lastnode = node
 
-        self._make_skeleton()
+        if self.auto_skeleton:
+            self.make_skeleton()
 
         for depth, node in self.root.iter_flat_children():
             node.load_finished()
@@ -423,8 +451,6 @@ class Tracker(object):
 
         newnode = self._skip_ignored(peergetter, node.parent)
         if newnode:
-            if newnode is self.root:
-                raise StopIteration
             self.activate(newnode)
             node.finish()
             return
@@ -442,16 +468,35 @@ class Tracker(object):
             self.activate(newnode)
         return newnode
 
-    def create_before(self, node_type, text, activate=True):
-        self._create_related(node_type, text, "before", activate)
+    def create_before(self, node_type, text=None, activate=True):
+        return self._create_related(node_type, text, "before", activate)
 
-    def create_after(self, node_type, text, activate=True):
-        self._create_related(node_type, text, "after", activate)
+    def create_after(self, node_type, text=None, activate=True):
+        return self._create_related(node_type, text, "after", activate)
 
-    def create_child(self, node_type, text, activate=True):
+    def create_child(self, node_type, text=None, activate=True):
         newnode = self.active_node.createchild(node_type, text)
         if activate:
             self.activate(newnode)
+        return newnode
+
+    def find_node(self, path):
+        parser = IParser("\n".join(path))
+        current = self.root
+        for indent, is_metadata, node_type, text in parser:
+            assert not is_metadata
+            assert not indent
+
+            temp_node = self.nodecreator.create(node_type, text, current, self)
+
+            for child in current.children:
+                if child.node_type == temp_node.node_type and child.text == temp_node.text:
+                    current = child
+                    break
+            else:
+                return None
+
+        return current
 
 class IParser(Interface):
     def __iter__():

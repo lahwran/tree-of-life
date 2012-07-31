@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 from zope.interface import Interface
 from crow2.adapterutil import IString
@@ -30,10 +30,10 @@ class BaseTask(Tree):
             return
             # wtf do we do now?
             raise Exception("fixme, need to do something about restarts")
-        self.started = datetime.datetime.now()
+        self.started = datetime.now()
 
     def finish(self):
-        self.finished = datetime.datetime.now()
+        self.finished = datetime.now()
 
     @property
     def can_activate(self):
@@ -71,7 +71,7 @@ class Day(BaseTask):
 
     @property
     def can_activate(self):
-        if not datetime.datetime.now().date() == self.date:
+        if not datetime.now().date() == self.date:
             return False
         return super(Day, self).can_activate
 
@@ -88,7 +88,6 @@ class Days(Tree):
     def __init__(self, node_type, text, parent, tracker):
         super(Days, self).__init__(node_type, text, parent, tracker)
         self.repeating_tasks = None
-        tracker.days = self
         self.day_children = {}
 
     @property
@@ -157,7 +156,9 @@ class TodoBucket(Tree):
 
     def __init__(self, node_type, text, parent, tracker):
         super(TodoBucket, self).__init__(node_type, text, parent, tracker)
-        tracker.todo = self
+
+    def load_finished(self):
+        self.tracker.todo = self
 
     def move_review_task(self):
         todo_review = self.tracker.todo_review
@@ -198,8 +199,54 @@ class TodoReview(BaseTask):
         super(TodoReview, self).__init__(node_type, text, parent, tracker)
 
     def load_finished(self):
-        if (self.tracker.todo_review is not None and
-                self.tracker.todo_review is not self):
-            raise Exception("herp derp")
         self.tracker.todo_review = self
 
+@nodecreator("_gennode")
+class GenericNode(Tree):
+    multiline = True
+
+    def __init__(self, node_type="_gennode", text=None, parent=None, tracker=None):
+        super(GenericNode, self).__init__(node_type, text, parent, tracker)
+        self.metadata = {}
+
+    def setoption(self, option, value):
+        self.metadata[option] = value
+
+    def option_values(self, adapter=None):
+        return [(x, y, True) for x, y in self.metadata.items()]
+
+@nodecreator("_genactive")
+class GenericActivate(GenericNode):
+    def __init__(self, node_type="_genactive", text=None, parent=None, tracker=None):
+        super(GenericActivate, self).__init__(node_type, text, parent, tracker)
+        self.deactivate = False
+
+    def setoption(self, option, value):
+        if option == "active":
+            self.tracker.activate(self)
+        super(GenericActivate, self).setoption(option, value)
+
+    @property
+    def active(self):
+        return "active" in self.metadata
+
+    @active.setter
+    def active(self, newvalue):
+        if "active" in self.metadata:
+            del self.metadata["active"]
+
+        if newvalue:
+            self.metadata["active"] = None
+
+    def start(self):
+        if "deactivate" in self.metadata:
+            del self.metadata["deactivate"]
+            self.deactivate = True
+
+    def finish(self):
+        if self.deactivate:
+            self.metadata["locked"] = None
+
+    @property
+    def can_activate(self):
+        return not "locked" in self.metadata

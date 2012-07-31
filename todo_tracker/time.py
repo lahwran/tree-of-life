@@ -22,7 +22,7 @@ class IEstimatedDatetime(Interface):
 @adapter_for(IString, IDate)
 def adapt(string):
     if string.lower() == "today":
-        return date.today()
+        return datetime.now().date()
     if string.lower() == "tomorrow":
         return (datetime.now() + timedelta(days=1)).date()
     return datetime.strptime(string, date_format).date()
