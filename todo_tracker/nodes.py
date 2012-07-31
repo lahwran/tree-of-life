@@ -111,6 +111,9 @@ class Days(Tree):
         before = None
         after = None
 
+        if self.allowed_children is not None and child.node_type not in self.allowed_children:
+            raise Exception("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
+
         for existing_child in self.children:
             if existing_child.date < child.date:
                 after = existing_child
@@ -167,17 +170,21 @@ class TodoBucket(Tree):
             todo_review.detach()
             return
 
-
-        after_node = self.tracker.active_node
-        if not after_node:
+        active = self.tracker.active_node
+        if not active:
             return # not much we can do :(
-        for node in after_node.iter_parents():
-            after_node = node
-            newparent = after_node.parent
-            if newparent.node_type == "day":
+        newparent = None
+        after_node = None
+        for node in active.iter_parents():
+            after_node = newparent
+            newparent = node
+            if node is self.tracker.root or newparent.node_type == "day":
                 break
-        if newparent == self:
+
+        if newparent == self or newparent == todo_review:
             raise Exception("about to have a fit")
+        if todo_review and after_node is todo_review:
+            after_node = after_node.next_neighbor
 
         if todo_review:
             todo_review.detach()
@@ -199,7 +206,15 @@ class TodoReview(BaseTask):
         super(TodoReview, self).__init__(node_type, text, parent, tracker)
 
     def load_finished(self):
+        if self.tracker.todo_review and self.tracker.todo_review is not self:
+            self.tracker.todo_review.detach()
         self.tracker.todo_review = self
+        self.tracker.todo.move_review_task()
+
+    def finish(self):
+        super(TodoReview, self).finish()
+        self.tracker.todo.move_review_task()
+
 
 @nodecreator("_gennode")
 class GenericNode(Tree):

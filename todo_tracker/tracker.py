@@ -96,8 +96,8 @@ class _NodeListRoot(object):
     def remove(self, child):
         before = child._prev_node
         after = child._next_node
-        child._prev_node = None
-        child._next_node = None
+#        child._prev_node = None
+#        child._next_node = None
         before._next_node = after
         after._prev_node = before
         self.length -= 1
@@ -191,6 +191,10 @@ class Tree(object):
             raise LoadError("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
         if child.parent is not self:
             raise LoadError("node %r does not expect to be a child of %r" % (child, self))
+        if before and before.parent is not self:
+            raise LoadError("node %r cannot be before node %r as child of %r" % (child, before, self))
+        if after and after.parent is not self:
+            raise LoadError("node %r cannot be after node %r as child of %r" % (child, after, self))
         self.children.insert(child, before, after)
 
     def createchild(self, node_type, text=None, *args, **keywords):
