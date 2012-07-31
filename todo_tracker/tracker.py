@@ -62,9 +62,6 @@ class _NodeListRoot(object):
 
     def insert(self, child, before=None, after=None):
         # note: this method makes a lot of assumptions about valid state!
-        if child._next_node is not None or child._prev_node is not None:
-            raise ListIntegrityError("Child node %r is already connected to %r and %r"
-                    % (child, child._prev_node, child._next_node))
         next_n = before
         prev_n = after
 

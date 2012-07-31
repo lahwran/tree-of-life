@@ -672,16 +672,6 @@ class TestNodeList(object):
         with pytest.raises(exceptions.ListIntegrityError):
             nodelist.insert(toinsert, after=node1, before=node3)
 
-    def test_insert_twice(self):
-        nodelist = _NodeListRoot()
-
-        node1 = GenericNode('node1')
-
-        nodelist.insert(node1)
-
-        with pytest.raises(exceptions.ListIntegrityError):
-            nodelist.insert(node1)
-
     def test_insert_remove(self):
         nodelist1 = _NodeListRoot()
         nodelist2 = _NodeListRoot()
