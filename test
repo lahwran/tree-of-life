@@ -1,0 +1,9 @@
+task: herp derp
+days
+    day: August 01, 2012
+        @started: August 01, 2012 09:51 AM
+        @active
+        work on: herp derp
+            @started: August 01, 2012 09:52 AM
+            @finished: August 01, 2012 09:52 AM
+todo bucket

@@ -25,6 +25,8 @@ class BaseTask(Tree):
         self.finished = None
         self.active = False
 
+        self.referred_to = set()
+
     def start(self):
         if self.started:
             return
@@ -265,3 +267,30 @@ class GenericActivate(GenericNode):
     @property
     def can_activate(self):
         return not "locked" in self.metadata
+
+class _ReferenceNodeList(object):
+
+
+class _ReferenceSlave(object):
+    def __init__(self, begin, end):
+
+@nodecreator("work on")
+class Reference(BaseTask):
+    def __init__(self, node_type, text, parent, tracker):
+        super(Reference, self).__init__(node_type, text, parent, tracker)
+
+    @property
+    def text(self):
+        nodes = list(self.target.iter_parents(skip_root=True))
+        return " > ".join(node.text for node in reversed(nodes))
+
+    @text.setter
+    def text(self, newtext):
+        path = [x.strip() for x in newtext.split(">")]
+        node = self.tracker.find_node(path)
+        if not isinstance(node, BaseTask):
+            pass # herp derp
+        if self.target:
+            self.target.referred_to.remove(self)
+        self.target = node
+        self.target.referred_to.add(self)

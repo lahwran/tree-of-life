@@ -2,6 +2,7 @@ from crow2.events.hooktree import HookMultiplexer, CommandHook
 from crow2.events.exceptions import NameResolutionError
 
 from todo_tracker.file_storage import parse_line
+from todo_tracker.tracker import nodecreator
 
 def _makenode(string):
     indent, is_metadata, node_type, text = parse_line(string)
@@ -94,15 +95,19 @@ class CommandLineInterface(object):
             self.errormessage("no such command %r" % command_name)
 
     def command(self, line):
-        command_name, center, text = line.partition(" ")
-        if not command_name:
+        if not line.strip():
             return
 
-        if command_name.endswith(":"):
-            text = line
+        node_type, separator, text = line.partition(": ")
+        if node_type in nodecreator.creators:
+            command_text = line
             command_name = self._default_command
+        else:
+            command_name, center, command_text = line.partition(" ")
+            if not command_name:
+                return
 
-        self._command(command_name, text)
+        self._command(command_name, command_text)
 
     def vim(self):
         import tempfile

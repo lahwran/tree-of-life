@@ -1,3 +1,5 @@
+import sys
+
 from twisted.python import log
 
 from todo_tracker.tracker import Tracker
@@ -40,4 +42,7 @@ def main(filename):
 
 
 if __name__ == "__main__":
-    main("activities")
+    name = "activities"
+    if len(sys.argv) > 1:
+        name = sys.argv[1]
+    main(name)

@@ -18,8 +18,11 @@ class _NodeCreatorTracker(object):
     def create(self, node_type, text, parent, tracker):
         return self.creators[node_type](node_type, text, parent, tracker)
 
+    def exists(self, node_type):
+        return node_type in self.creators
+
     @paramdecorator
-    def __call__(self, func, name=None):
+    def __call__(self, func, name):
         self.creators[name] = func
         return func
 
@@ -123,6 +126,7 @@ class _NodeListRoot(object):
 class Tree(object):
     multiline = False
     textless = False
+    text_required = False
     toplevel = False
     can_activate = False
     options = ()
@@ -130,10 +134,10 @@ class Tree(object):
     allowed_children = None
 
     def __init__(self, node_type, text, parent, tracker):
+        self.tracker = tracker
+        self.parent = parent
         self.node_type = node_type
         self.text = text
-        self.parent = parent
-        self.tracker = tracker
 
         self._next_node = None
         self._prev_node = None
@@ -146,19 +150,25 @@ class Tree(object):
         if self.textless and text is not None:
             raise LoadError("%r node cannot have text" % self)
 
+        if self.text_required and text is None:
+            raise LoadError("%r node must have text" % self)
+
         if self.children_of and parent.node_type not in self.children_of:
             raise LoadError("%s cannot be child of %s node" % (self._do_repr(parent=False), self.parent._do_repr(parent=False)))
 
         if not self.multiline and text is not None and "\n" in text:
             raise LoadError("%r node cannot have newlines in text" % self)
 
-    def iter_parents(self):
+    def iter_parents(self, skip_root=False):
         node = self
-        yield node
 
-        while node.parent is not None:
-            yield node.parent
+        while True:
+            yield node
             node = node.parent
+            if node is None:
+                break
+            if skip_root and node is self.tracker.root:
+                break
 
     def iter_flat_children(self):
         stack = [iter(self.children)]
@@ -281,7 +291,7 @@ class Tree(object):
 
     def start(self):
         if not self.can_activate:
-            raise LoadError("can't start this node :<")
+            raise LoadError("can't start node %r" % self)
 
     def finish(self):
         pass
@@ -481,23 +491,81 @@ class Tracker(object):
             self.activate(newnode)
         return newnode
 
-    def find_node(self, path):
-        parser = IParser("\n".join(path))
-        current = self.root
-        for indent, is_metadata, node_type, text in parser:
-            assert not is_metadata
-            assert not indent
+    def find_node(self, path, offset=0, current=None):
+        if current is None:
+            current = self.root
 
-            temp_node = self.nodecreator.create(node_type, text, current, self)
+        if offset >= len(path):
+            return current
+        segment = path[offset]
 
-            for child in current.children:
-                if child.node_type == temp_node.node_type and child.text == temp_node.text:
-                    current = child
-                    break
-            else:
-                return None
+        matcher = _NodeMatcher(self.nodecreator, segment, current, self)
+        asf = matcher.iter_results()
+        for child in asf:
+            node = self.find_node(path, offset+1, current=child)
 
-        return current
+            if node is not None:
+                return node
+
+        return None
+
+
+class _NodeMatcher(object):
+    def __init__(self, nodecreator, segment, node, tracker):
+        if segment == "**":
+            self.flatten = True
+            return
+        else:
+            self.flatten = False
+
+        from todo_tracker.file_storage import parse_line
+        indent, is_metadata, node_type, text = parse_line(segment)
+        assert not indent
+        assert not is_metadata
+
+        exists = nodecreator.exists(node_type)
+        if text is None and (exists or node_type == "*"):
+            # *
+            # days
+            text = "*"
+            # *: *
+            # days: *
+        elif text is None and not (exists or node_type == "*"):
+            # herp derp
+            # text with no decoration
+            text = node_type
+            node_type = "*"
+            # *: herp derp
+            # *: text with no decoration
+        elif text != "*" and node_type != "*" and exists:
+            # day: today
+            # reference: whatever>herp>derp
+            temp_node = nodecreator.create(node_type, text, node, tracker)
+            node_type = temp_node.node_type
+            text = temp_node.text
+            # day: <today's actual date>
+            # reference: whatever > herp > derp
+
+        self.node_type = node_type
+        self.text = text
+        self.node = node
+        
+    def _filter(self):
+        for child in self.node.children:
+            if self.node_type != "*" and self.node_type != child.node_type:
+                continue
+            if self.text != "*" and self.text != child.text:
+                continue
+            yield child
+
+    def iter_results(self):
+        if self.flatten:
+            return self.node.iter_flat_children()
+        if self.node_type == "*" and self.text == "*":
+            return self.node.children
+        else:
+            return self._filter()
+
 
 class IParser(Interface):
     def __iter__():
