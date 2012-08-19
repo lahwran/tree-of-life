@@ -134,15 +134,13 @@ class Tree(object):
     allowed_children = None
 
     def __init__(self, node_type, text, parent, tracker):
+        self._init_children()
+
         self.tracker = tracker
         self.parent = parent
         self.node_type = node_type
         self.text = text
 
-        self._next_node = None
-        self._prev_node = None
-
-        self.children = _NodeListRoot()
 
         if self.toplevel and parent != tracker.root:
             raise LoadError("%r node must be child of root node" % self)
@@ -158,6 +156,13 @@ class Tree(object):
 
         if not self.multiline and text is not None and "\n" in text:
             raise LoadError("%r node cannot have newlines in text" % self)
+
+    def _init_children(self):
+        self.children = _NodeListRoot()
+
+        self._next_node = None
+        self._prev_node = None
+
 
     def iter_parents(self, skip_root=False):
         node = self
@@ -203,11 +208,11 @@ class Tree(object):
         if after and after.parent is not self:
             raise LoadError("node %r cannot be after node %r as child of %r" % (child, after, self))
         self.children.insert(child, before, after)
+        return child
 
     def createchild(self, node_type, text=None, *args, **keywords):
         node = self.tracker.nodecreator.create(node_type, text, self, self.tracker)
-        self.addchild(node, *args, **keywords)
-        return node
+        return self.addchild(node, *args, **keywords)
 
     def removechild(self, child):
         self.children.remove(child)
@@ -300,19 +305,89 @@ class Tree(object):
         pass
 
     def __str__(self):
-        return todo_tracker.file_storage.serialize(self)[0]
+        return todo_tracker.file_storage.serialize(self, one_line=True)[0]
 
-    def _do_repr(self, parent=True):
-        if parent:
+    def _do_repr(self, show_parent=True):
+        if show_parent:
             parent_repr = "None"
-            if self.parent:
-                parent_repr = self.parent._do_repr(parent=False)
-            return "<%s %r: %r @ %s %r>" % (type(self).__name__, self.node_type, self.text, parent_repr, self.tracker)
+            if getattr(self, "parent", None):
+                parent_repr = str(self.parent)
+            return "<%s (%s) %r: %r>" % (type(self).__name__, parent_repr, getattr(self, "node_type", None), getattr(self, "text", None))
         else:
-            return "<%s %r: %r>" % (type(self).__name__, self.node_type, self.text)
+            return "<%s %r: %r>" % (type(self).__name__, getattr(self, "node_type", None), getattr(self, "text", None))
 
     def __repr__(self):
         return self._do_repr()
+
+    def find_node(self, path, offset=0):
+        if offset >= len(path):
+            return self
+        segment = path[offset]
+
+        matcher = _NodeMatcher(self.tracker.nodecreator, segment, self, self.tracker)
+        for child in matcher.iter_results():
+            node = child.find_node(path, offset+1)
+
+            if node is not None:
+                return node
+
+        return None
+
+class _NodeMatcher(object):
+    def __init__(self, nodecreator, segment, node, tracker):
+        if segment == "**":
+            self.flatten = True
+            return
+        else:
+            self.flatten = False
+
+        from todo_tracker.file_storage import parse_line
+        indent, is_metadata, node_type, text = parse_line(segment)
+        assert not indent
+        assert not is_metadata
+
+        exists = nodecreator.exists(node_type)
+        if text is None and (exists or node_type == "*"):
+            # *
+            # days
+            text = "*"
+            # *: *
+            # days: *
+        elif text is None and not (exists or node_type == "*"):
+            # herp derp
+            # text with no decoration
+            text = node_type
+            node_type = "*"
+            # *: herp derp
+            # *: text with no decoration
+        elif text != "*" and node_type != "*" and exists:
+            # day: today
+            # reference: whatever>herp>derp
+            temp_node = nodecreator.create(node_type, text, node, tracker)
+            node_type = temp_node.node_type
+            text = temp_node.text
+            # day: <today's actual date>
+            # reference: whatever > herp > derp
+
+        self.node_type = node_type
+        self.text = text
+        self.node = node
+        
+    def _filter(self):
+        for child in self.node.children:
+            if self.node_type != "*" and self.node_type != child.node_type:
+                continue
+            if self.text != "*" and self.text != child.text:
+                continue
+            yield child
+
+    def iter_results(self):
+        if self.flatten:
+            return self.node.iter_flat_children()
+        if self.node_type == "*" and self.text == "*":
+            return self.node.children
+        else:
+            return self._filter()
 
 class SimpleOption(object):
     def __init__(self, adapter):
@@ -365,13 +440,13 @@ class Tracker(object):
         self.root = Tree("life", None, None, self)
 
     def make_skeleton(self):
-        self.days = self.find_node(["days"]) or self.root.createchild('days')
-        today = self.find_node(["days", "day: today"])
+        self.days = self.root.find_node(["days"]) or self.root.createchild('days')
+        today = self.root.find_node(["days", "day: today"])
         if not today:
             today = self.days.createchild('day', 'today')
         self.activate(today)
 
-        self.todo = self.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
+        self.todo = self.root.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
 
     def load(self, reader):
         self._makeroot()
@@ -491,80 +566,7 @@ class Tracker(object):
             self.activate(newnode)
         return newnode
 
-    def find_node(self, path, offset=0, current=None):
-        if current is None:
-            current = self.root
 
-        if offset >= len(path):
-            return current
-        segment = path[offset]
-
-        matcher = _NodeMatcher(self.nodecreator, segment, current, self)
-        asf = matcher.iter_results()
-        for child in asf:
-            node = self.find_node(path, offset+1, current=child)
-
-            if node is not None:
-                return node
-
-        return None
-
-
-class _NodeMatcher(object):
-    def __init__(self, nodecreator, segment, node, tracker):
-        if segment == "**":
-            self.flatten = True
-            return
-        else:
-            self.flatten = False
-
-        from todo_tracker.file_storage import parse_line
-        indent, is_metadata, node_type, text = parse_line(segment)
-        assert not indent
-        assert not is_metadata
-
-        exists = nodecreator.exists(node_type)
-        if text is None and (exists or node_type == "*"):
-            # *
-            # days
-            text = "*"
-            # *: *
-            # days: *
-        elif text is None and not (exists or node_type == "*"):
-            # herp derp
-            # text with no decoration
-            text = node_type
-            node_type = "*"
-            # *: herp derp
-            # *: text with no decoration
-        elif text != "*" and node_type != "*" and exists:
-            # day: today
-            # reference: whatever>herp>derp
-            temp_node = nodecreator.create(node_type, text, node, tracker)
-            node_type = temp_node.node_type
-            text = temp_node.text
-            # day: <today's actual date>
-            # reference: whatever > herp > derp
-
-        self.node_type = node_type
-        self.text = text
-        self.node = node
-        
-    def _filter(self):
-        for child in self.node.children:
-            if self.node_type != "*" and self.node_type != child.node_type:
-                continue
-            if self.text != "*" and self.text != child.text:
-                continue
-            yield child
-
-    def iter_results(self):
-        if self.flatten:
-            return self.node.iter_flat_children()
-        if self.node_type == "*" and self.text == "*":
-            return self.node.children
-        else:
-            return self._filter()
 
 
 class IParser(Interface):

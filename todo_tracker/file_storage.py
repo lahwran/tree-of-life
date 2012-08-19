@@ -74,7 +74,7 @@ def parse_file(reader):
             continue
         yield parse_line(line)
 
-def serialize(tree, is_root=False):
+def serialize(tree, is_root=False, one_line=False):
     lines = []
     if is_root:
         indent = ""
@@ -89,6 +89,9 @@ def serialize(tree, is_root=False):
                 lines.append(indent + "- %s" % line)
         else:
             lines.append(tree.node_type)
+
+    if one_line:
+        return lines
 
     for name, value, show in tree.option_values():
         if not show:

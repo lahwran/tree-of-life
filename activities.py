@@ -1,4 +1,5 @@
 import sys
+import xtraceback
 
 from twisted.python import log
 
@@ -36,7 +37,7 @@ def main(filename):
             print
             break
         except Exception:
-            log.err()
+            print xtraceback.XTraceback(*sys.exc_info(), color=False)
 
     tracker.save(open(filename, "w"))
 

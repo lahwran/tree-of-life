@@ -59,4 +59,124 @@ def test_activate_deactivate(monkeypatch):
         "    @active\n"
     )
 
+def test_reference_set_reset():
+    tracker = Tracker(auto_skeleton=False)
 
+    target1 = tracker.root\
+        .createchild("task", "something")\
+        .createchild("task", "sub_thing")
+    target2 = tracker.root.createchild("task", "something else")
+    target2.createchild("task", "sub thing 1")
+    target2.createchild("task", "sub thing 2")
+
+    reference = tracker.root.createchild("work on", "something > sub_thing")
+    assert reference.target is target1
+    assert target1.referred_to == set([reference])
+
+    reference.text = "something else"
+    assert target1.referred_to == set()
+    assert target2.referred_to == set([reference])
+    assert reference.target is target2
+
+def test_nested_reference():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+    child = target.createchild("task", "subthing")
+
+    reference = tracker.root.createchild("work on", "something")
+    assert set(reference.proxies.keys()) == set([target, target.children])
+
+    subref = reference.createchild("work on", "subthing")
+    assert list(reference.children) == [subref]
+    assert list(reversed(reference.children)) == [subref]
+    assert reference.target is target
+    assert subref.target is child
+
+def test_reference_autoproxy():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+    child1 = target.createchild("task", "subthing 1")
+    child2 = target.createchild("task", "subthing 2")
+    child3 = target.createchild("task", "subthing 3")
+    child2_5 = child2.createchild("task", "subthing 2.5")
+
+    reference = tracker.root.createchild("work on", "something")
+
+    assert [(child.node_type, child.text) for child in reference.children] == [
+        ("work on", "subthing 1"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 3"),
+    ]
+    assert [(child.node_type, child.text) for child in reversed(reference.children)] == [
+        ("work on", "subthing 3"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 1"),
+    ]
+    assert list(reference.children)[1].children.next_neighbor.text == "subthing 2.5"
+    assert not any(child.is_solid for child in reference.children)
+    assert reference.is_solid
+
+def test_reference_emptyproxy():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+
+    reference = tracker.root.createchild("work on", "something")
+    assert list(reference.children) == []
+
+def test_addchild_passthrough():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+
+    reference = tracker.root.createchild("work on", "something")
+    child1 = reference.createchild("task", "subthing 1")
+    child2 = reference.createchild("task", "subthing 2")
+    child3 = reference.createchild("task", "subthing 3")
+    child2_5 = child2.createchild("task", "subthing 2.5")
+
+    assert [(child.node_type, child.text) for child in reference.children] == [
+        ("work on", "subthing 1"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 3"),
+    ]
+    assert [(child.node_type, child.text) for child in target.children] == [
+        ("task", "subthing 1"),
+        ("task", "subthing 2"),
+        ("task", "subthing 3"),
+    ]
+    assert [(child.node_type, child.text) for child in reversed(reference.children)] == [
+        ("work on", "subthing 3"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 1"),
+    ]
+    assert list(reference.children)[1].children.next_neighbor.text == "subthing 2.5"
+    assert not any(child.is_solid for child in reference.children)
+    assert reference.is_solid
+
+def test_addchild_relative():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+    target.createchild("task", "subthing 1")
+    target.createchild("task", "subthing 3")
+
+    reference = tracker.root.createchild("work on", "something")
+
+    prev_node, next_node = reference.children
+
+    created = reference.createchild("task", "subthing 2", after=prev_node, before=next_node)
+    assert [(child.node_type, child.text) for child in reference.children] == [
+        ("work on", "subthing 1"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 3"),
+    ]
+    assert [(child.node_type, child.text) for child in target.children] == [
+        ("task", "subthing 1"),
+        ("task", "subthing 2"),
+        ("task", "subthing 3"),
+    ]
+    assert not any(child.is_solid for child in reference.children)
+    assert reference.is_solid
