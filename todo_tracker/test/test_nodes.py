@@ -180,3 +180,49 @@ def test_addchild_relative():
     ]
     assert not any(child.is_solid for child in reference.children)
     assert reference.is_solid
+
+def test_finish_solidify():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+    child1 = target.createchild("task", "subthing 1")
+    child2 = target.createchild("task", "subthing 2")
+    child3 = target.createchild("task", "subthing 3")
+    child2_5 = child2.createchild("task", "subthing 2.5")
+
+    reference = tracker.root.createchild("work on", "something")
+
+    tracker.activate(reference)
+
+    tracker.activate_next()
+    assert list(reference.children)[0].is_solid
+    assert tracker.active_node.text == "subthing 1"
+
+    tracker.activate_next()
+    assert list(reference.children)[1].is_solid
+    assert tracker.active_node.text == "subthing 2"
+
+
+    assert [(child.node_type, child.text) for child in reference.children] == [
+        ("worked on", "subthing 1"),
+        ("work on", "subthing 2"),
+        ("work on", "subthing 3"),
+    ]
+
+    assert reference.children_export() == list(reference.children)[0:2]
+
+def test_jump_past_inactive():
+    tracker = Tracker(auto_skeleton=False)
+
+    target = tracker.root.createchild("task", "something")
+    child1 = target.createchild("task", "subthing 1")
+    child1_1 = child1.createchild("task", "subthing 1.1")
+    child1_1_1 = child1_1.createchild("task", "subthing 1.1.1")
+
+    reference = tracker.root.createchild("work on", "something")
+
+    reference1_1_1 = reference.find_node(["*", "*", "*"])
+
+    tracker.activate(reference1_1_1)
+
+    assert reference.children_export() == [reference.find_node(["*"])]

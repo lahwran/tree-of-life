@@ -13,6 +13,7 @@ class ActiveMarker(BooleanOption):
         node.tracker.activate(node)
 
 
+@nodecreator("worked on")
 class BaseTask(Tree):
     options = (
         ("started", SimpleOption(IDateTime)),
@@ -270,90 +271,6 @@ class GenericActivate(GenericNode):
     @property
     def can_activate(self):
         return not "locked" in self.metadata
-
-"""
-work on: some node
-    work on: some other node
-        - prev link: list root
-        - next link: 
-    slave begin: some other node's next neighbor
-        - prev link: work on
-        - next link: weakref-mapped reference to midslave
-    midslave: something else
-        - prev link: 
-    midslave: something else
-    slave end: 
-"""
-
-"""
-task: some node
-    task: first child
-    task: second child
-    task: third child
-    task: fourth child
-
-work on: some node
-    - first child: auto-reference to some node's first child
-    - last child: auto-reference to some node's last child
-    - prev node: concrete reference to some node
-    - next node: concrete reference to work on some node (2)
-    work on: (auto) first child
-        - next node: auto-reference to first child's next node
-        - prev node: auto-reference to first child's prev node
-    work on: (auto) second child
-        - next node: auto-reference to second child's next node
-        - prev node: auto-reference to second child's prev node
-    work on: (auto) third child
-        - next node: auto-reference to third child's next node
-        - prev node: auto-reference to third child's prev node
-    work on: (auto) fourth child
-        - next node: auto-reference to fourth child's next node
-        - prev node: auto-reference to fourth child's prev node
-
-work on: some node
-    - first child: work on node
-    - last child: auto-reference
-    - prev node: concrete reference to work on node
-    - next node: concrete reference to work on node
-    work on: first child
-        @active
-        - first child: auto-reference to first child's first child
-        - last child: auto-reference to first child's last child
-        - prev node: concrete reference to list root
-        - next node: auto-reference to first child's next node
-    work on: (auto) second child
-        - next node: auto-reference to second child's next node
-        - prev node: auto-reference to second child's prev node
-    work on: (auto) third child
-        - next node: auto-reference to third child's next node
-        - prev node: auto-reference to third child's prev node
-    work on: (auto) fourth child
-        - next node: auto-reference to fourth child's next node
-        - prev node: auto-reference to fourth child's prev node
-
-work on: some node
-    - first child: work on node
-    - last child: auto-reference
-    - prev node: work on node
-    - next node: list root
-    work on: first child
-        @started: whenever
-        @finished: whenever
-        - first child: auto-reference to first child's first child
-        - last child: auto-reference to first child's last child
-        - prev node: concrete reference to list root
-        - next node: concrete reference to work on second child
-    work on: second child
-        @active
-        - next node: auto-reference to second child's next node
-        - prev node: concrete reference to work on first child
-    work on: (auto) third child
-        - next node: auto-reference to third child's next node
-        - prev node: auto-reference to third child's prev node
-    work on: (auto) fourth child
-        - next node: auto-reference to fourth child's next node
-        - prev node: auto-reference to fourth child's prev node
-"""
 
 def _makeproxy(parent, proxied):
     return parent.tracker.nodecreator.create("work on", proxied.text, parent, parent.tracker)
@@ -630,3 +547,7 @@ class Reference(BaseTask):
 
     def __repr__(self):
         return "(%r: %r)" % (getattr(self, "node_type", "[work on]"), getattr(self, "text", None))
+
+    def finish(self, *args):
+        super(Reference, self).finish(*args)
+        self.node_type = "worked on"

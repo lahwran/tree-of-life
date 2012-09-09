@@ -126,7 +126,6 @@ class TestTracker(object):
             ),
             (
                 "_genactive: 0\n"
-                "    @deactivate\n"
                 "    _genactive: 0.1\n"
                 "        @active\n"
                 "        _genactive: 0.1.2\n"
@@ -138,7 +137,6 @@ class TestTracker(object):
             ),
             (
                 "_genactive: 0\n"
-                "    @deactivate\n"
                 "    _genactive: 0.1\n"
                 "        @locked\n"
                 "        _genactive: 0.1.2\n"
@@ -150,7 +148,6 @@ class TestTracker(object):
             ),
             (
                 "_genactive: 0\n"
-                "    @deactivate\n"
                 "    _genactive: 0.1\n"
                 "        @locked\n"
                 "        _genactive: 0.1.2\n"
@@ -161,7 +158,6 @@ class TestTracker(object):
             ),
             (
                 "_genactive: 0\n"
-                "    @deactivate\n"
                 "    _genactive: 0.1\n"
                 "        @locked\n"
                 "        _genactive: 0.1.2\n"

@@ -9,7 +9,7 @@ from crow2.adapterutil import IString
 from zope.interface import Interface
 
 from todo_tracker.ordereddict import OrderedDict
-from todo_tracker.exceptions import ListIntegrityError, LoadError
+from todo_tracker.exceptions import ListIntegrityError, LoadError, CantStartNodeError
 
 class _NodeCreatorTracker(object):
     def __init__(self):
@@ -296,7 +296,7 @@ class Tree(object):
 
     def start(self):
         if not self.can_activate:
-            raise LoadError("can't start node %r" % self)
+            raise CantStartNodeError("can't start node %r" % self)
 
     def finish(self):
         pass
@@ -307,8 +307,8 @@ class Tree(object):
     def __str__(self):
         return todo_tracker.file_storage.serialize(self, one_line=True)[0]
 
-    def _do_repr(self, show_parent=True):
-        if show_parent:
+    def _do_repr(self, parent=True):
+        if parent:
             parent_repr = "None"
             if getattr(self, "parent", None):
                 parent_repr = str(self.parent)
@@ -499,7 +499,12 @@ class Tracker(object):
 
         node.active = True
         self.active_node = node
-        node.start()
+        for parent_node in list(node.iter_parents())[::-1]:
+            try:
+                parent_node.start()
+            except CantStartNodeError:
+                if parent_node is node:
+                    raise
 
     def _skip_ignored(self, peergetter, node):
         while node is not None:

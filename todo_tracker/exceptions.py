@@ -5,3 +5,6 @@ class ListIntegrityError(Exception):
 class LoadError(Exception):
     pass
 
+class CantStartNodeError(LoadError):
+    pass
+
