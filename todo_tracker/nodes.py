@@ -45,6 +45,8 @@ class BaseTask(Tree):
 
 @nodecreator("task")
 @nodecreator("project")
+@nodecreator("bug")
+@nodecreator("feature")
 class Task(BaseTask):
     multiline = True
     options = (
@@ -136,7 +138,8 @@ class Days(Tree):
 
 @nodecreator("category")
 class Category(Tree):
-    toplevel = True
+    # should be passthrough
+    pass
 
 @nodecreator("comment")
 @nodecreator("IGNORE")
@@ -216,6 +219,9 @@ class TodoReview(BaseTask):
             self.tracker.todo_review.detach()
         self.tracker.todo_review = self
         self.tracker.todo.move_review_task()
+
+    def start(self):
+        self.tracker.start_editor()
 
     def finish(self):
         super(TodoReview, self).finish()
@@ -537,6 +543,7 @@ class Reference(BaseTask):
         self.log(newvalue)
 
     def log(self, *args):
+        return
         try:
             import inspect
             frames = inspect.stack()

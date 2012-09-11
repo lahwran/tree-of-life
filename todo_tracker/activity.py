@@ -42,7 +42,7 @@ def createchild(event):
 @command
 @command("edit")
 def vim(event):
-    event.ui.vim()
+    event.ui.vim(event.source)
 
 @command
 def todo(event):
@@ -98,7 +98,7 @@ class CommandInterface(object):
 
         self._command(source, command_name, command_text)
 
-    def vim(self):
+    def vim(self, source, extra=None):
         import tempfile
         import os
         tmpfd0, tmp = tempfile.mkstemp()
@@ -117,11 +117,13 @@ class CommandInterface(object):
                 return
 
             self.tracker.load(open(tmp, "r"))
+            print "loaded"
+            print "new active: %r" % self.tracker.active_node
 
             os.unlink(tmp)
-        self.term_subprocess(["vim", "--", tmp], callback)
+        self._run_vim(source, tmp, callback, extra)
 
-    def term_subprocess(self, args, callback):
+    def _run_vim(self, source, filename, callback, extra):
         raise NotImplementedError
 
     def errormessage(self, source, message):

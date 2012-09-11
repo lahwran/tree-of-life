@@ -432,6 +432,8 @@ class Tracker(object):
         if auto_skeleton:
             self.make_skeleton()
 
+        self.editor_callback = None
+
     def _makeroot(self):
         self.days = None
         self.active_node = None
@@ -571,8 +573,9 @@ class Tracker(object):
             self.activate(newnode)
         return newnode
 
-
-
+    def start_editor(self):
+        if self.editor_callback:
+            self.editor_callback()
 
 class IParser(Interface):
     def __iter__():

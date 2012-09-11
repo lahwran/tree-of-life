@@ -27,9 +27,9 @@ class CommandLineInterface(CommandInterface):
     def prompt(self):
         return "[%s] > " % self._format_active()
 
-    def term_subprocess(self, args, callback):
+    def _run_vim(self, source, filename, callback):
         import subprocess
-        process = subprocess.Popen(args)
+        process = subprocess.Popen(["vim", "--", filename])
         process.wait()
         callback()
 
