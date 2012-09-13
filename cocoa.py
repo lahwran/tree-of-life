@@ -198,6 +198,7 @@ class JSONFactory(Factory):
 
 def main():
     log.startLogging(sys.stdout, setStdout=False)
+    log.startLogging(open("cocoa.log", "a"))
     tracker = Tracker()
     
     autosaving.load(tracker)
