@@ -1,8 +1,12 @@
+import traceback
+
 from crow2.events.hooktree import HookMultiplexer, CommandHook
 from crow2.events.exceptions import NameResolutionError
+from twisted.python import log
 
 from todo_tracker.file_storage import parse_line
 from todo_tracker.tracker import nodecreator
+from todo_tracker.util import tempfile
 
 def _makenode(string):
     indent, is_metadata, node_type, text = parse_line(string)
@@ -98,32 +102,55 @@ class CommandInterface(object):
 
         self._command(source, command_name, command_text)
 
-    def vim(self, source, extra=None):
-        import tempfile
+    def vim(self, source, **keywords):
         import os
-        tmpfd0, tmp = tempfile.mkstemp()
-        tmpfd1, tmp_backup = tempfile.mkstemp()
+        tmp = tempfile()
+        tmp_backup = tempfile()
+        exceptions = []
+        # USER MESSAGE
         print "tmp:", tmp
+        # USER MESSAGE
         print "tmp-backup:", tmp_backup
 
         self.tracker.save(open(tmp, "w"))
         self.tracker.save(open(tmp_backup, "w"))
 
         def callback():
-            if open(tmp, "r").read() == open(tmp_backup, "r"):
+            if open(tmp, "r").read() == open(tmp_backup, "r").read():
                 os.unlink(tmp)
                 os.unlink(tmp_backup)
+                # USER MESSAGE
                 print "text same, not loading"
                 return
 
-            self.tracker.load(open(tmp, "r"))
-            print "loaded"
-            print "new active: %r" % self.tracker.active_node
+            try:
+                self.tracker.load(open(tmp, "r"))
+            except Exception:
+                # USER MESSAGE NEEDED
+                log.err()
+                formatted = traceback.format_exc()
+                tmp_exception = tempfile()
+                writer = open(tmp_exception, "w")
+                writer.write(formatted)
+                writer.close()
+                exceptions.append(tmp_exception)
+                self._run_vim(source, callback, tmp, tmp_exception, **keywords)
+                return False
+            else:
+                # USER MESSAGE
+                print "loaded"
+                # LOGGING
+                print "new active: %r" % self.tracker.active_node
 
-            os.unlink(tmp)
-        self._run_vim(source, tmp, callback, extra)
+                #os.unlink(tmp)
+                # TODO: unlink temp file?
+                for exc_temp in exceptions:
+                    os.unlink(exc_temp)
+                return True
 
-    def _run_vim(self, source, filename, callback, extra):
+        self._run_vim(source, callback, tmp, **keywords)
+
+    def _run_vim(self, source, callback, extra, *filenames, **keywords):
         raise NotImplementedError
 
     def errormessage(self, source, message):

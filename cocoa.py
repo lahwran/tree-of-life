@@ -24,27 +24,35 @@ def restart(event):
 @command
 def vimpdb(event):
     import pdb; pdb.set_trace()
-    event.ui.vim(event.source, True)
+    event.ui.vim(event.source, debug=True)
 
 @command
 def save(event):
     autosaving.full_save(event.tracker)
 
 class VimRunProtocol(ProcessProtocol):
-    def __init__(self, callback, master, originator, extra):
+    def __init__(self, callback, master, originator, debug):
         self.callback = callback
         self.master = master
         self.originator = originator
-        self.extra = extra
+        self.debug = debug
+
+    def outReceived(self, data):
+        sys.stdout.write(data)
+        sys.stdout.flush()
+
+    def errReceived(self, data):
+        sys.stderr.write(data)
+        sys.stderr.flush()
 
     def outConnectionLost(self):
-        if self.extra:
+        if self.debug:
             import pdb; pdb.set_trace()
         self.master._vim_running = False
-        self.callback()
-        for listener in self.master.listeners:
-            listener.update()
-        self.originator.sendmessage({"display": True})
+        if self.callback():
+            for listener in self.master.listeners:
+                listener.update()
+            self.originator.sendmessage({"display": True})
 
 class RemoteInterface(CommandInterface):
     max_format_depth = 3
@@ -59,19 +67,20 @@ class RemoteInterface(CommandInterface):
             return
         super(RemoteInterface, self).command(source, line)
 
-    def _run_vim(self, source, filename, callback, extra):
-        if extra:
+    def _run_vim(self, source, callback, *filenames, **kw):
+        debug = kw.get("debug", False)
+        if debug:
             import pdb; pdb.set_trace()
         print __file__
         dirname = os.path.dirname(__file__)
-        path = os.path.join(dirname, "startvim.sh")
+        path = os.path.join(dirname, "startvim.py")
         print dirname, path
         self._vim_running = True
         for listener in self.listeners:
             listener.sendmessage({"display": False})
             self._show_iterm()
-        protocol = VimRunProtocol(callback, self, source, extra)
-        reactor.spawnProcess(protocol, "/bin/bash", args=["/bin/bash", path, filename], env=os.environ)
+        protocol = VimRunProtocol(callback, self, source, debug)
+        reactor.spawnProcess(protocol, sys.executable, args=[sys.executable, path, "-o", "--"] + list(filenames), env=os.environ)
 
     def _show_iterm(self):
         tmpfd0, tmp = tempfile.mkstemp()
@@ -90,7 +99,10 @@ class RemoteInterface(CommandInterface):
         log.msg("errormessage from %r: %r" % (source, message))
 
     def messages(self):
-        return [str(child) for child in self.tracker.todo.children]
+        if self.tracker.todo:
+            return [str(child) for child in self.tracker.todo.children]
+        else:
+            return []
 
     def displaychain(self):
         result = super(RemoteInterface, self).displaychain()
