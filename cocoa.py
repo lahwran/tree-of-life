@@ -10,7 +10,7 @@ from twisted.internet import reactor
 from twisted.python import log
 
 from todo_tracker.tracker import Tracker
-from todo_tracker.activity import CommandInterface, command, generate_listing
+from todo_tracker.activity import CommandInterface, command
 from todo_tracker import autosaving
 
 @command
@@ -210,7 +210,7 @@ class JSONFactory(Factory):
 
 def main():
     log.startLogging(sys.stdout, setStdout=False)
-    log.startLogging(open("cocoa.log", "a"))
+    log.startLogging(open("cocoa.log", "a"), setStdout=False)
     tracker = Tracker()
     
     autosaving.load(tracker)

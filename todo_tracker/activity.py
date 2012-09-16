@@ -55,23 +55,22 @@ def todo(event):
     else:
         event.ui.display_lines([str(child) for child in event.tracker.todo.children])
 
-def generate_listing(active, root, node, lines=None, indent=0):
-    if lines is None:
-        lines = []
-
+def _listing_node(active, node, indent):
     indent_text = " " * 4
     if active is node:
         prefix = "> "
     else:
         prefix = "  "
+    return prefix + (indent_text * indent) + str(node)
 
-    if node is root:
-        indent = -1
-    else:
-        lines.append(prefix + (indent_text * indent) + str(node))
+def generate_listing(active, node, lines=None, indent=0):
+    if lines is None:
+        lines = []
+
+    lines.append(_listing_node(active, node, indent))
 
     for child in node.children:
-        generate_listing(active, root, child, lines, indent+1)
+        generate_listing(active, child, lines, indent+1)
     return lines
 
 class CommandInterface(object):
@@ -165,8 +164,20 @@ class CommandInterface(object):
         else:
             return list(self.tracker.active_node.iter_parents())
 
-    def tree_context(self):
+    def tree_context(self, max_lines=55):
         active = self.tracker.active_node
+        current = active.find_node(["<day"])
+        days = current.parent
         root = self.tracker.root
-        lines = generate_listing(active, root, self.displaychain()[-1])
+        
+        lines = []
+        lines.append(_listing_node(active, days, 0))
+        if current.prev_neighbor:
+            lines.append(_listing_node(None, "...", 1))
+        while len(lines) < max_lines and current:
+            generate_listing(active, current, lines, indent=1)
+            current = current.next_neighbor
+        if len(lines) >= max_lines:
+            lines = lines[:max_lines]
+            lines[-1] = _listing_node(None, "...", 2)
         return lines

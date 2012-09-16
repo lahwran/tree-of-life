@@ -4,7 +4,7 @@ import xtraceback
 from twisted.python import log
 
 from todo_tracker.tracker import Tracker
-from todo_tracker.activity import CommandInterface, command, generate_listing
+from todo_tracker.activity import CommandInterface, command
 
 class CommandLineInterface(CommandInterface):
     max_ps1_len = 47
@@ -49,7 +49,7 @@ def pdb(event):
 
 @command("list")
 def list_current(event):
-    event.ui.display_lines(lines)
+    event.ui.display_lines(event.ui.tree_context())
 
 def main(filename):
     tracker = Tracker()

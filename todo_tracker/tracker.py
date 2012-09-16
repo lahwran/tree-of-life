@@ -335,46 +335,48 @@ class Tree(object):
 
 class _NodeMatcher(object):
     def __init__(self, nodecreator, segment, node, tracker):
-        if segment == "**":
-            self.flatten = True
-            return
-        else:
-            self.flatten = False
+        self.flatten = (segment == "**")
 
-        from todo_tracker.file_storage import parse_line
-        indent, is_metadata, node_type, text = parse_line(segment)
-        assert not indent
-        assert not is_metadata
+        if not self.flatten:
+            self.find_parents = False
+            if segment.startswith("<"):
+                self.find_parents = True
+                segment = segment[1:]
 
-        exists = nodecreator.exists(node_type)
-        if text is None and (exists or node_type == "*"):
-            # *
-            # days
-            text = "*"
-            # *: *
-            # days: *
-        elif text is None and not (exists or node_type == "*"):
-            # herp derp
-            # text with no decoration
-            text = node_type
-            node_type = "*"
-            # *: herp derp
-            # *: text with no decoration
-        elif text != "*" and node_type != "*" and exists:
-            # day: today
-            # reference: whatever>herp>derp
-            temp_node = nodecreator.create(node_type, text, node, tracker)
-            node_type = temp_node.node_type
-            text = temp_node.text
-            # day: <today's actual date>
-            # reference: whatever > herp > derp
+            from todo_tracker.file_storage import parse_line
+            indent, is_metadata, node_type, text = parse_line(segment)
+            assert not indent
+            assert not is_metadata
 
-        self.node_type = node_type
-        self.text = text
+            exists = nodecreator.exists(node_type)
+            if text is None and (exists or node_type == "*"):
+                # *
+                # days
+                text = "*"
+                # *: *
+                # days: *
+            elif text is None and not (exists or node_type == "*"):
+                # herp derp
+                # text with no decoration
+                text = node_type
+                node_type = "*"
+                # *: herp derp
+                # *: text with no decoration
+            elif text != "*" and node_type != "*" and exists:
+                # day: today
+                # reference: whatever>herp>derp
+                temp_node = nodecreator.create(node_type, text, node, tracker)
+                node_type = temp_node.node_type
+                text = temp_node.text
+                # day: <today's actual date>
+                # reference: whatever > herp > derp
+
+            self.node_type = node_type
+            self.text = text
         self.node = node
         
-    def _filter(self):
-        for child in self.node.children:
+    def _filter(self, iterator):
+        for child in iterator:
             if self.node_type != "*" and self.node_type != child.node_type:
                 continue
             if self.text != "*" and self.text != child.text:
@@ -386,8 +388,15 @@ class _NodeMatcher(object):
             return self.node.iter_flat_children()
         if self.node_type == "*" and self.text == "*":
             return self.node.children
+        elif self.find_parents:
+            iterator = self._filter(self.node.iter_parents())
+            try:
+                result = [iterator.next()]
+            except StopIteration:
+                result = []
+            return iter(result)
         else:
-            return self._filter()
+            return self._filter(self.node.children)
 
 class SimpleOption(object):
     def __init__(self, adapter):
