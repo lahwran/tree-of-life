@@ -68,11 +68,22 @@ def parse_string(string):
 
 @adapter_for(IFile)
 @implementer(IParser)
-def parse_file(reader):
-    for line in reader:
+class FileParser(object):
+    def __init__(self, reader):
+        self.reader = reader
+        self.error_context = None
+
+    def __iter__(self):
+        return parse_file(self.reader, self.error_context)
+
+def parse_file(reader, error_context=None):
+    for index, line in enumerate(reader):
+        if error_context:
+            error_context.line = index
         if not line:
             continue
         yield parse_line(line)
+
 
 def serialize(tree, is_root=False, one_line=False):
     lines = []

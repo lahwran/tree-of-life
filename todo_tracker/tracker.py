@@ -16,7 +16,11 @@ class _NodeCreatorTracker(object):
         self.creators = {}
 
     def create(self, node_type, text, parent, tracker):
-        return self.creators[node_type](node_type, text, parent, tracker)
+        try:
+            creator = self.creators[node_type]
+        except KeyError:
+            raise LoadError("No such node type: %r" % node_type)
+        return creator(node_type, text, parent, tracker)
 
     def exists(self, node_type):
         return node_type in self.creators
@@ -432,6 +436,10 @@ class BooleanOption(object):
 def continue_text(node_type, text, parent, root):
     parent.continue_text(text)
 
+class ErrorContext(object):
+    def __init__(self):
+        self.line = None
+
 class Tracker(object):
     def __init__(self, nodecreator=nodecreator, auto_skeleton=True):
         self.nodecreator = nodecreator
@@ -465,32 +473,44 @@ class Tracker(object):
         lastnode = self.root
         lastindent = -1
         metadata_allowed_here = False
-        
-        for indent, is_metadata, node_type, text in IParser(reader):
-            if indent > lastindent:
-                if indent > lastindent + 1:
-                    raise LoadError("indented too far")
-                stack.append(lastnode)
-                metadata_allowed_here = True
-            elif indent < lastindent:
-                stack = stack[:int(indent)+1]
-            lastindent = indent
 
-            parent = stack[-1]
+        error_context = ErrorContext() # mutable thingy
         
-            if is_metadata:
-                if not metadata_allowed_here:
-                    raise LoadError('metadata in the wrong place')
-                parent.setoption(node_type, text)
-                lastnode = None
-            else:
-                if node_type != "-":
-                    metadata_allowed_here = False
+        try:
+            parser = IParser(reader)
+            parser.error_context = error_context
+            for indent, is_metadata, node_type, text in parser:
+                if indent > lastindent:
+                    if indent > lastindent + 1:
+                        raise LoadError("indented too far")
+                    stack.append(lastnode)
+                    metadata_allowed_here = True
+                elif indent < lastindent:
+                    stack = stack[:int(indent)+1]
+                lastindent = indent
 
-                node = self.nodecreator.create(node_type, text, parent, self)
-                if node is not None:
-                    parent.addchild(node)
-                lastnode = node
+                parent = stack[-1]
+            
+                if is_metadata:
+                    if not metadata_allowed_here:
+                        raise LoadError('metadata in the wrong place')
+                    parent.setoption(node_type, text)
+                    lastnode = None
+                else:
+                    if node_type != "-":
+                        metadata_allowed_here = False
+
+                    node = self.nodecreator.create(node_type, text, parent, self)
+                    if node is not None:
+                        parent.addchild(node)
+                    lastnode = node
+        except LoadError as e:
+            e.error_context = error_context
+            raise
+        except Exception as e:
+            new_e = LoadError("UNHANDLED ERROR: %s: %s" % (type(e), e))
+            new_e.error_context = error_context
+            raise new_e
 
         if self.auto_skeleton:
             self.make_skeleton()
