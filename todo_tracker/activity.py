@@ -120,7 +120,7 @@ class CommandInterface(object):
                 os.unlink(tmp_backup)
                 # USER MESSAGE
                 print "text same, not loading"
-                return
+                return True
 
             try:
                 self.tracker.load(open(tmp, "r"))
@@ -133,6 +133,7 @@ class CommandInterface(object):
                 writer.write(formatted)
                 writer.close()
                 exceptions.append(tmp_exception)
+                self.tracker.load(open(tmp_backup, "r"))
                 self._run_vim(source, callback, tmp, tmp_exception, **keywords)
                 return False
             else:
