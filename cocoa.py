@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import tempfile
+import argparse
 
 from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
@@ -10,8 +11,7 @@ from twisted.internet import reactor
 from twisted.python import log
 
 from todo_tracker.tracker import Tracker
-from todo_tracker.activity import CommandInterface, command
-from todo_tracker import autosaving
+from todo_tracker.activity import SavingInterface, command
 
 @command
 def error(event):
@@ -28,7 +28,7 @@ def vimpdb(event):
 
 @command
 def save(event):
-    autosaving.full_save(event.tracker)
+    event.ui.full_save()
 
 class VimRunProtocol(ProcessProtocol):
     def __init__(self, callback, master, originator, debug):
@@ -54,10 +54,10 @@ class VimRunProtocol(ProcessProtocol):
                 listener.update()
             self.originator.sendmessage({"display": True})
 
-class RemoteInterface(CommandInterface):
+class RemoteInterface(SavingInterface):
     max_format_depth = 3
-    def __init__(self, tracker):
-        super(RemoteInterface, self).__init__(tracker)
+    def __init__(self, *args, **keywords):
+        super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
         self._vim_running = False
     
@@ -138,7 +138,7 @@ class JSONProtocol(LineOnlyReceiver):
             "suggestions": [self.status, ""],
             "messages": self.commandline.messages()
         })
-        autosaving.auto_save(self.commandline.tracker)
+        self.commandline.auto_save()
 
     @property
     def status(self):
@@ -208,19 +208,30 @@ class JSONFactory(Factory):
     def buildProtocol(self, addr):
         return JSONProtocol(self.interface)
 
-def main():
+argparser = argparse.ArgumentParser(description="run server")
+argparser.add_argument("--dev", action="store_true", dest="dev")
+argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker", dest="path")
+argparser.add_argument("-p", "--port", default=18081, dest="port")
+argparser.add_argument("-l", "--log", default="cocoa.log", dest="logfile")
+argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
+
+def main(args):
+    config = argparser.parse_args(args)
+    if config.dev:
+        config.path += "_dev"
+
     log.startLogging(sys.stdout, setStdout=False)
-    log.startLogging(open("cocoa.log", "a"), setStdout=False)
+    log.startLogging(open(config.logfile, "a"), setStdout=False)
     tracker = Tracker()
     
-    autosaving.load(tracker)
-    interface = RemoteInterface(tracker)
+    interface = RemoteInterface(tracker, config.path, config.mainfile)
+    interface.load()
 
-    reactor.listenTCP(18081, JSONFactory(interface))
+    reactor.listenTCP(config.port, JSONFactory(interface))
     try:
         reactor.run()
     finally:
-        autosaving.full_save(tracker)
+        interface.full_save()
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

@@ -1,4 +1,11 @@
+from __future__ import absolute_import
+
 import traceback
+import os
+import subprocess
+from datetime import datetime, timedelta
+import time
+
 
 from crow2.events.hooktree import HookMultiplexer, CommandHook
 from crow2.events.exceptions import NameResolutionError
@@ -79,7 +86,7 @@ class CommandInterface(object):
 
     def __init__(self, tracker):
         self.tracker = tracker
-    
+
     def _command(self, source, command_name, text):
         try:
             command.fire(source=source, tracker=self.tracker, command=command_name, text=text, ui=self)
@@ -182,3 +189,99 @@ class CommandInterface(object):
             lines = lines[:max_lines]
             lines[-1] = _listing_node(None, "...", 2)
         return lines
+
+class Git(object):
+    def __init__(self, path):
+        self.path = path
+
+    def init(self):
+        if not os.path.isdir(os.path.join(self.path, ".git")):
+            self._git("init")
+
+    def gitignore(self, names):
+        if not os.path.exists(os.path.join(self.path, ".gitignore")):
+            writer = open(os.path.join(self.path, ".gitignore"), "w")
+            for name in names:
+                writer.write("%s\n" % name)
+            
+
+    def add(self, *filenames):
+        self._git("add", *filenames)
+
+    def commit(self, message):
+        self._git("commit", "-m", message)
+
+    def _git(self, *args):
+        process = subprocess.Popen(["git"] + list(args), cwd=self.path)
+        return process.wait()
+
+class SavingInterface(CommandInterface):
+    def __init__(self, tracker, directory, main_file,
+            autosave_template="_{main_file}_autosave_{time}",
+            backup_template="_{main_file}_backup_{time}"):
+        super(SavingInterface, self).__init__(tracker)
+
+        self.save_dir = os.path.realpath(os.path.expanduser(directory))
+        self.main_file = main_file
+        self.save_file = os.path.join(self.save_dir, main_file)
+        self.autosave_file = os.path.join(self.save_dir, autosave_template)
+        self.backup_file = os.path.join(self.save_dir, backup_template)
+        self.timeformat = "%A %B %d %H:%M:%S %Y"
+
+        self.last_auto_save = None
+        self.last_backup_save = None
+        self.last_full_save = None
+
+        self.autosave_id = time.time()
+        self.autosave_minutes = 5
+        self.backup_minutes = 30
+
+        self.git = Git(self.save_dir)
+
+    def load(self):
+        try:
+            reader = open(os.path.realpath(self.save_file), "r")
+        except IOError:
+            # what do?
+            pass
+        else:
+            self.tracker.load(reader)
+
+    def full_save(self):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
+        self.git.init()
+
+        self.tracker.save(open(self.save_file, "w"))
+        self.git.add(self.save_file)
+
+        self.git.gitignore(["_*"])
+        self.git.add(".gitignore")
+
+        self.git.commit("Full save %s" % datetime.now().strftime(self.timeformat))
+        self.last_full_save = datetime.now()
+
+    def auto_save(self):
+        self._special_save(self.autosave_file, self.autosave_id, self.autosave_minutes, "last_auto_save")
+
+        self.backup_save()
+
+    def backup_save(self):
+        self._special_save(self.backup_file, time.time(), self.backup_minutes, "last_backup_save")
+
+    def _special_save(self, name_format, time, freq, lastname):
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
+        last = getattr(self, lastname)
+        if last and datetime.now() < last + timedelta(minutes=freq):
+            return
+
+        filename = name_format.format(main_file=self.main_file, time=int(time))
+        writer = open(filename, "w")
+
+        self.tracker.save(writer)
+        writer.close()
+        setattr(self, lastname, datetime.now())
+
