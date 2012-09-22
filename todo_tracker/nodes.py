@@ -122,9 +122,11 @@ class Days(Tree):
 
         for existing_child in self.children:
             if existing_child.date < child.date:
-                after = existing_child
+                if after is None or existing_child.date > after.date:
+                    after = existing_child
             elif existing_child.date > child.date:
-                before = existing_child
+                if before is None or existing_child.date < before.date:
+                    before = existing_child
 
         ret = super(Days, self).addchild(child, before=before, after=after)
         self.day_children[child.date] = child
