@@ -463,7 +463,8 @@ class Tracker(object):
         today = self.root.find_node(["days", "day: today"])
         if not today:
             today = self.days.createchild('day', 'today')
-        self.activate(today)
+        if not self.active_node or today not in list(self.active_node.iter_parents()):
+            self.activate(today)
 
         self.todo = self.root.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
 
