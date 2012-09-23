@@ -2,8 +2,8 @@ import json
 import sys
 import os
 import subprocess
-import tempfile
 import argparse
+import uuid
 
 from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
@@ -12,6 +12,7 @@ from twisted.python import log
 
 from todo_tracker.tracker import Tracker
 from todo_tracker.activity import SavingInterface, command
+from todo_tracker.util import tempfile
 
 @command
 def error(event):
@@ -30,70 +31,111 @@ def vimpdb(event):
 def save(event):
     event.ui.full_save()
 
-class VimRunProtocol(ProcessProtocol):
-    def __init__(self, callback, master, originator, debug):
+def osascript(code):
+    temp_code = tempfile()
+    code_writer = open(temp_code, "w")
+    code_writer.write(code)
+    code_writer.close()
+    subprocess.call(["osascript", temp_code])
+    os.unlink(temp_code)
+
+class VimRunner(object):
+    """
+    Tell iterm2 to open a new window, then run a command that runs vim
+    after vim finishes, the command will send a json message to the main port
+    """
+
+    outer_command = "exec bash -c '%s'\n"
+    base_inner_command = "vim %s; echo '%s' | base64 -d | nc 127.0.0.1 %d" # > /dev/null because the initialization message is uninteresting
+    applescript = """
+        tell application "iTerm"
+            activate
+            set myterm to (make new terminal)
+            tell myterm
+                set number of columns to 140
+                set number of rows to 150
+
+                launch session "Default Session"
+
+                tell the last session
+                    write contents of file "{tempfile}"
+                end tell
+            end tell
+        end tell
+    """
+
+    def __init__(self, originator, master, port, callback, filenames):
+        self.master = master 
         self.callback = callback
-        self.master = master
         self.originator = originator
-        self.debug = debug
 
-    def outReceived(self, data):
-        sys.stdout.write(data)
-        sys.stdout.flush()
+        self.id = str(uuid.uuid4())
+        json_data = json.dumps({"vim_finished": self.id}) + "\n"
 
-    def errReceived(self, data):
-        sys.stderr.write(data)
-        sys.stderr.flush()
+        args = self.wrap_args(["-o", "--"] + list(filenames))
+        inner_command = self.base_inner_command % (" ".join(args), json_data.encode("base64").replace(" ","").replace("\n",""), port)
+        inner_command = inner_command.replace("\\'", "'\"'\"'")
+        self.command = self.outer_command % inner_command
+        log.msg("Starting vim with id %r: %s" % (self.id, self.command))
 
-    def outConnectionLost(self):
-        if self.debug:
-            import pdb; pdb.set_trace()
-        self.master._vim_running = False
+        self.tempfile = tempfile()
+        temp_writer = open(self.tempfile, "w")
+        temp_writer.write(self.command)
+
+    def run(self):
+        osascript(self.applescript.format(tempfile=self.tempfile))
+
+    def done(self):
         if self.callback():
             for listener in self.master.listeners:
                 listener.update()
             self.originator.sendmessage({"display": True})
 
+    def wrap_args(self, args):
+        wrapped_args = []
+        for arg in args:
+            if "'" in arg:
+                raise Exception("Can't put quotes in args! sorry")
+            wrapped_args.append("'%s'" % arg)
+        return wrapped_args
+
 class RemoteInterface(SavingInterface):
     max_format_depth = 3
-    def __init__(self, listen_iface, *args, **keywords):
+    def __init__(self, config, *args, **keywords):
         super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
-        self.listen_iface = listen_iface
-        self._vim_running = False
+        self.config = config
+        self._vim_instances = {}
     
     def command(self, source, line):
-        if self._vim_running:
+        if self._vim_instances:
             self._show_iterm()
             return
         super(RemoteInterface, self).command(source, line)
 
-    def _run_vim(self, source, callback, *filenames, **kw):
-        debug = kw.get("debug", False)
-        if debug:
-            import pdb; pdb.set_trace()
-        print __file__
-        dirname = os.path.dirname(__file__)
-        path = os.path.join(dirname, "startvim.py")
-        print dirname, path
-        self._vim_running = True
+    def _run_vim(self, originator, callback, *filenames):
         for listener in self.listeners:
             listener.sendmessage({"display": False})
-            self._show_iterm()
-        protocol = VimRunProtocol(callback, self, source, debug)
-        reactor.spawnProcess(protocol, sys.executable, args=[sys.executable, path, "-o", "--"] + list(filenames), env=os.environ)
+
+        runner = VimRunner(originator, self, self.config.port, callback, filenames)
+        runner.run()
+        
+        self._vim_instances[runner.id] = runner
+
+    def _vim_finished(self, identifier):
+        if identifier not in self._vim_instances:
+            log.msg("can't finish nonexistant vim invocation: %r" % identifier)
+            return
+        log.msg("finishing vim invocation: %r" % identifier)
+        self._vim_instances[identifier].done()
+        del self._vim_instances[identifier]
 
     def _show_iterm(self):
-        tmpfd0, tmp = tempfile.mkstemp()
-        writer = open(tmp, "w")
-        writer.write(
+        osascript(
             'tell application "iTerm"\n'
             '    activate\n'
             'end tell\n'
         )
-        message = subprocess.Popen(["osascript", tmp])
-        message.wait()
-        os.unlink(tmp)
 
     def errormessage(self, source, message):
         source.error = message
@@ -145,7 +187,7 @@ class JSONProtocol(LineOnlyReceiver):
     def status(self):
         if self.error:
             return self.error
-        if self.commandline._vim_running:
+        if self.commandline._vim_instances:
             return "vim running"
         return ""
 
@@ -202,6 +244,9 @@ class JSONProtocol(LineOnlyReceiver):
     def message_display(self, is_displayed):
         pass
 
+    def message_vim_finished(self, identifier):
+        self.commandline._vim_finished(identifier)
+
 class JSONFactory(Factory):
     def __init__(self, interface):
         self.interface = interface 
@@ -230,7 +275,7 @@ def main(args):
     log.msg("logfile: %r" % config.logfile)
     tracker = Tracker()
     
-    ui = RemoteInterface(config.listen_iface, tracker, config.path, config.mainfile)
+    ui = RemoteInterface(config, tracker, config.path, config.mainfile)
     ui.load()
 
     reactor.listenTCP(config.port, JSONFactory(ui), interface=config.listen_iface)
