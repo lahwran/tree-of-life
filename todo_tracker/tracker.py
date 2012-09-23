@@ -557,6 +557,7 @@ class Tracker(object):
 
     def _navigate(self, peerattr):
         #TODO: does not take skipping already-done ones into account
+        #TODO: it doesn't?
         peergetter = operator.attrgetter(peerattr)
 
         node = self.active_node

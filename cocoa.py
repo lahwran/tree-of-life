@@ -56,9 +56,10 @@ class VimRunProtocol(ProcessProtocol):
 
 class RemoteInterface(SavingInterface):
     max_format_depth = 3
-    def __init__(self, *args, **keywords):
+    def __init__(self, listen_iface, *args, **keywords):
         super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
+        self.listen_iface = listen_iface
         self._vim_running = False
     
     def command(self, source, line):
@@ -212,26 +213,31 @@ argparser = argparse.ArgumentParser(description="run server")
 argparser.add_argument("--dev", action="store_true", dest="dev")
 argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker", dest="path")
 argparser.add_argument("-p", "--port", default=18081, dest="port")
-argparser.add_argument("-l", "--log", default="cocoa.log", dest="logfile")
+argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
+argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
+argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 
 def main(args):
     config = argparser.parse_args(args)
     if config.dev:
         config.path += "_dev"
+        config.logname += "_dev"
+    config.logfile = "%s.%s" % (config.logname, config.log_ext)
 
     log.startLogging(sys.stdout, setStdout=False)
     log.startLogging(open(config.logfile, "a"), setStdout=False)
+    log.msg("logfile: %r" % config.logfile)
     tracker = Tracker()
     
-    interface = RemoteInterface(tracker, config.path, config.mainfile)
-    interface.load()
+    ui = RemoteInterface(config.listen_iface, tracker, config.path, config.mainfile)
+    ui.load()
 
-    reactor.listenTCP(config.port, JSONFactory(interface))
+    reactor.listenTCP(config.port, JSONFactory(ui), interface=config.listen_iface)
     try:
         reactor.run()
     finally:
-        interface.full_save()
+        ui.full_save()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
