@@ -23,6 +23,10 @@ def restart(event):
     event.ui.restarter.restart()
 
 @command
+def stop(event):
+    event.ui.restarter.stop()
+
+@command
 def vimpdb(event):
     import pdb; pdb.set_trace()
     event.ui.vim(event.source, debug=True)
