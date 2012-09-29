@@ -64,7 +64,7 @@ def parse_line(line):
 @adapter_for(IString)
 @implementer(IParser)
 def parse_string(string):
-    return parse_file(string.split('\n'))
+    return FileParser(string.split('\n'))
 
 @adapter_for(IFile)
 @implementer(IParser)

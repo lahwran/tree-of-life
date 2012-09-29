@@ -387,9 +387,13 @@ class _NodeMatcher(object):
                 continue
             yield child
 
+    def _flat_children(self, node):
+        for depth, child in node.iter_flat_children():
+            yield child
+
     def iter_results(self):
         if self.flatten:
-            return self.node.iter_flat_children()
+            return self._flat_children(self.node)
         if self.node_type == "*" and self.text == "*":
             return self.node.children
         elif self.find_parents:
@@ -509,7 +513,7 @@ class Tracker(object):
             e.error_context = error_context
             raise
         except Exception as e:
-            new_e = LoadError("UNHANDLED ERROR: %s: %s" % (type(e), e))
+            new_e = LoadError("UNHANDLED ERROR: %s: %s" % (type(e).__name__, e))
             new_e.error_context = error_context
             raise new_e
 

@@ -13,14 +13,15 @@ from twisted.python import log
 
 from todo_tracker.file_storage import parse_line
 from todo_tracker.tracker import nodecreator
+from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile
 
 def _makenode(string):
     indent, is_metadata, node_type, text = parse_line(string)
     if is_metadata:
-        raise Exception("metadata not allowed")
+        raise InvalidInputError("metadata not allowed")
     if indent > 0:
-        raise Exception("plz 2 not indent")
+        raise InvalidInputError("plz 2 not indent")
     return node_type, text
 
 command = HookMultiplexer(hook_class=CommandHook, childarg="command")

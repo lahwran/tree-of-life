@@ -9,7 +9,7 @@ from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker import exceptions
 
-from todo_tracker.tracker import Tracker, _NodeListRoot, Tree, SimpleOption
+from todo_tracker.tracker import Tracker, _NodeListRoot, Tree, SimpleOption, _NodeMatcher
 
 class TestTracker(object):
     def test_load_basic(self):
@@ -273,6 +273,27 @@ class TestTracker(object):
             "todo bucket\n"
         ) % today
 
+    def test_auto_skeleton_day_active(self):
+        tracker = Tracker()
+        tracker.load(
+            "days\n"
+            "    day: today\n"
+            "        @started: September 23, 2012 11:00 AM\n"
+            "        _genactive: something\n"
+            "            @active\n"
+            "todo bucket"
+        )
+        today = tracker.root.find_node(["days", "day: today"])
+        tracker.active_node.started = None
+        assert serialize_to_str(tracker.root) == (
+            "days\n"
+            "    day: %s\n"
+            "        @started: September 23, 2012 11:00 AM\n"
+            "        _genactive: something\n"
+            "            @active\n"
+            "todo bucket\n"
+        ) % today.text
+
     def test_too_indented(self):
         tracker = Tracker(auto_skeleton=False, nodecreator=FakeNodeCreator(GenericActivate))
         with pytest.raises(exceptions.LoadError):
@@ -312,6 +333,32 @@ class TestTracker(object):
         assert tracker.active_node is node2
         assert node1.node_type == "node1"
         assert node2.node_type == "node2"
+
+    def test_activate_cant_activate(self):
+        tracker = Tracker(auto_skeleton=False, nodecreator=FakeNodeCreator(GenericNode))
+        node = tracker.root.createchild("herp", "derp")
+
+        with pytest.raises(exceptions.CantStartNodeError):
+            tracker.activate(node)
+
+    def test_unhandled_load_error(self):
+        class ExcOnOptionNode(GenericNode):
+            def setoption(self, option, value):
+                raise Exception("test exception")
+
+        tracker = Tracker(auto_skeleton=False, nodecreator=FakeNodeCreator(ExcOnOptionNode))
+        input_str = (
+            "node1: node1\n"
+            "node2: node2\n"
+            "node3: node3\n"
+            "    @someoption: boom\n"
+        )
+        try:
+            tracker.load(input_str)
+        except exceptions.LoadError as e:
+            assert str(e) == "At line 4: UNHANDLED ERROR: Exception: test exception"
+        else: # pragma: no cover
+            assert False
 
 
 class TestNode(object):
@@ -626,6 +673,53 @@ class TestNode(object):
         node = Tree("herp", None, None, None)
         with pytest.raises(exceptions.LoadError):
             node.start()
+
+class TestFindNode(object):
+    def test_flatten(self):
+        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        node1 = tracker.root.createchild("node1", "value1")
+        node1.createchild("node3", "value3")
+        node4 = node1.createchild("node4", "value4")
+        target = node4.createchild("target", "value")
+        tracker.root.createchild("node2", "value2")
+
+        result = tracker.root.find_node(["**", "target"])
+        assert result is target
+
+    def test_empty_flatten(self):
+        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+
+        assert tracker.root.find_node(["**"]) == None
+
+    def test_find_parents(self):
+        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        target = tracker.root.createchild("target", "value1")
+        target.createchild("node3", "value3")
+        node4 = target.createchild("node4", "value4")
+        node1 = node4.createchild("node1", "value")
+        tracker.root.createchild("node2", "value2")
+
+        result = node1.find_node(["<target"])
+        assert result is target
+
+    def test_empty_find_parents(self):
+        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        node3 = tracker.root.createchild("node3", "value3")
+        node2 = node3.createchild("node2", "value2")
+        node1 = node2.createchild("node1", "value1")
+
+        result = node1.find_node(["<nonexistant"])
+        assert result is None
+
+    def test_find_text(self):
+        tracker = Tracker(auto_skeleton=False) # FakeNodeCreator would interfere with this test
+        value1 = tracker.root.createchild("comment", "value one")
+        target = value1.createchild("comment", "value two")
+
+        result = tracker.root.find_node(["value one", "value two"])
+
+        assert result is target
+
 
 def test_get_missing_option():
     obj = object()
