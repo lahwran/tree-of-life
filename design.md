@@ -1,9 +1,0 @@
-- task tree
-- multiple children for any node
-- root node is "life"
-- tasks can depend on other tasks
-- priority is a combination of importance and timeframe
-- tasks can have a timeframe for when they should be completed
-    - something sorta like pivotaltracker's points in that it's easy to pick discrete buckets
-- a m
-- do we need some sort of "day" main node?
