@@ -20,7 +20,7 @@ def error(event):
 
 @command
 def restart(event):
-    reactor.stop()
+    event.ui.restarter.restart()
 
 @command
 def vimpdb(event):
@@ -101,10 +101,11 @@ class VimRunner(object):
 
 class RemoteInterface(SavingInterface):
     max_format_depth = 3
-    def __init__(self, config, *args, **keywords):
+    def __init__(self, config, restarter, *args, **keywords):
         super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
         self.config = config
+        self.restarter = restarter
         self._vim_instances = {}
     
     def command(self, source, line):
@@ -263,7 +264,33 @@ argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 
-def main(args):
+class Restarter(object):
+    def __init__(self):
+        self.should_restart = False
+        self.orig_cwd = os.path.realpath(".")
+        self.to_flush = [sys.stdout, sys.stderr]
+
+    def restart(self):
+        reactor.stop()
+        self.should_restart = True
+
+    def stop(self):
+        reactor.stop()
+        self.should_restart = False
+
+    def call(self, target, *args):
+        target(self, *args)
+
+        if self.should_restart:
+            os.chdir(self.orig_cwd)
+            sys.__stdout__.write("** restarting **\n")
+            for f in self.to_flush:
+                f.flush()
+            for f in self.to_flush:
+                os.fsync(f.fileno())
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+
+def main(restarter, args):
     config = argparser.parse_args(args)
     if config.dev:
         config.path += "_dev"
@@ -271,11 +298,13 @@ def main(args):
     config.logfile = "%s.%s" % (config.logname, config.log_ext)
 
     log.startLogging(sys.stdout, setStdout=False)
-    log.startLogging(open(config.logfile, "a"), setStdout=False)
+    logfile = open(config.logfile, "a")
+    restarter.to_flush.append(logfile)
+    log.startLogging(logfile, setStdout=False)
     log.msg("logfile: %r" % config.logfile)
     tracker = Tracker()
     
-    ui = RemoteInterface(config, tracker, config.path, config.mainfile)
+    ui = RemoteInterface(config, restarter, tracker, config.path, config.mainfile)
     ui.load()
 
     reactor.listenTCP(config.port, JSONFactory(ui), interface=config.listen_iface)
@@ -285,4 +314,5 @@ def main(args):
         ui.full_save()
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    restarter = Restarter()
+    restarter.call(main, sys.argv[1:])
