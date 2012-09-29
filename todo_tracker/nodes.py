@@ -60,11 +60,10 @@ class Task(BaseTask):
 
 @nodecreator("day")
 class Day(BaseTask):
+    chidren_of = ("days",)
+    text_required = True
+
     def __init__(self, node_type, text, parent, tracker):
-        if text is None:
-            raise Exception("date required")
-        if parent.node_type != "days":
-            raise Exception("can only be child of days")
         super(Day, self).__init__(node_type, text, parent, tracker)
 
     @property

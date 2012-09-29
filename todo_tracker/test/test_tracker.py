@@ -418,8 +418,9 @@ class TestNode(object):
 
         middle = SubNode("middle", None, tracker.root, tracker)
 
+        node = SubNode("error", None, middle, tracker)
         with pytest.raises(exceptions.LoadError):
-            SubNode("error", None, middle, tracker)
+            node._validate()
 
     def test_textless(self):
         tracker = self.tracker()
@@ -467,11 +468,13 @@ class TestNode(object):
 
         allowed_parent = Tree("allowed-parent", None, tracker.root, tracker)
         child1 = ChildNode("child1", None, allowed_parent, tracker)
+        child1._validate()
         allowed_parent.addchild(child1)
 
         disallowed_parent = Tree("some-other-node", None, tracker.root, tracker)
+        child2 = ChildNode("child2", None, disallowed_parent, tracker)
         with pytest.raises(exceptions.LoadError):
-            child2 = ChildNode("child2", None, disallowed_parent, tracker)
+            child2._validate()
 
     def test_remove_child(self):
         tracker = self.tracker()
@@ -674,6 +677,7 @@ class TestNode(object):
         with pytest.raises(exceptions.LoadError):
             node.start()
 
+
 class TestFindNode(object):
     def test_flatten(self):
         tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
@@ -720,6 +724,13 @@ class TestFindNode(object):
 
         assert result is target
 
+    def test_orphaned_find(self):
+        class AlwaysOrphanedNode(Tree):
+            toplevel = True
+            children_of = ("life",)
+        tracker = Tracker(nodecreator=FakeNodeCreator(AlwaysOrphanedNode), auto_skeleton=False)
+        result = tracker.root.find_node(["this: had", "better: not", "make: things", "blow: up"])
+        assert result is None
 
 def test_get_missing_option():
     obj = object()

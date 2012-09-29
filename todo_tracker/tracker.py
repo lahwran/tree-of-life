@@ -20,7 +20,10 @@ class _NodeCreatorTracker(object):
             creator = self.creators[node_type]
         except KeyError:
             raise LoadError("No such node type: %r" % node_type)
-        return creator(node_type, text, parent, tracker)
+        result = creator(node_type, text, parent, tracker)
+        if result:
+            result._validate()
+        return result
 
     def exists(self, node_type):
         return node_type in self.creators
@@ -146,20 +149,21 @@ class Tree(object):
         self.text = text
 
 
-        if self.toplevel and parent != tracker.root:
-            raise LoadError("%r node must be child of root node" % self)
-
         if self.textless and text is not None:
             raise LoadError("%r node cannot have text" % self)
 
         if self.text_required and text is None:
             raise LoadError("%r node must have text" % self)
 
-        if self.children_of and parent.node_type not in self.children_of:
-            raise LoadError("%s cannot be child of %s node" % (self._do_repr(parent=False), self.parent._do_repr(parent=False)))
-
         if not self.multiline and text is not None and "\n" in text:
             raise LoadError("%r node cannot have newlines in text" % self)
+
+    def _validate(self):
+        if self.toplevel and self.parent != self.tracker.root:
+            raise LoadError("%r node must be child of root node" % self)
+
+        if self.children_of and self.parent.node_type not in self.children_of:
+            raise LoadError("%s cannot be child of %s node" % (self._do_repr(parent=False), self.parent._do_repr(parent=False)))
 
     def _init_children(self):
         self.children = _NodeListRoot()
