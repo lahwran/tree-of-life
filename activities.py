@@ -39,11 +39,11 @@ class CommandLineInterface(CommandInterface):
 class ExitMainloop(BaseException):
     pass
 
-@command
+@command()
 def quit(event):
     raise ExitMainloop
 
-@command
+@command()
 def pdb(event):
     import pdb; pdb.set_trace()
 

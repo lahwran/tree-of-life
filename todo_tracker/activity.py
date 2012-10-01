@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 import time
 
 
-from crow2.events.hooktree import HookMultiplexer, CommandHook
-from crow2.events.exceptions import NameResolutionError
 from twisted.python import log
 
 from todo_tracker.file_storage import parse_line
@@ -24,39 +22,53 @@ def _makenode(string):
         raise InvalidInputError("plz 2 not indent")
     return node_type, text
 
-command = HookMultiplexer(hook_class=CommandHook, childarg="command")
+class CommandList(object):
+    def __init__(self):
+        self.commands = {}
 
-@command
+    def add(self, name=None):
+        def _inner(func):
+            _name = name
+            if _name is None:
+                _name = func.__name__
+            self.commands[_name] = func
+            return func
+        return _inner
+
+global_commands = CommandList()
+command = global_commands.add
+
+@command()
 @command("finished")
 @command("next")
 def done(event):
     event.tracker.activate_next()
 
-@command
+@command()
 @command("donext")
 @command(">")
 def after(event):
     node_type, text = _makenode(event.text)
     event.tracker.create_after(node_type, text, activate=False)
 
-@command
+@command()
 @command("dofirst")
 @command("<")
 def before(event):
     node_type, text = _makenode(event.text)
     event.tracker.create_before(node_type, text, activate=True)
 
-@command
+@command()
 def createchild(event):
     node_type, text = _makenode(event.text)
     event.tracker.create_child(node_type, text, activate=True)
 
-@command
+@command()
 @command("edit")
 def vim(event):
     event.ui.vim(event.source)
 
-@command
+@command()
 def todo(event):
     if event.text:
         event.tracker.todo.createchild("todo", event.text)
@@ -81,6 +93,14 @@ def generate_listing(active, node, lines=None, indent=0):
         generate_listing(active, child, lines, indent+1)
     return lines
 
+class Event(object):
+    def __init__(self, source, tracker, command_name, text, ui):
+        self.source = source
+        self.tracker = tracker
+        self.command_name = command_name
+        self.text = text
+        self.ui = ui
+
 class CommandInterface(object):
     max_format_depth = 2
     _default_command = "createchild"
@@ -90,9 +110,12 @@ class CommandInterface(object):
 
     def _command(self, source, command_name, text):
         try:
-            command.fire(source=source, tracker=self.tracker, command=command_name, text=text, ui=self)
-        except NameResolutionError:
+            target = global_commands.commands[command_name]
+        except KeyError:
             self.errormessage(source, "no such command %r" % command_name)
+        else:
+            event = Event(source, self.tracker, command_name, text, self)
+            target(event)
 
     def command(self, source, line):
         if not line.strip():

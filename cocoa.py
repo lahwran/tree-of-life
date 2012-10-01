@@ -14,24 +14,24 @@ from todo_tracker.tracker import Tracker
 from todo_tracker.activity import SavingInterface, command
 from todo_tracker.util import tempfile
 
-@command
+@command()
 def error(event):
     raise Exception("test")
 
-@command
+@command()
 def restart(event):
     event.ui.restarter.restart()
 
-@command
+@command()
 def stop(event):
     event.ui.restarter.stop()
 
-@command
+@command()
 def vimpdb(event):
     import pdb; pdb.set_trace()
     event.ui.vim(event.source, debug=True)
 
-@command
+@command()
 def save(event):
     event.ui.full_save()
 
