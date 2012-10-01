@@ -50,7 +50,7 @@ class VimRunner(object):
     """
 
     outer_command = "exec bash -c '%s'\n"
-    base_inner_command = "vim %s; echo '%s' | base64 -d | nc 127.0.0.1 %d" # > /dev/null because the initialization message is uninteresting
+    base_inner_command = "vim %s; echo '%s' | base64 --decode | nc 127.0.0.1 %d" # > /dev/null because the initialization message is uninteresting
     applescript = """
         tell application "iTerm"
             activate
