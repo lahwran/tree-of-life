@@ -108,7 +108,7 @@ class RemoteInterface(SavingInterface):
     def __init__(self, config, restarter, *args, **keywords):
         super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
-        self.config = config
+        self.run_config = config
         self.restarter = restarter
         self._vim_instances = {}
     
@@ -122,7 +122,7 @@ class RemoteInterface(SavingInterface):
         for listener in self.listeners:
             listener.sendmessage({"display": False})
 
-        runner = VimRunner(originator, self, self.config.port, callback, filenames)
+        runner = VimRunner(originator, self, self.run_config.port, callback, filenames)
         runner.run()
         
         self._vim_instances[runner.id] = runner
@@ -170,6 +170,7 @@ class JSONProtocol(LineOnlyReceiver):
         self._errorclear = None
 
     def connectionMade(self):
+        self.sendmessage({"max_width": self.commandline.config["max_width"]})
         self.update()
         self.commandline.listeners.append(self)
 
@@ -310,6 +311,8 @@ def main(restarter, args):
     
     ui = RemoteInterface(config, restarter, tracker, config.path, config.mainfile)
     ui.load()
+    ui.config.setdefault("max_width", 500)
+    print ui.config
 
     reactor.listenTCP(config.port, JSONFactory(ui), interface=config.listen_iface)
     try:

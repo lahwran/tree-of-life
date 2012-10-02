@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import traceback
 import os
+import json
 import subprocess
 from datetime import datetime, timedelta
 import time
@@ -107,6 +108,7 @@ class CommandInterface(object):
 
     def __init__(self, tracker):
         self.tracker = tracker
+        self.config = {}
 
     def _command(self, source, command_name, text):
         try:
@@ -241,6 +243,7 @@ class Git(object):
 
 class SavingInterface(CommandInterface):
     def __init__(self, tracker, directory, main_file,
+            config_file="config.json",
             autosave_template="_{main_file}_autosave_{time}",
             backup_template="_{main_file}_backup_{time}"):
         super(SavingInterface, self).__init__(tracker)
@@ -248,6 +251,7 @@ class SavingInterface(CommandInterface):
         self.save_dir = os.path.realpath(os.path.expanduser(directory))
         self.main_file = main_file
         self.save_file = os.path.join(self.save_dir, main_file)
+        self.config_file = os.path.join(self.save_dir, config_file)
         self.autosave_file = os.path.join(self.save_dir, autosave_template)
         self.backup_file = os.path.join(self.save_dir, backup_template)
         self.timeformat = "%A %B %d %H:%M:%S %Y"
@@ -262,6 +266,14 @@ class SavingInterface(CommandInterface):
 
         self.git = Git(self.save_dir)
 
+    def _load(self, filename, callback):
+        try:
+            reader = open(os.path.realpath(filename), "r")
+        except IOError:
+            return None
+        else:
+            return callback(reader)
+
     def load(self):
         try:
             reader = open(os.path.realpath(self.save_file), "r")
@@ -270,12 +282,19 @@ class SavingInterface(CommandInterface):
             pass
         else:
             self.tracker.load(reader)
+        self._load(self.save_file, self.tracker.load)
+        config = self._load(self.config_file, json.load)
+        if config:
+            self.config = config
 
     def full_save(self):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
         self.git.init()
+
+        json.dump(self.config, open(self.config_file, "w"), sort_keys=True, indent=4)
+        self.git.add(self.config_file)
 
         self.tracker.save(open(self.save_file, "w"))
         self.git.add(self.save_file)
