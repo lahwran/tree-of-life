@@ -1,15 +1,13 @@
 import itertools
 
 import pytest
-from zope.interface import implementer
-from crow2.adapterutil import fakeimplementeds, IFile
 
 from todo_tracker.nodes import GenericNode, GenericActivate
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker import exceptions
 
-from todo_tracker.tracker import Tracker, _NodeListRoot, Tree, SimpleOption, _NodeMatcher
+from todo_tracker.tracker import Tracker, _NodeListRoot, Tree, Option, _NodeMatcher
 
 class TestTracker(object):
     def test_load_basic(self):
@@ -21,7 +19,7 @@ class TestTracker(object):
             "        thirdchild: herp derp\n"
             "    fourthchild: ark dark\n"
         )
-        tracker_obj.load(lines)
+        tracker_obj.load("str", lines)
 
         root = tracker_obj.root
         root_child0 = root.children.next_neighbor
@@ -50,7 +48,7 @@ class TestTracker(object):
             "    @option: this won't work here\n"
         )
         with pytest.raises(exceptions.LoadError):
-            tracker_obj.load(lines)
+            tracker_obj.load("str", lines)
 
     def test_load_continued_text(self):
         tracker_obj = Tracker(auto_skeleton=False)
@@ -59,7 +57,7 @@ class TestTracker(object):
             "    - herp\n"
             "    - derp\n"
         )
-        tracker_obj.load(lines)
+        tracker_obj.load("str", lines)
         assert tracker_obj.root.children.next_neighbor.text == "derp\nherp\nderp"
 
     def test_save_basic(self):
@@ -85,7 +83,6 @@ class TestTracker(object):
         node2_1.continue_text('honk donk')
         node2.addchild(node2_1)
 
-        @implementer(IFile)
         class WriteTarget(object):
             def __init__(self):
                 self.text = ""
@@ -94,7 +91,7 @@ class TestTracker(object):
                 self.text = text
 
         target = WriteTarget()
-        tracker.save(target)
+        tracker.save("file", target)
         assert target.text == (
             "node1: node1_text\n"
             "    node1_1: node1_1_text\n"
@@ -181,7 +178,7 @@ class TestTracker(object):
             ),
         ]
 
-        tracker.load(sequence[0])
+        tracker.load("str", sequence[0])
 
         for num, output_str in enumerate(sequence[1:]):
             tracker.activate_next()
@@ -198,7 +195,7 @@ class TestTracker(object):
             "_genactive: 4\n"
         )
 
-        tracker.load(input_str)
+        tracker.load("str", input_str)
 
         tracker.create_before("_genactive", "1")
         tracker.create_after("_genactive", "1.5")
@@ -242,7 +239,7 @@ class TestTracker(object):
 
     def test_auto_skeleton_load(self):
         tracker = Tracker(nodecreator=FakeNodeCreator(GenericActivate))
-        tracker.load(
+        tracker.load("str",
             "days\n"
             "    day: yesterday\n"
             "        @active\n"
@@ -259,7 +256,7 @@ class TestTracker(object):
 
     def test_auto_skeleton_load_integration(self):
         tracker = Tracker()
-        tracker.load(
+        tracker.load("str",
             "days\n"
             "    day: today\n"
             "todo bucket"
@@ -275,7 +272,7 @@ class TestTracker(object):
 
     def test_auto_skeleton_day_active(self):
         tracker = Tracker()
-        tracker.load(
+        tracker.load("str",
             "days\n"
             "    day: today\n"
             "        @started: September 23, 2012 11:00 AM\n"
@@ -297,7 +294,7 @@ class TestTracker(object):
     def test_too_indented(self):
         tracker = Tracker(auto_skeleton=False, nodecreator=FakeNodeCreator(GenericActivate))
         with pytest.raises(exceptions.LoadError):
-            tracker.load(
+            tracker.load("str",
                 "herp\n"
                 "    derp\n"
                 "            donk\n"
@@ -354,9 +351,11 @@ class TestTracker(object):
             "    @someoption: boom\n"
         )
         try:
-            tracker.load(input_str)
+            tracker.load("str", input_str)
         except exceptions.LoadError as e:
-            assert str(e) == "At line 4: UNHANDLED ERROR: Exception: test exception"
+            result = str(e)
+            assert "At line 4: UNHANDLED ERROR" in result
+            assert "Exception: test exception" in result
         else: # pragma: no cover
             assert False
 
@@ -373,7 +372,7 @@ class TestNode(object):
             "                @active"
         )
 
-        tracker.load(input_str)
+        tracker.load("str", input_str)
 
         expected_pairs = [
             ("_genactive", "3"),
@@ -568,9 +567,9 @@ class TestNode(object):
 
         class OptionedNode(Tree):
             options = (
-                ("option1", SimpleOption(str)),
-                ("option2", SimpleOption(str)),
-                ("option3", SimpleOption(int))
+                ("option1", Option()),
+                ("option2", Option()),
+                ("option3", Option(int, str))
             )
             def __init__(self, *a, **k):
                 super(OptionedNode, self).__init__(*a, **k)
@@ -734,7 +733,7 @@ class TestFindNode(object):
 
 def test_get_missing_option():
     obj = object()
-    option = SimpleOption(str)
+    option = Option()
     assert option.get(obj, "somename") == (False, None)
 
 class TestNodeList(object):

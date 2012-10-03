@@ -1,11 +1,8 @@
 from weakref import WeakKeyDictionary
 from datetime import datetime
 
-from zope.interface import Interface
-from crow2.adapterutil import IString
-
-from todo_tracker.tracker import Tree, nodecreator, SimpleOption, BooleanOption
-from todo_tracker.time import IDateTime, IDate, IEstimatedDatetime
+from todo_tracker.tracker import Tree, nodecreator, Option, BooleanOption
+from todo_tracker import timefmt
 
 class ActiveMarker(BooleanOption):
     def set(self, node, name, value):
@@ -16,8 +13,8 @@ class ActiveMarker(BooleanOption):
 @nodecreator("worked on")
 class BaseTask(Tree):
     options = (
-        ("started", SimpleOption(IDateTime)),
-        ("finished", SimpleOption(IDateTime)),
+        ("started", timefmt.datetime_option),
+        ("finished", timefmt.datetime_option),
         ("active", ActiveMarker())
     )
     def __init__(self, node_type, text, parent, tracker):
@@ -50,7 +47,7 @@ class BaseTask(Tree):
 class Task(BaseTask):
     multiline = True
     options = (
-        ("timeframe", SimpleOption(IEstimatedDatetime)),
+        ("timeframe", timefmt.datetime_option),
     )
 
     def __init__(self, node_type, text, parent, tracker):
@@ -68,11 +65,11 @@ class Day(BaseTask):
 
     @property
     def text(self):
-        return IString(self.date)
+        return timefmt.date_to_str(self.date)
 
     @text.setter
     def text(self, new):
-        self.date = IDate(new)
+        self.date = timefmt.str_to_date(new)
 
     @property
     def can_activate(self):
@@ -151,8 +148,8 @@ class Comment(Tree):
 class Event(BaseTask):
     multiline = True
     options = (
-        ("when", SimpleOption(IEstimatedDatetime)),
-        ("where", SimpleOption(IString)),
+        ("when", timefmt.datetime_option),
+        ("where", Option()),
     )
 
 @nodecreator("todo")

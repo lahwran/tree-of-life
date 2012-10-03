@@ -3,17 +3,15 @@ import collections
 import inspect
 import operator
 import itertools
-
-from crow2.util import paramdecorator
-from crow2.adapterutil import IString
-from zope.interface import Interface
+import traceback
 
 from todo_tracker.ordereddict import OrderedDict
 from todo_tracker.exceptions import ListIntegrityError, LoadError, CantStartNodeError
+from todo_tracker.util import HandlerList
 
-class _NodeCreatorTracker(object):
-    def __init__(self):
-        self.creators = {}
+class _NodeCreatorTracker(HandlerList):
+    name = "creators"
+    autodetect = False
 
     def create(self, node_type, text, parent, tracker):
         try:
@@ -28,12 +26,13 @@ class _NodeCreatorTracker(object):
     def exists(self, node_type):
         return node_type in self.creators
 
-    @paramdecorator
-    def __call__(self, func, name):
-        self.creators[name] = func
-        return func
+    def __call__(self, name):
+        return self.add(name)
+
 
 nodecreator = _NodeCreatorTracker()
+loaders = HandlerList()
+serializers = HandlerList()
 
 class _NodeListIter(object):
     def __init__(self, nodelist, reverse=False):
@@ -410,12 +409,14 @@ class _NodeMatcher(object):
         else:
             return self._filter(self.node.children)
 
-class SimpleOption(object):
-    def __init__(self, adapter):
-        self.adapter = adapter
+class Option(object):
+    def __init__(self, incoming=None, outgoing=None):
+        self.incoming = incoming
+        self.outgoing = outgoing
 
     def set(self, node, name, value):
-        value = self.adapter(value)
+        if self.incoming is not None:
+            value = self.incoming(value)
         setattr(node, name, value)
 
     def get(self, node, name):
@@ -427,6 +428,9 @@ class SimpleOption(object):
         show = True
         if value is None:
             show = False
+
+        if self.outgoing is not None and show:
+            value = self.outgoing(value)
 
         return show, value
 
@@ -476,7 +480,7 @@ class Tracker(object):
 
         self.todo = self.root.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
 
-    def load(self, reader):
+    def load(self, format, reader):
         self._makeroot()
         stack = []
         lastnode = self.root
@@ -486,7 +490,7 @@ class Tracker(object):
         error_context = ErrorContext() # mutable thingy
         
         try:
-            parser = IParser(reader)
+            parser = loaders.handlers[format](reader)
             parser.error_context = error_context
             for indent, is_metadata, node_type, text in parser:
                 if indent > lastindent:
@@ -517,7 +521,7 @@ class Tracker(object):
             e.error_context = error_context
             raise
         except Exception as e:
-            new_e = LoadError("UNHANDLED ERROR: %s: %s" % (type(e).__name__, e))
+            new_e = LoadError("UNHANDLED ERROR:\n %s" % (traceback.format_exc()))
             new_e.error_context = error_context
             raise new_e
 
@@ -526,11 +530,10 @@ class Tracker(object):
 
         for depth, node in self.root.iter_flat_children():
             node.load_finished()
-        
 
-    def save(self, writer):
-        serializer = ISerializer(writer)
-        serializer.serialize(self.root)
+    def save(self, format, *args, **keywords):
+        serializer = serializers.handlers[format]
+        return serializer(self.root, *args, **keywords)
 
     def activate(self, node):
         # jump to a particular node as active
@@ -615,17 +618,6 @@ class Tracker(object):
     def start_editor(self):
         if self.editor_callback:
             self.editor_callback()
-
-class IParser(Interface):
-    def __iter__():
-        pass
-
-    def next():
-        pass
-
-class ISerializer(Interface):
-    def serialize(tree):
-        pass
 
 import todo_tracker.nodes
 import todo_tracker.file_storage

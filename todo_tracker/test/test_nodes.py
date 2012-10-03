@@ -18,7 +18,7 @@ def test_registration():
 def test_task():
     tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
 
-    tracker.load(
+    tracker.load("str",
         "task: a task\n"
         "    @started: June 7, 2010 7:00 AM"
     )
@@ -26,7 +26,7 @@ def test_task():
 def test_active_option():
     tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
 
-    tracker.load(
+    tracker.load("str",
         "task: a task\n"
         "    @active"
     )
@@ -37,7 +37,7 @@ def test_activate_deactivate(monkeypatch):
     monkeypatch.setattr(nodes, "datetime", FakeDatetime(datetime(2012, 10, 24)))
     tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
 
-    tracker.load(
+    tracker.load("str",
         "task: 1\n"
         "    @active\n"
         "task: 2\n"
@@ -47,7 +47,7 @@ def test_activate_deactivate(monkeypatch):
     tracker.activate_next()
     tracker.activate_next()
 
-    assert serialize_to_str(tracker.root) == (
+    assert tracker.save("str") == (
         "task: 1\n"
         "    @started: October 24, 2012 12:00 AM\n"
         "    @finished: October 24, 2012 12:00 AM\n"

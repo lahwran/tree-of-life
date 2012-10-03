@@ -1,7 +1,4 @@
-from crow2.adapterutil import adapter_for, IString, IFile
-from zope.interface import implementer
-
-from todo_tracker.tracker import IParser, ISerializer
+from todo_tracker.tracker import loaders, serializers
 from todo_tracker.exceptions import LoadError
 
 parsing_indent = 0
@@ -61,13 +58,11 @@ def parse_line(line):
         text += char 
     return indent, is_metadata, node_type, text
 
-@adapter_for(IString)
-@implementer(IParser)
+@loaders.add("str")
 def parse_string(string):
     return FileParser(string.split('\n'))
 
-@adapter_for(IFile)
-@implementer(IParser)
+@loaders.add("file")
 class FileParser(object):
     def __init__(self, reader):
         self.reader = reader
@@ -111,7 +106,6 @@ def serialize(tree, is_root=False, one_line=False):
         if value is None:
             lines.append("%s@%s" % (indent, name))
         else:
-            value = IString(value)
             lines.append("%s@%s: %s" % (indent, name, value))
 
     for child in tree.children_export():
@@ -119,15 +113,11 @@ def serialize(tree, is_root=False, one_line=False):
             lines.append(indent + line)
     return lines
 
+@serializers.add("str")
 def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
     return '\n'.join(lines) + "\n"
 
-@adapter_for(IFile)
-@implementer(ISerializer)
-class FileSerializer(object):
-    def __init__(self, writer):
-        self.writer = writer
-
-    def serialize(self, root):
-        self.writer.write(serialize_to_str(root))
+@serializers.add("file")
+def serialize_to_file(root, writer):
+    writer.write(serialize_to_str(root))

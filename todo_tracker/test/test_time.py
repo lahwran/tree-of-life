@@ -2,10 +2,10 @@ from datetime import datetime, date, time
 
 from crow2.adapterutil import IString
 
-from todo_tracker import time as target
+from todo_tracker import timefmt
 
 def test_string_date():
-    assert target.IDate("June 7, 2012") == date(2012, 6, 7)
+    assert timefmt.str_to_date("June 7, 2012") == date(2012, 6, 7)
 
 class FakeDatetime(object):
     def __init__(self, now):
@@ -15,18 +15,18 @@ class FakeDatetime(object):
         return self._now
 
 def test_string_tomorrow(monkeypatch):
-    monkeypatch.setattr(target, "datetime", FakeDatetime(datetime(2012, 6, 7)))
-    assert target.IDate("tomorrow") == date(2012, 6, 8)
+    monkeypatch.setattr(timefmt, "datetime", FakeDatetime(datetime(2012, 6, 7)))
+    assert timefmt.str_to_date("tomorrow") == date(2012, 6, 8)
 
 def test_string_today(monkeypatch):
-    monkeypatch.setattr(target, "datetime", FakeDatetime(datetime(2012, 6, 7)))
-    assert target.IDate("today") == date(2012, 6, 7)
+    monkeypatch.setattr(timefmt, "datetime", FakeDatetime(datetime(2012, 6, 7)))
+    assert timefmt.str_to_date("today") == date(2012, 6, 7)
 
 def test_string_time():
-    assert target.ITime("10:00 AM") == time(10)
+    assert timefmt.str_to_time("10:00 AM") == time(10)
 
 def test_string_datetime():
-    assert target.IDateTime("June 7, 2012 10:00 AM") == datetime(2012, 6, 7, 10)
+    assert timefmt.str_to_datetime("June 7, 2012 10:00 AM") == datetime(2012, 6, 7, 10)
 
 def test_time_string():
-    assert IString(time(10)) == "10:00 AM"
+    assert timefmt.time_to_str(time(10)) == "10:00 AM"

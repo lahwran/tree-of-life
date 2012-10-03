@@ -13,7 +13,7 @@ from twisted.python import log
 from todo_tracker.file_storage import parse_line
 from todo_tracker.tracker import nodecreator
 from todo_tracker.exceptions import InvalidInputError
-from todo_tracker.util import tempfile
+from todo_tracker.util import tempfile, HandlerList
 
 def _makenode(string):
     indent, is_metadata, node_type, text = parse_line(string)
@@ -23,20 +23,7 @@ def _makenode(string):
         raise InvalidInputError("plz 2 not indent")
     return node_type, text
 
-class CommandList(object):
-    def __init__(self):
-        self.commands = {}
-
-    def add(self, name=None):
-        def _inner(func):
-            _name = name
-            if _name is None:
-                _name = func.__name__
-            self.commands[_name] = func
-            return func
-        return _inner
-
-global_commands = CommandList()
+global_commands = HandlerList()
 command = global_commands.add
 
 @command()
@@ -112,7 +99,7 @@ class CommandInterface(object):
 
     def _command(self, source, command_name, text):
         try:
-            target = global_commands.commands[command_name]
+            target = global_commands.handlers[command_name]
         except KeyError:
             self.errormessage(source, "no such command %r" % command_name)
         else:
@@ -144,8 +131,8 @@ class CommandInterface(object):
         # USER MESSAGE
         print "tmp-backup:", tmp_backup
 
-        self.tracker.save(open(tmp, "w"))
-        self.tracker.save(open(tmp_backup, "w"))
+        self.tracker.save("file", open(tmp, "w"))
+        self.tracker.save("file", open(tmp_backup, "w"))
 
         def callback():
             if open(tmp, "r").read() == open(tmp_backup, "r").read():
@@ -156,7 +143,7 @@ class CommandInterface(object):
                 return True
 
             try:
-                self.tracker.load(open(tmp, "r"))
+                self.tracker.load("file", open(tmp, "r"))
             except Exception:
                 # USER MESSAGE NEEDED
                 log.err()
@@ -166,7 +153,7 @@ class CommandInterface(object):
                 writer.write(formatted)
                 writer.close()
                 exceptions.append(tmp_exception)
-                self.tracker.load(open(tmp_backup, "r"))
+                self.tracker.load("file", open(tmp_backup, "r"))
                 self._run_vim(source, callback, tmp, tmp_exception, **keywords)
                 return False
             else:
@@ -275,14 +262,7 @@ class SavingInterface(CommandInterface):
             return callback(reader)
 
     def load(self):
-        try:
-            reader = open(os.path.realpath(self.save_file), "r")
-        except IOError:
-            # what do?
-            pass
-        else:
-            self.tracker.load(reader)
-        self._load(self.save_file, self.tracker.load)
+        self._load(self.save_file, lambda f: self.tracker.load("file", f))
         config = self._load(self.config_file, json.load)
         if config:
             self.config = config
@@ -296,7 +276,7 @@ class SavingInterface(CommandInterface):
         json.dump(self.config, open(self.config_file, "w"), sort_keys=True, indent=4)
         self.git.add(self.config_file)
 
-        self.tracker.save(open(self.save_file, "w"))
+        self.tracker.save("file", open(self.save_file, "w"))
         self.git.add(self.save_file)
 
         self.git.gitignore(["_*"])
@@ -324,7 +304,7 @@ class SavingInterface(CommandInterface):
         filename = name_format.format(main_file=self.main_file, time=int(time))
         writer = open(filename, "w")
 
-        self.tracker.save(writer)
+        self.tracker.save("file", writer)
         writer.close()
         setattr(self, lastname, datetime.now())
 
