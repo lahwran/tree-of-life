@@ -168,26 +168,44 @@ class JSONProtocol(LineOnlyReceiver):
         self.commandline = commandline
         self._error = ""
         self._errorclear = None
+        self._is_vim_connection = False
 
     def connectionMade(self):
-        self.sendmessage({"max_width": self.commandline.config["max_width"]})
-        self.update()
-        self.commandline.listeners.append(self)
+        try:
+            self.sendmessage({"max_width": self.commandline.config["max_width"]})
+            self.update()
+            self.commandline.listeners.append(self)
+        except Exception:
+            log.err()
 
     def connectionLost(self, reason):
-        self.commandline.listeners.remove(self)
+        try:
+            self.commandline.listeners.remove(self)
+        except ValueError:
+            log.err()
+        if not self._is_vim_connection:
+            log.msg("connection lost: %r" % reason)
 
     def sendmessage(self, message):
         self.sendLine(json.dumps(message))
 
     def update(self):
-        self.sendmessage({
-            "prompt": [str(node) for node in self.commandline.displaychain()[::-1]],
-            "context": self.commandline.tree_context(),
-            "suggestions": [self.status, ""],
-            "messages": self.commandline.messages()
-        })
-        self.commandline.auto_save()
+        try:
+            self.sendmessage({
+                "prompt": [str(node) for node in self.commandline.displaychain()[::-1]],
+                "context": self.commandline.tree_context(),
+                "suggestions": [self.status, ""],
+                "messages": self.commandline.messages()
+            })
+            self.commandline.auto_save()
+        except Exception:
+            log.err()
+            try:
+                self.sendmessage({
+                    "prompt": ["** see console **", " ** update error **"],
+                })
+            except Exception:
+                log.err()
 
     @property
     def status(self):
@@ -230,7 +248,10 @@ class JSONProtocol(LineOnlyReceiver):
             except AttributeError:
                 log.msg("unrecognized message: %s = %s" % (key, value))
                 continue
-            handler(value)
+            try:
+                handler(value)
+            except Exception:
+                log.err()
 
     def message_input(self, text_input):
         pass # don't care about input right now
@@ -251,6 +272,7 @@ class JSONProtocol(LineOnlyReceiver):
         pass
 
     def message_vim_finished(self, identifier):
+        self._is_vim_connection = True
         self.commandline._vim_finished(identifier)
 
 class JSONFactory(Factory):
