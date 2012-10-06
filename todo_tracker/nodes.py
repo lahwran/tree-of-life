@@ -158,6 +158,11 @@ class TodoItem(Tree):
     allowed_children = []
     multiline = True
 
+    def auto_add(self, creator):
+        parent = self.tracker.root.find_node(["todo bucket"])
+        parent.addchild(self)
+        return parent
+
 @nodecreator("todo bucket")
 class TodoBucket(Tree):
     toplevel = True

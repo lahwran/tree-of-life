@@ -52,6 +52,17 @@ def createchild(event):
     event.tracker.create_child(node_type, text, activate=True)
 
 @command()
+def createauto(event):
+    node_type, text = _makenode(event.text)
+    node = event.tracker.nodecreator.create(node_type, text, None, event.tracker, validate=False)
+    if node.auto_add(creator=event.tracker.active_node):
+        return
+    else:
+        event.tracker.active_node.addchild(node)
+
+    event.tracker.activate(node)
+
+@command()
 @command("edit")
 def vim(event):
     event.ui.vim(event.source)
@@ -91,7 +102,7 @@ class Event(object):
 
 class CommandInterface(object):
     max_format_depth = 2
-    _default_command = "createchild"
+    _default_command = "createauto"
 
     def __init__(self, tracker):
         self.tracker = tracker

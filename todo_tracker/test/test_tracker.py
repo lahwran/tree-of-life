@@ -331,13 +331,6 @@ class TestTracker(object):
         assert node1.node_type == "node1"
         assert node2.node_type == "node2"
 
-    def test_activate_cant_activate(self):
-        tracker = Tracker(auto_skeleton=False, nodecreator=FakeNodeCreator(GenericNode))
-        node = tracker.root.createchild("herp", "derp")
-
-        with pytest.raises(exceptions.CantStartNodeError):
-            tracker.activate(node)
-
     def test_unhandled_load_error(self):
         class ExcOnOptionNode(GenericNode):
             def setoption(self, option, value):

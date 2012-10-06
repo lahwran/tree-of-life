@@ -5,6 +5,8 @@ import operator
 import itertools
 import traceback
 
+from twisted.python import log
+
 from todo_tracker.ordereddict import OrderedDict
 from todo_tracker.exceptions import ListIntegrityError, LoadError, CantStartNodeError
 from todo_tracker.util import HandlerList
@@ -13,13 +15,13 @@ class _NodeCreatorTracker(HandlerList):
     name = "creators"
     autodetect = False
 
-    def create(self, node_type, text, parent, tracker):
+    def create(self, node_type, text, parent, tracker, validate=True):
         try:
             creator = self.creators[node_type]
         except KeyError:
             raise LoadError("No such node type: %r" % node_type)
         result = creator(node_type, text, parent, tracker)
-        if result:
+        if result and validate:
             result._validate()
         return result
 
@@ -208,6 +210,9 @@ class Tree(object):
     def addchild(self, child, before=None, after=None):
         if self.allowed_children is not None and child.node_type not in self.allowed_children:
             raise LoadError("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
+        if child.parent is None:
+            child.parent = self
+            child._validate()
         if child.parent is not self:
             raise LoadError("node %r does not expect to be a child of %r" % (child, self))
         if before and before.parent is not self:
@@ -310,6 +315,9 @@ class Tree(object):
 
     def load_finished(self):
         pass
+
+    def auto_add(self, creator):
+        return None
 
     def __str__(self):
         return todo_tracker.file_storage.serialize(self, one_line=True)[0]
@@ -537,6 +545,10 @@ class Tracker(object):
 
     def activate(self, node):
         # jump to a particular node as active
+        if not node.can_activate:
+            log.msg("Attempted to activate node: %r" % node)
+            return
+
         if self.active_node:
             self.active_node.active = False
 
