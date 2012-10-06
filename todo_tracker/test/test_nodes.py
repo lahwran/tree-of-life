@@ -34,7 +34,8 @@ def test_active_option():
     assert tracker.active_node.text == "a task"
 
 def test_activate_deactivate(monkeypatch):
-    monkeypatch.setattr(nodes, "datetime", FakeDatetime(datetime(2012, 10, 24)))
+    from todo_tracker.nodes import tasks
+    monkeypatch.setattr(tasks, "datetime", FakeDatetime(datetime(2012, 10, 24)))
     tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
 
     tracker.load("str",
