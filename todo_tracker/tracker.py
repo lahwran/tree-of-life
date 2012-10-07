@@ -140,6 +140,7 @@ class Tree(object):
     options = ()
     children_of = None
     allowed_children = None
+    preferred_parent = None
 
     def __init__(self, node_type, text, parent, tracker):
         self._init_children()
@@ -317,7 +318,12 @@ class Tree(object):
         pass
 
     def auto_add(self, creator):
-        return None
+        if self.preferred_parent is not None:
+            parent = self.tracker.root.find_node(self.preferred_parent)
+            parent.addchild(self)
+            return parent
+        else:
+            return None
 
     def __str__(self):
         return todo_tracker.file_storage.serialize(self, one_line=True)[0]
@@ -487,6 +493,7 @@ class Tracker(object):
             self.activate(today)
 
         self.todo = self.root.find_node(["todo bucket"]) or self.root.createchild("todo bucket")
+        self.fitness_log = self.root.find_node(["fitness log"]) or self.root.createchild("fitness log")
 
     def load(self, format, reader):
         self._makeroot()

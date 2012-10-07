@@ -235,6 +235,7 @@ class TestTracker(object):
             "    day: today\n"
             "        @active\n"
             "todo bucket\n"
+            "fitness log\n"
         )
 
     def test_auto_skeleton_load(self):
@@ -252,6 +253,7 @@ class TestTracker(object):
             "    day: today\n"
             "        @active\n"
             "todo bucket\n"
+            "fitness log\n"
         )
 
     def test_auto_skeleton_load_integration(self):
@@ -259,7 +261,8 @@ class TestTracker(object):
         tracker.load("str",
             "days\n"
             "    day: today\n"
-            "todo bucket"
+            "todo bucket\n"
+            "fitness log"
         )
         today = tracker.active_node.text
         tracker.active_node.started = None
@@ -268,6 +271,7 @@ class TestTracker(object):
             "    day: %s\n"
             "        @active\n"
             "todo bucket\n"
+            "fitness log\n"
         ) % today
 
     def test_auto_skeleton_day_active(self):
@@ -278,7 +282,8 @@ class TestTracker(object):
             "        @started: September 23, 2012 11:00 AM\n"
             "        _genactive: something\n"
             "            @active\n"
-            "todo bucket"
+            "todo bucket\n"
+            "fitness log"
         )
         today = tracker.root.find_node(["days", "day: today"])
         tracker.active_node.started = None
@@ -289,6 +294,7 @@ class TestTracker(object):
             "        _genactive: something\n"
             "            @active\n"
             "todo bucket\n"
+            "fitness log\n"
         ) % today.text
 
     def test_too_indented(self):
