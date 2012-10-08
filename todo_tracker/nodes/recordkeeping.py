@@ -9,10 +9,13 @@ from todo_tracker.exceptions import LoadError
 @nodecreator("fitness log")
 class FitnessLog(Tree):
     toplevel = True
-    allowed_children = ["weight", "waist", "cals", "workout", "_"]
+    allowed_children = ["weight", "waist", "calories", "workout", "_"]
 
     def load_finished(self):
         self.tracker.fitness_log = self
+
+def full_match(regex, *args):
+    return re.match(regex+"$", *args)
 
 class FitnessLogNode(Tree):
     children_of = ["fitness log"]
@@ -22,64 +25,92 @@ class FitnessLogNode(Tree):
         ("time", timefmt.datetime_option),
     )
 
+    value_name = None
+    value_format = None
+    value_regex = None
+    value_type = float
 
-def full_match(regex, *args):
-    return re.match(regex+"$", *args)
-
-class Measurement(FitnessLogNode):
-    value = None
-    regex = None
-    format = None
+    context_name = None
+    context_format = None
+    context_regex = "()"
 
     def __init__(self, *args, **kw):
-        setattr(self, self.value, None)
-        self.clothes = None
+        setattr(self, self.value_name, None)
+        setattr(self, self.context_name, None)
 
-        super(Measurement, self).__init__(*args, **kw)
+        super(FitnessLogNode, self).__init__(*args, **kw)
 
     @property
     def text(self):
-        value = getattr(self, self.value)
+        value = getattr(self, self.value_name)
+        context = getattr(self, self.context_name)
         if value is None:
             return None
 
-        result = self.format % value
-        if self.clothes:
-            result += " wearing %s" % self.clothes
+        result = self.value_format % value
+        if context:
+            result += self.context_format % context
         return result
 
     @text.setter
     def text(self, newtext):
         self.time = datetime.now()
 
-        match = full_match(self.regex + r'(?: wearing (.+))?', newtext.strip(), re.IGNORECASE)
+        match = full_match(self.value_regex + (r'(?:%s)?' % self.context_regex), newtext.strip(), re.IGNORECASE)
         if match:
-            value = float(match.group(1))
-            setattr(self, self.value, value)
-            clothes = match.group(2)
-            if clothes and clothes.strip():
-                self.clothes = clothes.strip()
+            value = self.value_type(match.group(1))
+            setattr(self, self.value_name, value)
+            context = match.group(2)
+            if context and context.strip():
+                setattr(self, self.context_name, context.strip())
             else:
-                self.clothes = None
+                setattr(self, self.context_name, None)
         else:
-            raise LoadError("Bad %s format: %r" % (self.value, newtext))
+            raise LoadError("Bad %s or %s format: %r" % (self.value_name, self.context_name, newtext))
+
+class Measurement(FitnessLogNode):
+    context_name = "clothes"
+    context_format = " wearing %s"
+    context_regex = " wearing (.+)"
 
 @nodecreator("weight")
 class Weight(Measurement):
-    regex = (r'([0-9.]+)'
+    value_name = "weight"
+    value_format = "%.03flbs"
+    value_regex = (r'([0-9.]+)'
             r'(?:\s*lbs)?')
-    format = "%.03flbs"
-    value = "weight"
 
 @nodecreator("waist")
 class Waist(Measurement):
-    regex = (r'([0-9.]+)'
+    value_name = "waist"
+    value_format = "%.03fin"
+    value_regex = (r'([0-9.]+)'
             r'(?:\s*(?:in|inch|inches|"))?')
-    format = "%.03fin"
-    value = "waist"
 
-class Calories(object):
-    pass
+@nodecreator("cal")
+@nodecreator("cals")
+@nodecreator("calories")
+class Calories(FitnessLogNode):
+    context_name = "food"
+    context_format = " from %s"
+    context_regex = " from (.+)"
 
-class Workout(object):
-    pass
+    value_name = "calories"
+    value_format = "%d"
+    value_regex = r'([0-9]+)'
+
+    def __init__(self, node_type, *args, **kwargs):
+        if node_type == "cal" or node_type == "cals":
+            node_type = "calories"
+        super(Calories, self).__init__(node_type, *args, **kwargs)
+
+@nodecreator("workout")
+class Workout(FitnessLogNode):
+    context_name = "activity"
+    context_format = " %s"
+    context_regex = " (.+)"
+
+    value_name = "minutes"
+    value_format = "%dmin"
+    value_regex = (r'([0-9]+)'
+            r'(?:\s*(?:min|minutes))?')

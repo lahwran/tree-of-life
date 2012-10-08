@@ -7,9 +7,9 @@ from todo_tracker.nodes import FitnessLog, Weight, Waist
 from todo_tracker.nodes.recordkeeping import Measurement, full_match
 
 class SimpleMeasurement(Measurement):
-    value = "the_value"
-    regex = "herp (1234) abc"
-    format = "herp %d abc"
+    value_name = "the_value"
+    value_regex = "herp (1234) abc"
+    value_format = "herp %d abc"
 
 def test_measurement_noclothes():
     tracker = Tracker(auto_skeleton=False)
@@ -73,28 +73,28 @@ def test_measurement_time():
 
 
 def test_weight_re():
-    assert full_match(Weight.regex, "10.5lbs").group(1) == "10.5"
-    assert full_match(Weight.regex, "10.5 lbs").group(1) == "10.5"
-    assert full_match(Weight.regex, "0123456789.0123456789 lbs").group(1) == "0123456789.0123456789"
-    assert full_match(Weight.regex, "1 lbs").group(1) == "1"
-    assert full_match(Weight.regex, "1").group(1) == "1"
-    assert full_match(Weight.regex, "15.6  lbs").group(1) == "15.6"
-    assert not full_match(Weight.regex, "1  ")
-    assert not full_match(Weight.regex, "no numerals")
-    assert not full_match(Weight.regex, "alpha then numerals 1234")
-    assert not full_match(Weight.regex, "1234 numerals then alpha")
-    assert not full_match(Weight.regex, "1234 lbs wearing something")
+    assert full_match(Weight.value_regex, "10.5lbs").group(1) == "10.5"
+    assert full_match(Weight.value_regex, "10.5 lbs").group(1) == "10.5"
+    assert full_match(Weight.value_regex, "0123456789.0123456789 lbs").group(1) == "0123456789.0123456789"
+    assert full_match(Weight.value_regex, "1 lbs").group(1) == "1"
+    assert full_match(Weight.value_regex, "1").group(1) == "1"
+    assert full_match(Weight.value_regex, "15.6  lbs").group(1) == "15.6"
+    assert not full_match(Weight.value_regex, "1  ")
+    assert not full_match(Weight.value_regex, "no numerals")
+    assert not full_match(Weight.value_regex, "alpha then numerals 1234")
+    assert not full_match(Weight.value_regex, "1234 numerals then alpha")
+    assert not full_match(Weight.value_regex, "1234 lbs wearing something")
 
 def test_waist_re():
-    assert full_match(Waist.regex, "10.5in").group(1) == "10.5"
-    assert full_match(Waist.regex, "10.5 inches").group(1) == "10.5"
-    assert full_match(Waist.regex, "0123456789.0123456789 inch").group(1) == "0123456789.0123456789"
-    assert full_match(Waist.regex, "1 inch").group(1) == "1"
-    assert full_match(Waist.regex, "1").group(1) == "1"
-    assert full_match(Waist.regex, "15.6  in").group(1) == "15.6"
-    assert not full_match(Waist.regex, "1  ")
-    assert not full_match(Waist.regex, "no numerals")
-    assert not full_match(Waist.regex, "alpha then numerals 1234")
-    assert not full_match(Waist.regex, "1234 numerals then alpha")
-    assert not full_match(Waist.regex, "1234 lbs wearing something")
+    assert full_match(Waist.value_regex, "10.5in").group(1) == "10.5"
+    assert full_match(Waist.value_regex, "10.5 inches").group(1) == "10.5"
+    assert full_match(Waist.value_regex, "0123456789.0123456789 inch").group(1) == "0123456789.0123456789"
+    assert full_match(Waist.value_regex, "1 inch").group(1) == "1"
+    assert full_match(Waist.value_regex, "1").group(1) == "1"
+    assert full_match(Waist.value_regex, "15.6  in").group(1) == "15.6"
+    assert not full_match(Waist.value_regex, "1  ")
+    assert not full_match(Waist.value_regex, "no numerals")
+    assert not full_match(Waist.value_regex, "alpha then numerals 1234")
+    assert not full_match(Waist.value_regex, "1234 numerals then alpha")
+    assert not full_match(Waist.value_regex, "1234 lbs wearing something")
 
