@@ -9,7 +9,7 @@ from todo_tracker.exceptions import LoadError
 @nodecreator("fitness log")
 class FitnessLog(Tree):
     toplevel = True
-    allowed_children = ["weight", "waist", "calories", "workout", "_"]
+    allowed_children = ["weight", "waist", "calories", "workout", "_", "log"]
 
     def load_finished(self):
         self.tracker.fitness_log = self
@@ -17,13 +17,22 @@ class FitnessLog(Tree):
 def full_match(regex, *args):
     return re.match(regex+"$", *args)
 
-class FitnessLogNode(Tree):
+# TODO: these names are a little wonky
+@nodecreator("log")
+class LogNode(Tree):
     children_of = ["fitness log"]
     allowed_children = []
     preferred_parent = ["fitness log"]
+
     options = (
         ("time", timefmt.datetime_option),
     )
+
+    def __init__(self, *args, **kw):
+        self.time = datetime.now()
+        super(LogNode, self).__init__(*args, **kw)
+
+class FitnessLogNode(LogNode):
 
     value_name = None
     value_format = None
