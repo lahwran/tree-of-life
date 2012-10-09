@@ -4,6 +4,8 @@ import os
 import subprocess
 import argparse
 import uuid
+from datetime import datetime
+from collections import defaultdict
 
 from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
@@ -148,9 +150,27 @@ class RemoteInterface(SavingInterface):
 
     def messages(self):
         if self.tracker.todo:
-            return [str(child) for child in self.tracker.todo.children]
+            messages = [str(child) for child in self.tracker.todo.children]
         else:
-            return []
+            messages = []
+
+
+        if self.tracker.fitness_log:
+            today = datetime.now().date()
+            things = defaultdict(int)
+            format_strings = {}
+            for node in reversed(self.tracker.fitness_log.children):
+                if node.time.date() != today:
+                    break
+                if getattr(node, "value_name", False):
+                    things[node.node_type] += getattr(node, node.value_name)
+                    format_strings[node.node_type] = node.value_format
+            if messages:
+                messages.append("")
+            for thing, value in things.items():
+                messages.append(("%s today: " + format_strings[thing]) % (thing, value))
+
+        return messages
 
     def displaychain(self):
         result = super(RemoteInterface, self).displaychain()
