@@ -4,6 +4,7 @@ import os
 import subprocess
 import argparse
 import uuid
+import shlex
 from datetime import datetime
 from collections import defaultdict
 
@@ -22,7 +23,14 @@ def error(event):
 
 @command()
 def restart(event):
-    event.ui.restarter.restart()
+    if event.text:
+        print repr(event.text)
+        print repr(str(event.text))
+        args = shlex.split(str(event.text))
+        print repr(args)
+    else:
+        args = None
+    event.ui.restarter.restart(args)
 
 @command()
 def stop(event):
@@ -303,7 +311,7 @@ class JSONFactory(Factory):
         return JSONProtocol(self.interface)
 
 argparser = argparse.ArgumentParser(description="run server")
-argparser.add_argument("--dev", action="store_true", dest="dev")
+argparser.add_argument("--dev", nargs="?", dest="dev", default="false", const="true", type=lambda s: s.lower() == "true")
 argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker", dest="path")
 argparser.add_argument("-p", "--port", default=18081, dest="port")
 argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
@@ -316,9 +324,12 @@ class Restarter(object):
         self.should_restart = False
         self.orig_cwd = os.path.realpath(".")
         self.to_flush = [sys.stdout, sys.stderr]
+        self.args = sys.argv
 
-    def restart(self):
+    def restart(self, args=None):
         reactor.stop()
+        if args is not None:
+            self.args = [self.args[0]] + args
         self.should_restart = True
 
     def stop(self):
@@ -335,7 +346,8 @@ class Restarter(object):
                 f.flush()
             for f in self.to_flush:
                 os.fsync(f.fileno())
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+            print self.args
+            os.execv(sys.executable, [sys.executable] + self.args)
 
 def main(restarter, args):
     config = argparser.parse_args(args)
@@ -363,5 +375,6 @@ def main(restarter, args):
         ui.full_save()
 
 if __name__ == "__main__":
+    print sys.argv
     restarter = Restarter()
     restarter.call(main, sys.argv[1:])
