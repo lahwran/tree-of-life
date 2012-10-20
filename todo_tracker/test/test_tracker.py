@@ -7,7 +7,7 @@ from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker import exceptions
 
-from todo_tracker.tracker import Tracker, _NodeListRoot, Tree, Option, _NodeMatcher
+from todo_tracker.tracker import Tracker, _NodeListRoot, Node, Option, _NodeMatcher
 
 class TestTracker(object):
     def test_load_basic(self):
@@ -387,12 +387,12 @@ class TestNode(object):
             assert text == node.text
 
     def tracker(self):
-        return Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        return Tracker(nodecreator=FakeNodeCreator(Node), auto_skeleton=False)
 
     def test_multiline_init(self):
         tracker = self.tracker()
 
-        class SubNode(Tree):
+        class SubNode(Node):
             multiline = False
 
         with pytest.raises(exceptions.LoadError):
@@ -401,7 +401,7 @@ class TestNode(object):
     def test_multiline_continue(self):
         tracker = self.tracker()
 
-        class SubNode(Tree):
+        class SubNode(Node):
             multiline = False
 
         subnode = SubNode("subnode", "text", tracker.root, tracker)
@@ -411,7 +411,7 @@ class TestNode(object):
     def test_toplevel(self):
         tracker = self.tracker()
 
-        class SubNode(Tree):
+        class SubNode(Node):
             toplevel = True
 
         middle = SubNode("middle", None, tracker.root, tracker)
@@ -423,7 +423,7 @@ class TestNode(object):
     def test_textless(self):
         tracker = self.tracker()
 
-        class SubNode(Tree):
+        class SubNode(Node):
             textless = True
 
         success = SubNode("subnode", None, tracker.root, tracker)
@@ -435,7 +435,7 @@ class TestNode(object):
     def test_notext_continueline(self):
         tracker = self.tracker()
 
-        class SubNode(Tree):
+        class SubNode(Node):
             multiline = True
 
         node = SubNode("node", None, tracker.root, tracker)
@@ -446,30 +446,30 @@ class TestNode(object):
     def test_allowed_children(self):
         tracker = self.tracker()
 
-        class ParentNode(Tree):
+        class ParentNode(Node):
             allowed_children = ("allowed",)
 
         parent = ParentNode("parent", None, tracker.root, tracker)
 
-        child1 = Tree("allowed", None, parent, tracker)
+        child1 = Node("allowed", None, parent, tracker)
         parent.addchild(child1)
 
-        child2 = Tree("not-allowed", None, parent, tracker)
+        child2 = Node("not-allowed", None, parent, tracker)
         with pytest.raises(exceptions.LoadError):
             parent.addchild(child2)
 
     def test_allowed_parents(self):
         tracker = self.tracker()
 
-        class ChildNode(Tree):
+        class ChildNode(Node):
             children_of = ("allowed-parent",)
 
-        allowed_parent = Tree("allowed-parent", None, tracker.root, tracker)
+        allowed_parent = Node("allowed-parent", None, tracker.root, tracker)
         child1 = ChildNode("child1", None, allowed_parent, tracker)
         child1._validate()
         allowed_parent.addchild(child1)
 
-        disallowed_parent = Tree("some-other-node", None, tracker.root, tracker)
+        disallowed_parent = Node("some-other-node", None, tracker.root, tracker)
         child2 = ChildNode("child2", None, disallowed_parent, tracker)
         with pytest.raises(exceptions.LoadError):
             child2._validate()
@@ -477,10 +477,10 @@ class TestNode(object):
     def test_remove_child(self):
         tracker = self.tracker()
 
-        parent1 = Tree("parent1", None, tracker.root, tracker)
-        parent2 = Tree("parent2", None, tracker.root, tracker)
+        parent1 = Node("parent1", None, tracker.root, tracker)
+        parent2 = Node("parent2", None, tracker.root, tracker)
 
-        child = Tree("child", None, parent1, tracker)
+        child = Node("child", None, parent1, tracker)
         parent1.addchild(child)
         assert list(parent1.children) == [child]
         assert child.parent is parent1
@@ -495,7 +495,7 @@ class TestNode(object):
         assert child.parent is parent2
 
     def test_detach_noop(self):
-        node = Tree("node", None, None, None)
+        node = Node("node", None, None, None)
         node.detach()
 
     def test_copy_new_tracker(self):
@@ -503,9 +503,9 @@ class TestNode(object):
         tracker2 = self.tracker()
 
 
-        node1 = Tree("node", "text", tracker1.root, tracker1)
+        node1 = Node("node", "text", tracker1.root, tracker1)
         tracker1.root.addchild(node1)
-        node1_child = Tree("nodechild", None, node1, tracker1)
+        node1_child = Node("nodechild", None, node1, tracker1)
         node1.addchild(node1_child)
 
         node2 = node1.copy(tracker2.root, tracker2)
@@ -525,7 +525,7 @@ class TestNode(object):
     def test_copy_sibling(self):
         tracker = self.tracker()
 
-        node = Tree("node", "text", tracker.root, tracker)
+        node = Node("node", "text", tracker.root, tracker)
         tracker.root.addchild(node)
         newnode = node.copy()
         tracker.root.addchild(newnode)
@@ -539,10 +539,10 @@ class TestNode(object):
     def test_copy_newplace(self):
         tracker = self.tracker()
 
-        parent1 = Tree("parent1", None, tracker.root, tracker)
-        parent2 = Tree("parent2", None, tracker.root, tracker)
+        parent1 = Node("parent1", None, tracker.root, tracker)
+        parent2 = Node("parent2", None, tracker.root, tracker)
 
-        node = Tree("node", None, parent1, tracker)
+        node = Node("node", None, parent1, tracker)
 
         newnode = node.copy(parent2)
         parent2.addchild(newnode)
@@ -556,7 +556,7 @@ class TestNode(object):
         tracker1 = self.tracker()
         tracker2 = self.tracker()
 
-        node = Tree("node", None, tracker1.root, tracker1)
+        node = Node("node", None, tracker1.root, tracker1)
 
         with pytest.raises(exceptions.LoadError):
             node.copy(tracker=tracker2)
@@ -564,7 +564,7 @@ class TestNode(object):
     def test_setoption(self):
         tracker = self.tracker()
 
-        class OptionedNode(Tree):
+        class OptionedNode(Node):
             options = (
                 ("option1", Option()),
                 ("option2", Option()),
@@ -611,7 +611,7 @@ class TestNode(object):
         option2_sentinel = object()
         option2 = FakeOption((False, option2_sentinel))
 
-        class OptionNode(Tree):
+        class OptionNode(Node):
             options = (
                 ("option1", option1),
                 ("option2", option2)
@@ -635,31 +635,31 @@ class TestNode(object):
 
     def test_add_unexpected_child(self):
         tracker = self.tracker()
-        parent = Tree("parent", None, tracker.root, tracker)
-        parent2 = Tree("parent2", None, tracker.root, tracker)
-        child = Tree("child", None, parent, tracker)
+        parent = Node("parent", None, tracker.root, tracker)
+        parent2 = Node("parent2", None, tracker.root, tracker)
+        child = Node("child", None, parent, tracker)
 
         with pytest.raises(exceptions.LoadError):
             parent2.addchild(child)
 
     def test_str(self):
         tracker = self.tracker()
-        node = Tree("asdf", "fdsa", tracker.root, tracker)
+        node = Node("asdf", "fdsa", tracker.root, tracker)
         s = str(node)
         assert "asdf" in s
         assert "fdsa" in s
 
     def test_repr(self):
         tracker = self.tracker()
-        node = Tree("asdf", "fdsa", tracker.root, tracker)
+        node = Node("asdf", "fdsa", tracker.root, tracker)
         s = repr(node)
         assert "asdf" in s
         assert "fdsa" in s
         assert tracker.root.node_type in s
-        assert "Tree" in s
+        assert "Node" in s
 
     def test_start_stop(self):
-        class SimpleActivateNode(Tree):
+        class SimpleActivateNode(Node):
             can_activate = True
 
         tracker = Tracker(nodecreator=FakeNodeCreator(SimpleActivateNode), auto_skeleton=False)
@@ -671,14 +671,14 @@ class TestNode(object):
         assert node3.active
 
     def test_cant_activate(self):
-        node = Tree("herp", None, None, None)
+        node = Node("herp", None, None, None)
         with pytest.raises(exceptions.LoadError):
             node.start()
 
 
 class TestFindNode(object):
     def test_flatten(self):
-        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node), auto_skeleton=False)
         node1 = tracker.root.createchild("node1", "value1")
         node1.createchild("node3", "value3")
         node4 = node1.createchild("node4", "value4")
@@ -689,12 +689,12 @@ class TestFindNode(object):
         assert result is target
 
     def test_empty_flatten(self):
-        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node), auto_skeleton=False)
 
         assert tracker.root.find_node(["**"]) == None
 
     def test_find_parents(self):
-        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node), auto_skeleton=False)
         target = tracker.root.createchild("target", "value1")
         target.createchild("node3", "value3")
         node4 = target.createchild("node4", "value4")
@@ -705,7 +705,7 @@ class TestFindNode(object):
         assert result is target
 
     def test_empty_find_parents(self):
-        tracker = Tracker(nodecreator=FakeNodeCreator(Tree), auto_skeleton=False)
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node), auto_skeleton=False)
         node3 = tracker.root.createchild("node3", "value3")
         node2 = node3.createchild("node2", "value2")
         node1 = node2.createchild("node1", "value1")
@@ -723,7 +723,7 @@ class TestFindNode(object):
         assert result is target
 
     def test_orphaned_find(self):
-        class AlwaysOrphanedNode(Tree):
+        class AlwaysOrphanedNode(Node):
             toplevel = True
             children_of = ("life",)
         tracker = Tracker(nodecreator=FakeNodeCreator(AlwaysOrphanedNode), auto_skeleton=False)

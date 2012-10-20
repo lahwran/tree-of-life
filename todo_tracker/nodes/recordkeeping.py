@@ -3,11 +3,11 @@ import re
 from datetime import datetime
 
 from todo_tracker import timefmt
-from todo_tracker.tracker import Tree, nodecreator
+from todo_tracker.tracker import Node, nodecreator
 from todo_tracker.exceptions import LoadError
 
 @nodecreator("fitness log")
-class FitnessLog(Tree):
+class FitnessLog(Node):
     toplevel = True
     allowed_children = ["weight", "waist", "calories", "workout", "_", "log"]
 
@@ -19,7 +19,7 @@ def full_match(regex, *args):
 
 # TODO: these names are a little wonky
 @nodecreator("log")
-class LogNode(Tree):
+class LogNode(Node):
     children_of = ["fitness log"]
     allowed_children = []
     preferred_parent = ["fitness log"]

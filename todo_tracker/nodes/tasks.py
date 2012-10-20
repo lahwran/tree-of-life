@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from todo_tracker.tracker import Tree, Option, BooleanOption, nodecreator
+from todo_tracker.tracker import Node, Option, BooleanOption, nodecreator
 from todo_tracker import timefmt
 
 class ActiveMarker(BooleanOption):
@@ -10,7 +10,7 @@ class ActiveMarker(BooleanOption):
 
 
 @nodecreator("worked on")
-class BaseTask(Tree):
+class BaseTask(Node):
     options = (
         ("started", timefmt.datetime_option),
         ("finished", timefmt.datetime_option),
@@ -55,7 +55,7 @@ class Task(BaseTask):
         self.timeframe = None
 
 @nodecreator("category")
-class Category(Tree):
+class Category(Node):
     # should be passthrough
     pass
 

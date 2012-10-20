@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from todo_tracker.tracker import Tree, nodecreator
+from todo_tracker.tracker import Node, nodecreator
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
 
@@ -27,7 +27,7 @@ class Day(BaseTask):
         return super(Day, self).can_activate
 
 @nodecreator("days")
-class Days(Tree):
+class Days(Node):
     textless = True
     toplevel = True
     allowed_children = ["repeating tasks", "day"]

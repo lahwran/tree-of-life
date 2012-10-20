@@ -1,11 +1,11 @@
-from todo_tracker.tracker import Tree, nodecreator
+from todo_tracker.tracker import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask
 
 #######################
 ### generic nodes
 
 @nodecreator("_gennode")
-class GenericNode(Tree):
+class GenericNode(Node):
     multiline = True
 
     def __init__(self, node_type="_gennode", text=None, parent=None, tracker=None):
@@ -59,21 +59,21 @@ class GenericActivate(GenericNode):
 
 @nodecreator("comment")
 @nodecreator("IGNORE")
-class Comment(Tree):
+class Comment(Node):
     multiline = True
 
 #######################
 ### todo
 
 @nodecreator("todo")
-class TodoItem(Tree):
+class TodoItem(Node):
     children_of = ["todo bucket"]
     allowed_children = []
     multiline = True
     preferred_parent = ["todo bucket"]
 
 @nodecreator("todo bucket")
-class TodoBucket(Tree):
+class TodoBucket(Node):
     toplevel = True
     allowed_children = ["todo"]
 

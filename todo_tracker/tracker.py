@@ -131,7 +131,7 @@ class _NodeListRoot(object):
     def __len__(self):
         return self.length
 
-class Tree(object):
+class Node(object):
     multiline = False
     textless = False
     text_required = False
@@ -482,7 +482,7 @@ class Tracker(object):
         self.active_node = None
         self.todo = None
         self.todo_review = None
-        self.root = Tree("life", None, None, self)
+        self.root = Node("life", None, None, self)
 
     def make_skeleton(self):
         self.days = self.root.find_node(["days"]) or self.root.createchild('days')

@@ -1,6 +1,6 @@
 from weakref import WeakKeyDictionary
 
-from todo_tracker.tracker import Tree, nodecreator
+from todo_tracker.tracker import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask
 
 def _makeproxy(parent, proxied):
@@ -92,7 +92,7 @@ class _ReferenceNodeList(_NodeListRoot):
         return "%r.children" % getattr(self, "parent", None)
 
 @nodecreator("reference")
-class DummyReference(Tree):
+class DummyReference(Node):
     is_reference = True
     _next_node = _AutoReference("_real_next_node", "_next_node", False)
     _prev_node = _AutoReference("_real_prev_node", "_prev_node", False)
