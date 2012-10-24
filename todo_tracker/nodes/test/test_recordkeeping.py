@@ -1,6 +1,6 @@
 import re
 
-from todo_tracker.tracker import Tracker
+from todo_tracker.tracker import Tracker_Greppable_Fun
 from todo_tracker.file_storage import serialize_to_str
 
 from todo_tracker.nodes import FitnessLog, Weight, Waist
@@ -12,13 +12,13 @@ class SimpleMeasurement(Measurement):
     value_format = "herp %d abc"
 
 def test_measurement_noclothes():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
-    fitnesslog = FitnessLog("fitness log", None, tracker.root, tracker)
+    fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
     tracker.root.addchild(fitnesslog)
 
-    measurement = SimpleMeasurement("_", "herp 1234 abc", fitnesslog, tracker)
+    measurement = SimpleMeasurement("_", "herp 1234 abc", fitnesslog)
     measurement._validate()
     fitnesslog.addchild(measurement)
 
@@ -26,13 +26,13 @@ def test_measurement_noclothes():
     assert measurement.clothes == None
 
 def test_measurement_withclothes():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
-    fitnesslog = FitnessLog("fitness log", None, tracker.root, tracker)
+    fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
     tracker.root.addchild(fitnesslog)
 
-    measurement = SimpleMeasurement("_", "herp 1234 abc wearing an office building", fitnesslog, tracker)
+    measurement = SimpleMeasurement("_", "herp 1234 abc wearing an office building", fitnesslog)
     measurement._validate()
     fitnesslog.addchild(measurement)
 
@@ -40,13 +40,13 @@ def test_measurement_withclothes():
     assert measurement.clothes == "an office building"
 
 def test_measurement_text():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
-    fitnesslog = FitnessLog("fitness log", None, tracker.root, tracker)
+    fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
     tracker.root.addchild(fitnesslog)
 
-    measurement = SimpleMeasurement("_", "herp 1234 abc wearing a pot roast", fitnesslog, tracker)
+    measurement = SimpleMeasurement("_", "herp 1234 abc wearing a pot roast", fitnesslog)
     measurement._validate()
     fitnesslog.addchild(measurement)
 
@@ -55,13 +55,13 @@ def test_measurement_text():
     assert measurement.text == "herp 1234 abc wearing a pot roast"
 
 def test_measurement_time():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
-    fitnesslog = FitnessLog("fitness log", None, tracker.root, tracker)
+    fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
     tracker.root.addchild(fitnesslog)
 
-    measurement = SimpleMeasurement("_", "herp 1234 abc wearing a pot roast", fitnesslog, tracker)
+    measurement = SimpleMeasurement("_", "herp 1234 abc wearing a pot roast", fitnesslog)
     measurement._validate()
     fitnesslog.addchild(measurement)
 

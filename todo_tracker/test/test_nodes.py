@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from todo_tracker.tracker import Tracker, nodecreator
+from todo_tracker.tracker import Tracker_Greppable_Fun, nodecreator
 from todo_tracker import nodes
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
@@ -16,39 +16,39 @@ def test_registration():
     assert nodecreator.creators["task"] == nodes.Task
 
 def test_task():
-    tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task), skeleton=False)
 
-    tracker.load("str",
+    tracker.deserialize("str",
         "task: a task\n"
         "    @started: June 7, 2010 7:00 AM"
     )
 
 def test_active_option():
-    tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task), skeleton=False)
 
-    tracker.load("str",
+    tracker.deserialize("str",
         "task: a task\n"
         "    @active"
     )
 
-    assert tracker.active_node.text == "a task"
+    assert tracker.root.active_node.text == "a task"
 
 def test_activate_deactivate(monkeypatch):
     from todo_tracker.nodes import tasks
     monkeypatch.setattr(tasks, "datetime", FakeDatetime(datetime(2012, 10, 24)))
-    tracker = Tracker(FakeNodeCreator(nodes.Task), auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task), skeleton=False)
 
-    tracker.load("str",
+    tracker.deserialize("str",
         "task: 1\n"
         "    @active\n"
         "task: 2\n"
         "task: 3\n"
     )
 
-    tracker.activate_next()
-    tracker.activate_next()
+    tracker.root.activate_next()
+    tracker.root.activate_next()
 
-    assert tracker.save("str") == (
+    assert tracker.serialize("str") == (
         "task: 1\n"
         "    @started: October 24, 2012 12:00 AM\n"
         "    @finished: October 24, 2012 12:00 AM\n"
@@ -61,7 +61,7 @@ def test_activate_deactivate(monkeypatch):
     )
 
 def test_reference_set_reset():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target1 = tracker.root\
         .createchild("task", "something")\
@@ -80,7 +80,7 @@ def test_reference_set_reset():
     assert reference.target is target2
 
 def test_nested_reference():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child = target.createchild("task", "subthing")
@@ -95,7 +95,7 @@ def test_nested_reference():
     assert subref.target is child
 
 def test_reference_autoproxy():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")
@@ -120,7 +120,7 @@ def test_reference_autoproxy():
     assert reference.is_solid
 
 def test_reference_emptyproxy():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
 
@@ -128,7 +128,7 @@ def test_reference_emptyproxy():
     assert list(reference.children) == []
 
 def test_addchild_passthrough():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
 
@@ -158,7 +158,7 @@ def test_addchild_passthrough():
     assert reference.is_solid
 
 def test_addchild_relative():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     target.createchild("task", "subthing 1")
@@ -183,7 +183,7 @@ def test_addchild_relative():
     assert reference.is_solid
 
 def test_finish_solidify():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")
@@ -193,15 +193,15 @@ def test_finish_solidify():
 
     reference = tracker.root.createchild("work on", "something")
 
-    tracker.activate(reference)
+    tracker.root.activate(reference)
 
-    tracker.activate_next()
+    tracker.root.activate_next()
     assert list(reference.children)[0].is_solid
-    assert tracker.active_node.text == "subthing 1"
+    assert tracker.root.active_node.text == "subthing 1"
 
-    tracker.activate_next()
+    tracker.root.activate_next()
     assert list(reference.children)[1].is_solid
-    assert tracker.active_node.text == "subthing 2"
+    assert tracker.root.active_node.text == "subthing 2"
 
 
     assert [(child.node_type, child.text) for child in reference.children] == [
@@ -213,7 +213,7 @@ def test_finish_solidify():
     assert reference.children_export() == list(reference.children)[0:2]
 
 def test_jump_past_inactive():
-    tracker = Tracker(auto_skeleton=False)
+    tracker = Tracker_Greppable_Fun(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")
@@ -224,6 +224,6 @@ def test_jump_past_inactive():
 
     reference1_1_1 = reference.find_node(["*", "*", "*"])
 
-    tracker.activate(reference1_1_1)
+    tracker.root.activate(reference1_1_1)
 
     assert reference.children_export() == [reference.find_node(["*"])]

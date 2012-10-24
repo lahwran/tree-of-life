@@ -1,6 +1,6 @@
 from datetime import datetime, date, time, timedelta
 
-from todo_tracker.tracker import Option
+from todo_tracker.nodes import Option
 
 date_format = "%B %d, %Y"
 time_format = "%I:%M %p"

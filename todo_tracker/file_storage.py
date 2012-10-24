@@ -1,5 +1,8 @@
-from todo_tracker.tracker import loaders, serializers
 from todo_tracker.exceptions import LoadError
+from todo_tracker.util import HandlerList
+
+loaders = HandlerList()
+serializers = HandlerList()
 
 parsing_indent = 0
 parsing_type = 1

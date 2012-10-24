@@ -1,10 +1,10 @@
 from weakref import WeakKeyDictionary
 
-from todo_tracker.tracker import Node, nodecreator
+from todo_tracker.nodes.node import Node, nodecreator, _NodeListRoot
 from todo_tracker.nodes.tasks import BaseTask
 
 def _makeproxy(parent, proxied):
-    return parent.tracker.nodecreator.create("work on", proxied.text, parent, parent.tracker)
+    return parent.root.nodecreator.create("work on", proxied.text, parent)
 
 class _AutoReference(object):
     def __init__(self, name, target_name, is_nodelist):
@@ -51,7 +51,6 @@ class _AutoReference(object):
     def __delete__(self, instance):
         setattr(instance, self.deleted_name, True)
 
-from todo_tracker.tracker import _NodeListRoot
 class _ReferenceNodeList(_NodeListRoot):
     is_reference = True
     _next_node = _AutoReference("_real_next_node", "_next_node", True)
@@ -73,8 +72,8 @@ class _ReferenceNodeList(_NodeListRoot):
         return self.parent.proxies
 
     @property
-    def tracker(self):
-        return self.parent.tracker
+    def root(self):
+        return self.parent.root
 
     @property
     def length(self):
@@ -98,11 +97,11 @@ class DummyReference(Node):
     _prev_node = _AutoReference("_real_prev_node", "_prev_node", False)
     children_of = ("work on",)
 
-    def __init__(self, node_type, text, parent, tracker):
+    def __init__(self, node_type, text, parent):
         self.target = None
         self.proxies = parent.proxies
 
-        super(Reference, self).__init__(node_type, text, parent, tracker)
+        super(Reference, self).__init__(node_type, text, parent)
 
     def _init_children(self):
         self.children = _ReferenceNodeList(self)
@@ -127,7 +126,7 @@ class Reference(BaseTask):
     _prev_node = _AutoReference("_real_prev_node", "_prev_node", False)
     allowed_children = ("work on", "reference")
 
-    def __init__(self, node_type, text, parent, tracker):
+    def __init__(self, node_type, text, parent):
         if parent.node_type != "work on":
             del self._next_node
             del self._prev_node
@@ -138,7 +137,7 @@ class Reference(BaseTask):
             # there is no more waffles! I have them all!
             self.proxies = WeakKeyDictionary()
 
-        super(Reference, self).__init__(node_type, text, parent, tracker)
+        super(Reference, self).__init__(node_type, text, parent)
 
 
     def _init_children(self):
@@ -151,7 +150,7 @@ class Reference(BaseTask):
     def point_of_reference(self):
         if self.parent.node_type == "work on":
             return self.parent.target
-        return self.tracker.root
+        return self.root
 
     @property
     def text(self):

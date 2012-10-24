@@ -13,8 +13,7 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import reactor
 from twisted.python import log
 
-from todo_tracker.tracker import Tracker
-from todo_tracker.activity import SavingInterface, command
+from todo_tracker.userinterface import SavingInterface, command
 from todo_tracker.util import tempfile
 
 @command()
@@ -157,17 +156,17 @@ class RemoteInterface(SavingInterface):
         log.msg("errormessage from %r: %r" % (source, message))
 
     def messages(self):
-        if self.tracker.todo:
-            messages = [str(child) for child in self.tracker.todo.children]
+        if self.root.todo:
+            messages = [str(child) for child in self.root.todo.children]
         else:
             messages = []
 
 
-        if self.tracker.fitness_log:
+        if self.root.fitness_log:
             today = datetime.now().date()
             things = defaultdict(int)
             format_strings = {}
-            for node in reversed(self.tracker.fitness_log.children):
+            for node in reversed(self.root.fitness_log.children):
                 if node.time.date() != today:
                     break
                 if getattr(node, "value_name", False):
@@ -286,15 +285,12 @@ class JSONProtocol(LineOnlyReceiver):
 
     def message_command(self, command):
         try:
-            self.commandline.tracker.editor_callback = lambda: self.commandline.vim(self)
             self.commandline.command(self, command)
         except Exception as e:
             log.err()
             self.error = repr(e)
         else:
             self.update()
-        finally:
-            self.commandline.tracker.editor_callback = None
 
     def message_display(self, is_displayed):
         pass
@@ -361,9 +357,8 @@ def main(restarter, args):
     restarter.to_flush.append(logfile)
     log.startLogging(logfile, setStdout=False)
     log.msg("logfile: %r" % config.logfile)
-    tracker = Tracker()
     
-    ui = RemoteInterface(config, restarter, tracker, config.path, config.mainfile)
+    ui = RemoteInterface(config, restarter, config.path, config.mainfile)
     ui.load()
     ui.config.setdefault("max_width", 500)
     print ui.config

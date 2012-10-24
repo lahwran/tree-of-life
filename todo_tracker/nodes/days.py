@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from todo_tracker.tracker import Node, nodecreator
+from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
 
@@ -8,9 +8,6 @@ from todo_tracker.nodes.tasks import BaseTask
 class Day(BaseTask):
     chidren_of = ("days",)
     text_required = True
-
-    def __init__(self, node_type, text, parent, tracker):
-        super(Day, self).__init__(node_type, text, parent, tracker)
 
     @property
     def text(self):
@@ -32,8 +29,8 @@ class Days(Node):
     toplevel = True
     allowed_children = ["repeating tasks", "day"]
 
-    def __init__(self, node_type, text, parent, tracker):
-        super(Days, self).__init__(node_type, text, parent, tracker)
+    def __init__(self, *args):
+        super(Days, self).__init__(*args)
         self.repeating_tasks = None
         self.day_children = {}
 

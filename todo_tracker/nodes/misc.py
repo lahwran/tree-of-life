@@ -1,4 +1,4 @@
-from todo_tracker.tracker import Node, nodecreator
+from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask
 
 #######################
@@ -8,8 +8,8 @@ from todo_tracker.nodes.tasks import BaseTask
 class GenericNode(Node):
     multiline = True
 
-    def __init__(self, node_type="_gennode", text=None, parent=None, tracker=None):
-        super(GenericNode, self).__init__(node_type, text, parent, tracker)
+    def __init__(self, node_type="_gennode", text=None, parent=None):
+        super(GenericNode, self).__init__(node_type, text, parent)
         self.metadata = {}
 
     def setoption(self, option, value):
@@ -20,13 +20,13 @@ class GenericNode(Node):
 
 @nodecreator("_genactive")
 class GenericActivate(GenericNode):
-    def __init__(self, node_type="_genactive", text=None, parent=None, tracker=None):
-        super(GenericActivate, self).__init__(node_type, text, parent, tracker)
+    def __init__(self, node_type="_genactive", text=None, parent=None):
+        super(GenericActivate, self).__init__(node_type, text, parent)
         self.deactivate = False
 
     def setoption(self, option, value):
         if option == "active":
-            self.tracker.activate(self)
+            self.root.activate(self)
         super(GenericActivate, self).setoption(option, value)
 
     @property
@@ -77,20 +77,17 @@ class TodoBucket(Node):
     toplevel = True
     allowed_children = ["todo"]
 
-    def __init__(self, node_type, text, parent, tracker):
-        super(TodoBucket, self).__init__(node_type, text, parent, tracker)
-
     def load_finished(self):
-        self.tracker.todo = self
+        self.root.todo = self
 
     def move_review_task(self):
-        todo_review = self.tracker.todo_review
+        todo_review = self.root.todo_review
         if not len(self.children):
-            self.tracker.todo_review = None
+            self.root.todo_review = None
             todo_review.detach()
             return
 
-        active = self.tracker.active_node
+        active = self.root.active_node
         if not active:
             return # not much we can do :(
         newparent = None
@@ -98,7 +95,7 @@ class TodoBucket(Node):
         for node in active.iter_parents():
             after_node = newparent
             newparent = node
-            if node is self.tracker.root or newparent.node_type == "day":
+            if node is self.root or newparent.node_type == "day":
                 break
 
         if newparent == self or newparent == todo_review:
@@ -113,7 +110,7 @@ class TodoBucket(Node):
         else:
             todo_review = newparent.createchild("todo review", after=after_node)
 
-        self.tracker.todo_review = todo_review
+        self.root.todo_review = todo_review
 
     def addchild(self, child, *args, **keywords):
         child = super(TodoBucket, self).addchild(child, *args, **keywords)
@@ -123,18 +120,15 @@ class TodoBucket(Node):
 @nodecreator("todo review")
 class TodoReview(BaseTask):
     textless = True
-    def __init__(self, node_type, text, parent, tracker):
-        super(TodoReview, self).__init__(node_type, text, parent, tracker)
-
     def load_finished(self):
-        if self.tracker.todo_review and self.tracker.todo_review is not self:
-            self.tracker.todo_review.detach()
-        self.tracker.todo_review = self
-        self.tracker.todo.move_review_task()
+        if self.root.todo_review and self.root.todo_review is not self:
+            self.root.todo_review.detach()
+        self.root.todo_review = self
+        self.root.todo.move_review_task()
 
     def start(self):
-        self.tracker.start_editor()
+        self.root.tracker.start_editor()
 
     def finish(self):
         super(TodoReview, self).finish()
-        self.tracker.todo.move_review_task()
+        self.root.todo.move_review_task()

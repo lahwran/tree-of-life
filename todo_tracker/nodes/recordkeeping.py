@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 
 from todo_tracker import timefmt
-from todo_tracker.tracker import Node, nodecreator
+from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.exceptions import LoadError
 
 @nodecreator("fitness log")
@@ -12,7 +12,7 @@ class FitnessLog(Node):
     allowed_children = ["weight", "waist", "calories", "workout", "_", "log"]
 
     def load_finished(self):
-        self.tracker.fitness_log = self
+        self.root.fitness_log = self
 
 def full_match(regex, *args):
     return re.match(regex+"$", *args)
