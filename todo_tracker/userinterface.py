@@ -6,7 +6,6 @@ from functools import partial
 from datetime import datetime, timedelta
 import time
 
-
 from twisted.python import log
 
 from todo_tracker.file_storage import parse_line
@@ -14,6 +13,7 @@ from todo_tracker.nodes.node import nodecreator
 from todo_tracker.tracker import Tracker_Greppable_Fun
 from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile, HandlerList
+
 
 def _makenode(string):
     indent, is_metadata, node_type, text = parse_line(string)
@@ -23,14 +23,17 @@ def _makenode(string):
         raise InvalidInputError("plz 2 not indent")
     return node_type, text
 
+
 global_commands = HandlerList()
 command = global_commands.add
+
 
 @command()
 @command("finished")
 @command("next")
 def done(event):
     event.root.activate_next()
+
 
 @command()
 @command("donext")
@@ -39,6 +42,7 @@ def after(event):
     node_type, text = _makenode(event.text)
     event.root.create_after(node_type, text, activate=False)
 
+
 @command()
 @command("dofirst")
 @command("<")
@@ -46,10 +50,12 @@ def before(event):
     node_type, text = _makenode(event.text)
     event.root.create_before(node_type, text, activate=True)
 
+
 @command()
 def createchild(event):
     node_type, text = _makenode(event.text)
     event.root.create_child(node_type, text, activate=True)
+
 
 @command()
 def createauto(event):
@@ -62,10 +68,12 @@ def createauto(event):
 
     event.root.activate(node)
 
+
 @command()
 @command("edit")
 def vim(event):
     event.ui.vim(event.source)
+
 
 def _listing_node(active, node, indent):
     indent_text = " " * 4
@@ -75,6 +83,7 @@ def _listing_node(active, node, indent):
         prefix = "  "
     return prefix + (indent_text * indent) + str(node)
 
+
 def generate_listing(active, node, lines=None, indent=0):
     if lines is None:
         lines = []
@@ -82,8 +91,9 @@ def generate_listing(active, node, lines=None, indent=0):
     lines.append(_listing_node(active, node, indent))
 
     for child in node.children:
-        generate_listing(active, child, lines, indent+1)
+        generate_listing(active, child, lines, indent + 1)
     return lines
+
 
 class Event(object):
     def __init__(self, source, root, command_name, text, ui):
@@ -92,6 +102,7 @@ class Event(object):
         self.command_name = command_name
         self.text = text
         self.ui = ui
+
 
 class CommandInterface(Tracker_Greppable_Fun):
     max_format_depth = 2
@@ -186,7 +197,8 @@ class CommandInterface(Tracker_Greppable_Fun):
 
     def displaychain(self, limit=True):
         if limit:
-            return [x[0] for x in zip(self.root.active_node.iter_parents(), range(self.max_format_depth))]
+            return [x[0] for x in zip(self.root.active_node.iter_parents(),
+                                      range(self.max_format_depth))]
         else:
             return list(self.root.active_node.iter_parents())
 
@@ -195,7 +207,7 @@ class CommandInterface(Tracker_Greppable_Fun):
         current = active.find_node(["<day"])
         days = current.parent
         root = self.root
-        
+
         lines = []
         lines.append(_listing_node(active, days, 0))
         if current.prev_neighbor:
@@ -207,6 +219,7 @@ class CommandInterface(Tracker_Greppable_Fun):
             lines = lines[:max_lines]
             lines[-1] = _listing_node(None, "...", 2)
         return lines
+
 
 class Git(object):
     def __init__(self, path):
@@ -221,7 +234,6 @@ class Git(object):
             writer = open(os.path.join(self.path, ".gitignore"), "w")
             for name in names:
                 writer.write("%s\n" % name)
-            
 
     def add(self, *filenames):
         self._git("add", *filenames)
@@ -232,6 +244,7 @@ class Git(object):
     def _git(self, *args):
         process = subprocess.Popen(["git"] + list(args), cwd=self.path)
         return process.wait()
+
 
 class SavingInterface(CommandInterface):
     def __init__(self, directory, main_file,
@@ -278,7 +291,8 @@ class SavingInterface(CommandInterface):
 
         self.git.init()
 
-        json.dump(self.config, open(self.config_file, "w"), sort_keys=True, indent=4)
+        json.dump(self.config, open(self.config_file, "w"), sort_keys=True,
+                indent=4)
         self.git.add(self.config_file)
 
         self.serialize("file", open(self.save_file, "w"))
@@ -287,16 +301,19 @@ class SavingInterface(CommandInterface):
         self.git.gitignore(["_*"])
         self.git.add(".gitignore")
 
-        self.git.commit("Full save %s" % datetime.now().strftime(self.timeformat))
+        self.git.commit("Full save %s" %
+                datetime.now().strftime(self.timeformat))
         self.last_full_save = datetime.now()
 
     def auto_save(self):
-        self._special_save(self.autosave_file, self.autosave_id, self.autosave_minutes, "last_auto_save")
+        self._special_save(self.autosave_file, self.autosave_id,
+                self.autosave_minutes, "last_auto_save")
 
         self.backup_save()
 
     def backup_save(self):
-        self._special_save(self.backup_file, time.time(), self.backup_minutes, "last_backup_save")
+        self._special_save(self.backup_file, time.time(),
+                self.backup_minutes, "last_backup_save")
 
     def _special_save(self, name_format, time, freq, lastname):
         if not os.path.exists(self.save_dir):
@@ -312,4 +329,3 @@ class SavingInterface(CommandInterface):
         self.serialize("file", writer)
         writer.close()
         setattr(self, lastname, datetime.now())
-

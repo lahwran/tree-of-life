@@ -12,7 +12,7 @@ class Test_makenode(object):
 
         with pytest.raises(exceptions.InvalidInputError):
             userinterface._makenode("sentinel")
-            
+
     def test_makenode_metadata(self, monkeypatch):
         result = 0, True, "node_type", "text"
         monkeypatch.setattr(userinterface, "parse_line", lambda string: result)
@@ -22,6 +22,7 @@ class Test_makenode(object):
 
     def test_makenode(self):
         assert userinterface._makenode("task: test") == ("task", "test")
+
 
 class TestGenerateListing(object):
     def stuff(self):

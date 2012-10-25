@@ -9,6 +9,7 @@ class ErrorContext(object):
     def __init__(self):
         self.line = None
 
+
 class Tracker_Greppable_Fun(object):
     def __init__(self, skeleton=True, nodecreator=nodecreator):
         self.make_skeleton = skeleton
@@ -25,8 +26,8 @@ class Tracker_Greppable_Fun(object):
         lastindent = -1
         metadata_allowed_here = False
 
-        error_context = ErrorContext() # mutable thingy
-        
+        error_context = ErrorContext()  # mutable thingy
+
         try:
             parser = loaders.handlers[format](reader)
             parser.error_context = error_context
@@ -37,11 +38,11 @@ class Tracker_Greppable_Fun(object):
                     stack.append(lastnode)
                     metadata_allowed_here = True
                 elif indent < lastindent:
-                    stack = stack[:int(indent)+1]
+                    stack = stack[:int(indent) + 1]
                 lastindent = indent
 
                 parent = stack[-1]
-            
+
                 if is_metadata:
                     if not metadata_allowed_here:
                         raise LoadError('metadata in the wrong place')
@@ -59,7 +60,7 @@ class Tracker_Greppable_Fun(object):
             e.error_context = error_context
             raise
         except Exception as e:
-            new_e = LoadError("UNHANDLED ERROR:\n %s" % (traceback.format_exc()))
+            new_e = LoadError("UNHANDLED ERROR:\n %s" % traceback.format_exc())
             new_e.error_context = error_context
             raise new_e
 
@@ -68,7 +69,6 @@ class Tracker_Greppable_Fun(object):
 
         for depth, node in root.iter_flat_children():
             node.load_finished()
-
 
     def serialize(self, format, *args, **keywords):
         serializer = serializers.handlers[format]

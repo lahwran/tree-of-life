@@ -4,9 +4,11 @@ import operator
 from twisted.python import log
 
 from todo_tracker.ordereddict import OrderedDict
-from todo_tracker.exceptions import ListIntegrityError, LoadError, CantStartNodeError
+from todo_tracker.exceptions import (ListIntegrityError, LoadError,
+        CantStartNodeError)
 from todo_tracker.util import HandlerList
 from todo_tracker import file_storage
+
 
 class _NodeCreatorTracker(HandlerList):
     name = "creators"
@@ -30,6 +32,7 @@ class _NodeCreatorTracker(HandlerList):
 
 
 nodecreator = _NodeCreatorTracker()
+
 
 class _NodeListIter(object):
     def __init__(self, nodelist, reverse=False):
@@ -126,6 +129,7 @@ class _NodeListRoot(object):
     def __len__(self):
         return self.length
 
+
 class Node(object):
     multiline = False
     textless = False
@@ -141,11 +145,8 @@ class Node(object):
         self._init_children()
 
         self.parent = parent
-
-
         self.node_type = node_type
         self.text = text
-
 
         if self.textless and text is not None:
             raise LoadError("%r node cannot have text" % self)
@@ -171,14 +172,16 @@ class Node(object):
             raise LoadError("%r node must be child of root node" % self)
 
         if self.children_of and self.parent.node_type not in self.children_of:
-            raise LoadError("%s cannot be child of %s node" % (self._do_repr(parent=False), self.parent._do_repr(parent=False)))
+            raise LoadError("%s cannot be child of %s node" % (
+                self._do_repr(parent=False),
+                self.parent._do_repr(parent=False)
+            ))
 
     def _init_children(self):
         self.children = _NodeListRoot()
 
         self._next_node = None
         self._prev_node = None
-
 
     def iter_parents(self, skip_root=False):
         node = self
@@ -215,17 +218,22 @@ class Node(object):
         return self._prev_node
 
     def addchild(self, child, before=None, after=None):
-        if self.allowed_children is not None and child.node_type not in self.allowed_children:
-            raise LoadError("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
+        if (self.allowed_children is not None and
+                child.node_type not in self.allowed_children):
+            raise LoadError("node %s cannot be child of %r" %
+                    (child._do_repr(parent=False), self))
         if child.parent is None:
             child.parent = self
             child._validate()
         if child.parent is not self:
-            raise LoadError("node %r does not expect to be a child of %r" % (child, self))
+            raise LoadError("node %r does not expect to be a child of %r" %
+                    (child, self))
         if before and before.parent is not self:
-            raise LoadError("node %r cannot be before node %r as child of %r" % (child, before, self))
+            raise LoadError("node %r cannot be before node %r as child of %r" %
+                    (child, before, self))
         if after and after.parent is not self:
-            raise LoadError("node %r cannot be after node %r as child of %r" % (child, after, self))
+            raise LoadError("node %r cannot be after node %r as child of %r" %
+                    (child, after, self))
         self.children.insert(child, before, after)
         return child
 
@@ -245,7 +253,8 @@ class Node(object):
         if parent is None:
             parent = self.parent
 
-        newnode = self.root.nodecreator.create(self.node_type, self.text, parent)
+        newnode = self.root.nodecreator.create(self.node_type, self.text,
+                parent)
         for child in self.children_export():
             child_copy = child.copy(parent=newnode)
             newnode.addchild(child_copy)
@@ -260,7 +269,7 @@ class Node(object):
 
         try:
             handler.set(self, option, value)
-        except: # haw haw
+        except:  # haw haw
             print repr(self)
             print option
             print value
@@ -272,7 +281,7 @@ class Node(object):
             return self._option_dict_cache
         except AttributeError:
             pass
-        
+
         result = OrderedDict()
         mro = [self] + list(inspect.getmro(type(self)))
         seen = set()
@@ -304,7 +313,8 @@ class Node(object):
         if not self.multiline:
             raise LoadError("%r node cannot have newline in text" % self)
         if self.text is None:
-            raise LoadError("Cannot add new line to text of node %r, since it has no text set" % self)
+            raise LoadError("Cannot add new line to text of node %r,"
+                    " since it has no text set" % self)
 
         self.text += "\n"
         self.text += text
@@ -335,9 +345,18 @@ class Node(object):
             parent_repr = "None"
             if getattr(self, "parent", None):
                 parent_repr = str(self.parent)
-            return "<%s (%s) %r: %r>" % (type(self).__name__, parent_repr, getattr(self, "node_type", None), getattr(self, "text", None))
+            return "<%s (%s) %r: %r>" % (
+                    type(self).__name__,
+                    parent_repr,
+                    getattr(self, "node_type", None),
+                    getattr(self, "text", None)
+            )
         else:
-            return "<%s %r: %r>" % (type(self).__name__, getattr(self, "node_type", None), getattr(self, "text", None))
+            return "<%s %r: %r>" % (
+                    type(self).__name__,
+                    getattr(self, "node_type", None),
+                    getattr(self, "text", None)
+            )
 
     def __repr__(self):
         return self._do_repr()
@@ -349,16 +368,18 @@ class Node(object):
 
         matcher = _NodeMatcher(self.root.nodecreator, segment, self, self.root)
         for child in matcher.iter_results():
-            node = child.find_node(path, offset+1)
+            node = child.find_node(path, offset + 1)
 
             if node is not None:
                 return node
 
         return None
 
+
 @nodecreator('-')
 def continue_text(node_type, text, parent):
     parent.continue_text(text)
+
 
 class _NodeMatcher(object):
     def __init__(self, nodecreator, segment, node, root):
@@ -401,7 +422,7 @@ class _NodeMatcher(object):
             self.node_type = node_type
             self.text = text
         self.node = node
-        
+
     def _filter(self, iterator):
         for child in iterator:
             if self.node_type != "*" and self.node_type != child.node_type:
@@ -429,6 +450,7 @@ class _NodeMatcher(object):
         else:
             return self._filter(self.node.children)
 
+
 class Option(object):
     def __init__(self, incoming=None, outgoing=None):
         self.incoming = incoming
@@ -454,6 +476,7 @@ class Option(object):
 
         return show, value
 
+
 class BooleanOption(object):
     def set(self, node, name, value):
         setattr(node, name, True)
@@ -463,13 +486,13 @@ class BooleanOption(object):
         show = bool(value)
         return show, None
 
+
 class TreeRootNode(Node):
     def __init__(self, tracker, nodecreator):
         self.nodecreator = nodecreator
         self.tracker = tracker
         super(TreeRootNode, self).__init__("life", None, None)
         self.root = self
-        
 
         self.editor_callback = None
 
@@ -483,12 +506,16 @@ class TreeRootNode(Node):
         today = self.find_node(["days", "day: today"])
         if not today:
             today = self.days.createchild('day', 'today')
-        if not self.active_node or today not in list(self.active_node.iter_parents()):
+        if (not self.active_node or
+                today not in list(self.active_node.iter_parents())):
             self.activate(today)
 
-        self.todo = self.find_node(["todo bucket"]) or self.createchild("todo bucket")
-        self.fitness_log = self.find_node(["fitness log"]) or self.createchild("fitness log")
-
+        self.todo = self.find_node(["todo bucket"])
+        if not self.todo:
+            self.createchild("todo bucket")
+        self.fitness_log = self.find_node(["fitness log"])
+        if not self.fitness_log:
+            self.fitness_log = self.createchild("fitness log")
 
     def activate(self, node):
         # jump to a particular node as active

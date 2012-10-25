@@ -6,6 +6,7 @@ from twisted.python import log
 from todo_tracker.tracker import Tracker
 from todo_tracker.activity import CommandInterface, command
 
+
 class CommandLineInterface(CommandInterface):
     max_ps1_len = 47
 
@@ -17,7 +18,7 @@ class CommandLineInterface(CommandInterface):
             result = " > ".join(items[::-1])
             if len(result) > self.max_ps1_len:
                 break
-            
+
         minchar = min(0, len(result) - self.max_ps1_len)
         if minchar > 0:
             result = "..." + result[minchar:]
@@ -36,20 +37,26 @@ class CommandLineInterface(CommandInterface):
     def display_lines(self, lines):
         print "\n".join(lines)
 
+
 class ExitMainloop(BaseException):
     pass
+
 
 @command()
 def quit(event):
     raise ExitMainloop
 
+
 @command()
 def pdb(event):
-    import pdb; pdb.set_trace()
+    import pdb
+    pdb.set_trace()
+
 
 @command("list")
 def list_current(event):
     event.ui.display_lines(event.ui.tree_context())
+
 
 def main(filename):
     tracker = Tracker()

@@ -3,8 +3,10 @@ from weakref import WeakKeyDictionary
 from todo_tracker.nodes.node import Node, nodecreator, _NodeListRoot
 from todo_tracker.nodes.tasks import BaseTask
 
+
 def _makeproxy(parent, proxied):
     return parent.root.nodecreator.create("work on", proxied.text, parent)
+
 
 class _AutoReference(object):
     def __init__(self, name, target_name, is_nodelist):
@@ -18,9 +20,12 @@ class _AutoReference(object):
             return proxies[value]
         except KeyError:
             if self.is_nodelist and value is target:
-                proxy = instance # pragma: no cover - never runs because it's always already proxied
+                # never runs because it's always already proxied
+                proxy = instance
             elif not self.is_nodelist and value is target.parent.children:
-                proxy = instance.parent.children # pragma: no cover - again, never runs because already proxied
+                # again, never runs because already proxied
+                # should these be killed? they're still potential scenarios
+                proxy = instance.parent.children
             else:
                 proxy = _makeproxy(instance.parent, value)
             proxies[value] = proxy
@@ -32,7 +37,8 @@ class _AutoReference(object):
             result = target = instance.target
             while True:
                 result = getattr(result, self.target_name)
-                if isinstance(result, BaseTask) or isinstance(result, _NodeListRoot):
+                if (isinstance(result, BaseTask) or
+                        isinstance(result, _NodeListRoot)):
                     break
             result = self.get_proxy(instance, target, result)
         return result
@@ -50,6 +56,7 @@ class _AutoReference(object):
 
     def __delete__(self, instance):
         setattr(instance, self.deleted_name, True)
+
 
 class _ReferenceNodeList(_NodeListRoot):
     is_reference = True
@@ -90,6 +97,7 @@ class _ReferenceNodeList(_NodeListRoot):
     def __repr__(self):
         return "%r.children" % getattr(self, "parent", None)
 
+
 @nodecreator("reference")
 class DummyReference(Node):
     is_reference = True
@@ -110,7 +118,8 @@ class DummyReference(Node):
 
     @property
     def text(self):
-        return self.target.node_type + (": " + self.target.text if self.target.text else "")
+        textbody = (": " + self.target.text if self.target.text else "")
+        return self.target.node_type + textbody
 
     @text.setter
     def text(self, newvalue):
@@ -118,6 +127,7 @@ class DummyReference(Node):
             del self.proxies[self.target]
         self.target = self.parent.target.find_node([newvalue])
         self.proxies[self.target] = self
+
 
 @nodecreator("work on")
 class Reference(BaseTask):
@@ -139,12 +149,10 @@ class Reference(BaseTask):
 
         super(Reference, self).__init__(node_type, text, parent)
 
-
     def _init_children(self):
         self.children = _ReferenceNodeList(self)
         self._real_next_node = None
         self._real_prev_node = None
-
 
     @property
     def point_of_reference(self):
@@ -157,7 +165,7 @@ class Reference(BaseTask):
         if self.target is None:
             return None
         nodes = []
-        for node in self.target.iter_parents(): # pragma: no branch
+        for node in self.target.iter_parents():  # pragma: no branch
             if node is self.point_of_reference:
                 break
             nodes.append(node)
@@ -169,7 +177,7 @@ class Reference(BaseTask):
         node = self.point_of_reference.find_node(path)
         if not isinstance(node, BaseTask):
             print "oops", node
-            
+
         if self.target is not None:
             self.target.referred_to.remove(self)
             del self.proxies[self.target]
@@ -222,13 +230,15 @@ class Reference(BaseTask):
     @property
     def is_solid(self):
         self.log()
-        options = [(name, item, show) for name, item, show in self.option_values() if show]
+        options = [(name, item, show) for name, item, show
+                in self.option_values() if show]
         return self.prev_is_solid or self.next_is_solid or len(options)
 
     def addchild(self, child, before=None, after=None):
         self.log()
         if child.node_type in self.allowed_children:
-            return super(Reference, self).addchild(child, before=before, after=after)
+            return super(Reference, self).addchild(child,
+                    before=before, after=after)
         else:
             try:
                 if before:
@@ -239,7 +249,7 @@ class Reference(BaseTask):
                 raise DealWithNonProxyError
             child.parent = self.target
             self.target.addchild(child, before=before, after=after)
-            try: # pragma: no branch
+            try:  # pragma: no branch
                 proxy = self.proxies[child]
             except KeyError:
                 proxy = _makeproxy(self, child)
@@ -260,7 +270,7 @@ class Reference(BaseTask):
     @property
     def active(self):
         return self._active
-    
+
     @active.setter
     def active(self, newvalue):
         self._active = newvalue
@@ -271,13 +281,16 @@ class Reference(BaseTask):
         try:
             import inspect
             frames = inspect.stack()
-            print "%s.%s > " % (repr(self), frames[1][3]), " ".join(str(x) for x in args)
+            print "%s.%s > " % (
+                    repr(self), frames[1][3]), " ".join(str(x) for x in args)
         except:
             import traceback
             traceback.print_exc()
 
     def __repr__(self):
-        return "(%r: %r)" % (getattr(self, "node_type", "[work on]"), getattr(self, "text", None))
+        return "(%r: %r)" % (
+                getattr(self, "node_type", "[work on]"),
+                getattr(self, "text", None))
 
     def finish(self, *args):
         super(Reference, self).finish(*args)

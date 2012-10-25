@@ -1,6 +1,7 @@
 from todo_tracker.exceptions import LoadError
 from todo_tracker.util import HandlerList
 
+
 loaders = HandlerList()
 serializers = HandlerList()
 
@@ -8,6 +9,7 @@ parsing_indent = 0
 parsing_type = 1
 parsing_type_text_sep = 2
 parsing_text = 3
+
 
 def parse_line(line):
     parsing = 0
@@ -30,9 +32,9 @@ def parse_line(line):
 
                 parsing += 1
 
-        if char == "\n": #pragma: no cover
+        if char == "\n":  # pragma: no cover
             continue
-                
+
         if parsing == parsing_type:
             if last_parsing == parsing_indent:
                 if char == "@":
@@ -45,7 +47,7 @@ def parse_line(line):
             if char == ":":
                 parsing += 1
                 continue
-                
+
             node_type += char
             continue
 
@@ -58,12 +60,14 @@ def parse_line(line):
         if text is None:
             text = ""
 
-        text += char 
+        text += char
     return indent, is_metadata, node_type, text
+
 
 @loaders.add("str")
 def parse_string(string):
     return FileParser(string.split('\n'))
+
 
 @loaders.add("file")
 class FileParser(object):
@@ -73,6 +77,7 @@ class FileParser(object):
 
     def __iter__(self):
         return parse_file(self.reader, self.error_context)
+
 
 def parse_file(reader, error_context=None):
     for index, line in enumerate(reader):
@@ -89,7 +94,6 @@ def serialize(tree, is_root=False, one_line=False):
         indent = ""
     else:
         indent = " " * 4
-
 
         if tree.text:
             text_lines = tree.text.split("\n")
@@ -116,10 +120,12 @@ def serialize(tree, is_root=False, one_line=False):
             lines.append(indent + line)
     return lines
 
+
 @serializers.add("str")
 def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
     return '\n'.join(lines) + "\n"
+
 
 @serializers.add("file")
 def serialize_to_file(root, writer):

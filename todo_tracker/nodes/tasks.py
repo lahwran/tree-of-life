@@ -3,6 +3,7 @@ from datetime import datetime
 from todo_tracker.nodes.node import Node, Option, BooleanOption, nodecreator
 from todo_tracker import timefmt
 
+
 class ActiveMarker(BooleanOption):
     def set(self, node, name, value):
         super(ActiveMarker, self).set(node, name, value)
@@ -16,6 +17,7 @@ class BaseTask(Node):
         ("finished", timefmt.datetime_option),
         ("active", ActiveMarker())
     )
+
     def __init__(self, *args):
         super(BaseTask, self).__init__(*args)
 
@@ -39,6 +41,7 @@ class BaseTask(Node):
     def can_activate(self):
         return self.finished is None
 
+
 @nodecreator("task")
 @nodecreator("project")
 @nodecreator("bug")
@@ -54,10 +57,12 @@ class Task(BaseTask):
 
         self.timeframe = None
 
+
 @nodecreator("category")
 class Category(Node):
     # should be passthrough
     pass
+
 
 @nodecreator("event")
 class Event(BaseTask):

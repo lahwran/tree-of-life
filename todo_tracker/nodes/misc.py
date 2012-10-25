@@ -1,8 +1,10 @@
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask
 
+
 #######################
 ### generic nodes
+
 
 @nodecreator("_gennode")
 class GenericNode(Node):
@@ -17,6 +19,7 @@ class GenericNode(Node):
 
     def option_values(self, adapter=None):
         return [(x, y, True) for x, y in self.metadata.items()]
+
 
 @nodecreator("_genactive")
 class GenericActivate(GenericNode):
@@ -54,16 +57,20 @@ class GenericActivate(GenericNode):
     def can_activate(self):
         return not "locked" in self.metadata
 
+
 #######################
 ### comments
+
 
 @nodecreator("comment")
 @nodecreator("IGNORE")
 class Comment(Node):
     multiline = True
 
+
 #######################
 ### todo
+
 
 @nodecreator("todo")
 class TodoItem(Node):
@@ -71,6 +78,7 @@ class TodoItem(Node):
     allowed_children = []
     multiline = True
     preferred_parent = ["todo bucket"]
+
 
 @nodecreator("todo bucket")
 class TodoBucket(Node):
@@ -89,7 +97,7 @@ class TodoBucket(Node):
 
         active = self.root.active_node
         if not active:
-            return # not much we can do :(
+            return  # not much we can do :(
         newparent = None
         after_node = None
         for node in active.iter_parents():
@@ -108,7 +116,8 @@ class TodoBucket(Node):
             todo_review = todo_review.copy(parent=newparent)
             newparent.addchild(todo_review, after=after_node)
         else:
-            todo_review = newparent.createchild("todo review", after=after_node)
+            todo_review = newparent.createchild("todo review",
+                    after=after_node)
 
         self.root.todo_review = todo_review
 
@@ -117,9 +126,11 @@ class TodoBucket(Node):
         self.move_review_task()
         return child
 
+
 @nodecreator("todo review")
 class TodoReview(BaseTask):
     textless = True
+
     def load_finished(self):
         if self.root.todo_review and self.root.todo_review is not self:
             self.root.todo_review.detach()

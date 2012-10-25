@@ -9,9 +9,11 @@ from todo_tracker import exceptions
 
 from todo_tracker.tracker import Tracker_Greppable_Fun
 
+
 class TestTracker(object):
     def test_load_basic(self):
-        tracker_obj = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(), skeleton=False)
+        tracker_obj = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(),
+                skeleton=False)
         lines = (
             "firstchild: args\n"
             "    secondchild: other args\n"
@@ -40,7 +42,8 @@ class TestTracker(object):
         assert root_child0_child1.node_type == "fourthchild"
 
     def test_load_bad_order(self):
-        tracker_obj = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(), skeleton=False)
+        tracker_obj = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(),
+                skeleton=False)
 
         lines = (
             "firstchild: args\n"
@@ -51,17 +54,18 @@ class TestTracker(object):
             tracker_obj.deserialize("str", lines)
 
     def test_load_continued_text(self):
-        tracker_obj = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker_Greppable_Fun(skeleton=False)
         lines = (
             "_gennode: derp\n"
             "    - herp\n"
             "    - derp\n"
         )
-        tracker_obj.deserialize("str", lines)
-        assert tracker_obj.root.children.next_neighbor.text == "derp\nherp\nderp"
+        tracker.deserialize("str", lines)
+        assert tracker.root.children.next_neighbor.text == "derp\nherp\nderp"
 
     def test_save_basic(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(), skeleton=False)
+        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(),
+                skeleton=False)
 
         node1 = GenericNode("node1", "node1_text", tracker.root)
         tracker.root.addchild(node1)
@@ -106,7 +110,8 @@ class TestTracker(object):
         )
 
     def test_skeleton(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(GenericActivate))
+        tracker = Tracker_Greppable_Fun(
+                nodecreator=FakeNodeCreator(GenericActivate))
         serialized = serialize_to_str(tracker.root)
         assert serialized == (
             "days\n"
@@ -117,7 +122,8 @@ class TestTracker(object):
         )
 
     def test_skeleton_load(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(GenericActivate))
+        tracker = Tracker_Greppable_Fun(
+                nodecreator=FakeNodeCreator(GenericActivate))
         tracker.deserialize("str",
             "days\n"
             "    day: yesterday\n"
@@ -176,7 +182,8 @@ class TestTracker(object):
         ) % today.text
 
     def test_too_indented(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False, nodecreator=FakeNodeCreator(GenericActivate))
+        tracker = Tracker_Greppable_Fun(skeleton=False,
+                nodecreator=FakeNodeCreator(GenericActivate))
         with pytest.raises(exceptions.LoadError):
             tracker.deserialize("str",
                 "herp\n"
@@ -189,7 +196,8 @@ class TestTracker(object):
             def setoption(self, option, value):
                 raise Exception("test exception")
 
-        tracker = Tracker_Greppable_Fun(skeleton=False, nodecreator=FakeNodeCreator(ExcOnOptionNode))
+        tracker = Tracker_Greppable_Fun(skeleton=False,
+                nodecreator=FakeNodeCreator(ExcOnOptionNode))
         input_str = (
             "node1: node1\n"
             "node2: node2\n"
@@ -202,9 +210,5 @@ class TestTracker(object):
             result = str(e)
             assert "At line 4: UNHANDLED ERROR" in result
             assert "Exception: test exception" in result
-        else: # pragma: no cover
+        else:  # pragma: no cover
             assert False
-
-
-
-

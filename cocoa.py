@@ -16,9 +16,11 @@ from twisted.python import log
 from todo_tracker.userinterface import SavingInterface, command
 from todo_tracker.util import tempfile
 
+
 @command()
 def error(event):
     raise Exception("test")
+
 
 @command()
 def restart(event):
@@ -31,18 +33,23 @@ def restart(event):
         args = None
     event.ui.restarter.restart(args)
 
+
 @command()
 def stop(event):
     event.ui.restarter.stop()
 
+
 @command()
 def vimpdb(event):
-    import pdb; pdb.set_trace()
+    import pdb
+    pdb.set_trace()
     event.ui.vim(event.source, debug=True)
+
 
 @command()
 def save(event):
     event.ui.full_save()
+
 
 def osascript(code):
     temp_code = tempfile()
@@ -52,6 +59,7 @@ def osascript(code):
     subprocess.call(["osascript", temp_code])
     os.unlink(temp_code)
 
+
 class VimRunner(object):
     """
     Tell iterm2 to open a new window, then run a command that runs vim
@@ -59,7 +67,10 @@ class VimRunner(object):
     """
 
     outer_command = "exec bash -c '%s'\n"
-    base_inner_command = "vim %s; echo '%s' | base64 --decode | nc 127.0.0.1 %d" # > /dev/null because the initialization message is uninteresting
+
+    # > /dev/null because the initialization message is uninteresting
+    base_inner_command = "vim %s;echo '%s' | base64 --decode | nc 127.0.0.1 %d"
+
     applescript = """
         tell application "iTerm"
             activate
@@ -78,7 +89,7 @@ class VimRunner(object):
     """
 
     def __init__(self, originator, master, port, callback, filenames):
-        self.master = master 
+        self.master = master
         self.callback = callback
         self.originator = originator
 
@@ -86,7 +97,10 @@ class VimRunner(object):
         json_data = json.dumps({"vim_finished": self.id}) + "\n"
 
         args = self.wrap_args(["-o", "--"] + list(filenames))
-        inner_command = self.base_inner_command % (" ".join(args), json_data.encode("base64").replace(" ","").replace("\n",""), port)
+        b64_data = json_data.encode("base64")
+        b64_data = b64_data.replace(" ", "").replace("\n", "")
+        inner_command = self.base_inner_command % (
+                " ".join(args), b64_data, port)
         inner_command = inner_command.replace("\\'", "'\"'\"'")
         self.command = self.outer_command % inner_command
         log.msg("Starting vim with id %r: %s" % (self.id, self.command))
@@ -112,15 +126,17 @@ class VimRunner(object):
             wrapped_args.append("'%s'" % arg)
         return wrapped_args
 
+
 class RemoteInterface(SavingInterface):
     max_format_depth = 3
+
     def __init__(self, config, restarter, *args, **keywords):
         super(RemoteInterface, self).__init__(*args, **keywords)
         self.listeners = []
         self.run_config = config
         self.restarter = restarter
         self._vim_instances = {}
-    
+
     def command(self, source, line):
         if self._vim_instances:
             self._show_iterm()
@@ -131,9 +147,10 @@ class RemoteInterface(SavingInterface):
         for listener in self.listeners:
             listener.sendmessage({"display": False})
 
-        runner = VimRunner(originator, self, self.run_config.port, callback, filenames)
+        runner = VimRunner(originator, self, self.run_config.port, callback,
+                filenames)
         runner.run()
-        
+
         self._vim_instances[runner.id] = runner
 
     def _vim_finished(self, identifier):
@@ -161,7 +178,6 @@ class RemoteInterface(SavingInterface):
         else:
             messages = []
 
-
         if self.root.fitness_log:
             today = datetime.now().date()
             things = defaultdict(int)
@@ -174,8 +190,9 @@ class RemoteInterface(SavingInterface):
                     format_strings[node.node_type] = node.value_format
             if messages:
                 messages.append("")
-            for thing, value in things.items():
-                messages.append(("%s today: " + format_strings[thing]) % (thing, value))
+            for thing, value in sorted(things.items()):
+                message = "%s today: " + format_strings[thing]
+                messages.append(message % (thing, value))
 
         return messages
 
@@ -187,7 +204,8 @@ class RemoteInterface(SavingInterface):
             if x.node_type == "days":
                 break
         return realresult
-    
+
+
 class JSONProtocol(LineOnlyReceiver):
     delimiter = "\n"
 
@@ -199,7 +217,9 @@ class JSONProtocol(LineOnlyReceiver):
 
     def connectionMade(self):
         try:
-            self.sendmessage({"max_width": self.commandline.config["max_width"]})
+            self.sendmessage({
+                "max_width": self.commandline.config["max_width"]
+            })
             self.update()
             self.commandline.listeners.append(self)
         except Exception:
@@ -218,8 +238,9 @@ class JSONProtocol(LineOnlyReceiver):
 
     def update(self):
         try:
+            reversed_displaychain = self.commandline.displaychain()[::-1]
             self.sendmessage({
-                "prompt": [str(node) for node in self.commandline.displaychain()[::-1]],
+                "prompt": [str(node) for node in reversed_displaychain],
                 "context": self.commandline.tree_context(),
                 "suggestions": [self.status, ""],
                 "messages": self.commandline.messages()
@@ -281,7 +302,7 @@ class JSONProtocol(LineOnlyReceiver):
                 log.err()
 
     def message_input(self, text_input):
-        pass # don't care about input right now
+        pass  # don't care about input right now
 
     def message_command(self, command):
         try:
@@ -299,21 +320,26 @@ class JSONProtocol(LineOnlyReceiver):
         self._is_vim_connection = True
         self.commandline._vim_finished(identifier)
 
+
 class JSONFactory(Factory):
     def __init__(self, interface):
-        self.interface = interface 
+        self.interface = interface
 
     def buildProtocol(self, addr):
         return JSONProtocol(self.interface)
 
+
 argparser = argparse.ArgumentParser(description="run server")
-argparser.add_argument("--dev", nargs="?", dest="dev", default="false", const="true", type=lambda s: s.lower() == "true")
-argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker", dest="path")
+argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
+        const="true", type=lambda s: s.lower() == "true")
+argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker",
+        dest="path")
 argparser.add_argument("-p", "--port", default=18081, dest="port")
 argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
 argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
+
 
 class Restarter(object):
     def __init__(self):
@@ -345,6 +371,7 @@ class Restarter(object):
             print self.args
             os.execv(sys.executable, [sys.executable] + self.args)
 
+
 def main(restarter, args):
     config = argparser.parse_args(args)
     if config.dev:
@@ -357,13 +384,14 @@ def main(restarter, args):
     restarter.to_flush.append(logfile)
     log.startLogging(logfile, setStdout=False)
     log.msg("logfile: %r" % config.logfile)
-    
+
     ui = RemoteInterface(config, restarter, config.path, config.mainfile)
     ui.load()
     ui.config.setdefault("max_width", 500)
     print ui.config
 
-    reactor.listenTCP(config.port, JSONFactory(ui), interface=config.listen_iface)
+    factory = JSONFactory(ui)
+    reactor.listenTCP(config.port, factory, interface=config.listen_iface)
     try:
         reactor.run()
     finally:

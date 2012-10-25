@@ -1,6 +1,8 @@
 
+
 class ListIntegrityError(Exception):
     pass
+
 
 class LoadError(Exception):
     def __init__(self, message):
@@ -17,7 +19,7 @@ class LoadError(Exception):
             if getattr(self, "error_context", False):
                 line = getattr(self.error_context, "line", None)
                 if line is not None:
-                    line = int(line) + 1 # zero indexed to human indexed
+                    line = int(line) + 1  # zero indexed to human indexed
                     result = "At line %d: " % line
                 else:
                     result = "At unknown line: "

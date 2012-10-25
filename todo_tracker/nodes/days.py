@@ -4,6 +4,7 @@ from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
 
+
 @nodecreator("day")
 class Day(BaseTask):
     chidren_of = ("days",)
@@ -22,6 +23,7 @@ class Day(BaseTask):
         if not datetime.now().date() == self.date:
             return False
         return super(Day, self).can_activate
+
 
 @nodecreator("days")
 class Days(Node):
@@ -51,12 +53,14 @@ class Days(Node):
             return
 
         if len(args) or len(keywords):
-            raise Exception("this addchild does not take any special arguments")
+            raise Exception("this addchild does not take order arguments")
         before = None
         after = None
 
-        if self.allowed_children is not None and child.node_type not in self.allowed_children:
-            raise Exception("node %s cannot be child of %r" % (child._do_repr(parent=False), self))
+        if (self.allowed_children is not None and
+                child.node_type not in self.allowed_children):
+            raise Exception("node %s cannot be child of %r" % (
+                child._do_repr(parent=False), self))
 
         for existing_child in self.children:
             if existing_child.date < child.date:

@@ -6,6 +6,7 @@ from todo_tracker import timefmt
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.exceptions import LoadError
 
+
 @nodecreator("fitness log")
 class FitnessLog(Node):
     toplevel = True
@@ -14,8 +15,10 @@ class FitnessLog(Node):
     def load_finished(self):
         self.root.fitness_log = self
 
+
 def full_match(regex, *args):
-    return re.match(regex+"$", *args)
+    return re.match(regex + "$", *args)
+
 
 # TODO: these names are a little wonky
 @nodecreator("log")
@@ -32,8 +35,8 @@ class LogNode(Node):
         self.time = datetime.now()
         super(LogNode, self).__init__(*args, **kw)
 
-class FitnessLogNode(LogNode):
 
+class FitnessLogNode(LogNode):
     value_name = None
     value_format = None
     value_regex = None
@@ -65,7 +68,8 @@ class FitnessLogNode(LogNode):
     def text(self, newtext):
         self.time = datetime.now()
 
-        match = full_match(self.value_regex + (r'(?:%s)?' % self.context_regex), newtext.strip(), re.IGNORECASE)
+        regex = self.value_regex + (r'(?:%s)?' % self.context_regex)
+        match = full_match(regex, newtext.strip(), re.IGNORECASE)
         if match:
             value = self.value_type(match.group(1))
             setattr(self, self.value_name, value)
@@ -75,12 +79,15 @@ class FitnessLogNode(LogNode):
             else:
                 setattr(self, self.context_name, None)
         else:
-            raise LoadError("Bad %s or %s format: %r" % (self.value_name, self.context_name, newtext))
+            raise LoadError("Bad %s or %s format: %r" % (self.value_name,
+                self.context_name, newtext))
+
 
 class Measurement(FitnessLogNode):
     context_name = "clothes"
     context_format = " wearing %s"
     context_regex = " wearing (.+)"
+
 
 @nodecreator("weight")
 class Weight(Measurement):
@@ -89,12 +96,14 @@ class Weight(Measurement):
     value_regex = (r'([0-9.]+)'
             r'(?:\s*lbs)?')
 
+
 @nodecreator("waist")
 class Waist(Measurement):
     value_name = "waist"
     value_format = "%.03fin"
     value_regex = (r'([0-9.]+)'
             r'(?:\s*(?:in|inch|inches|"))?')
+
 
 @nodecreator("cal")
 @nodecreator("cals")
@@ -112,6 +121,7 @@ class Calories(FitnessLogNode):
         if node_type == "cal" or node_type == "cals":
             node_type = "calories"
         super(Calories, self).__init__(node_type, *args, **kwargs)
+
 
 @nodecreator("workout")
 class Workout(FitnessLogNode):
