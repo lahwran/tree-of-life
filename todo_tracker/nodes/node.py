@@ -329,7 +329,8 @@ class Node(object):
     def load_finished(self):
         pass
 
-    def auto_add(self, creator):
+    def auto_add(self, creator, root):
+        self.root = root
         if self.preferred_parent is not None:
             parent = self.root.find_node(self.preferred_parent)
             parent.addchild(self)

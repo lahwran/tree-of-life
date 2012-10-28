@@ -61,7 +61,7 @@ def createchild(event):
 def createauto(event):
     node_type, text = _makenode(event.text)
     node = event.root.nodecreator.create(node_type, text, None, validate=False)
-    if node.auto_add(creator=event.root.active_node):
+    if node.auto_add(creator=event.root.active_node, root=event.root):
         return
     else:
         event.root.active_node.addchild(node)
@@ -184,7 +184,9 @@ class CommandInterface(Tracker_Greppable_Fun):
                 return True
 
         self._run_vim(source, callback, tmp, **keywords)
-    start_editor = vim
+
+    def start_editor(self):
+        self.vim(None)
 
     def _run_vim(self, source, callback, extra, *filenames, **keywords):
         raise NotImplementedError
