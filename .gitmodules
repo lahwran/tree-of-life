@@ -1,0 +1,3 @@
+[submodule "popup"]
+	path = popup
+	url = ssh://git@bitbucket.org/lahwran/popup.git
