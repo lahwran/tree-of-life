@@ -51,6 +51,11 @@ def save(event):
     event.ui.full_save()
 
 
+@command()
+def quit_popup(event):
+    event.source.sendmessage({"should_quit": True})
+
+
 def osascript(code):
     temp_code = tempfile()
     code_writer = open(temp_code, "w")
