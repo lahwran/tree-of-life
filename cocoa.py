@@ -13,7 +13,8 @@ from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import reactor
 from twisted.python import log
 
-from todo_tracker.userinterface import SavingInterface, command
+from todo_tracker.userinterface import (SavingInterface, command,
+    generate_listing)
 from todo_tracker.util import tempfile
 
 
@@ -200,6 +201,21 @@ class RemoteInterface(SavingInterface):
                 messages.append(message % (thing, value))
 
         return messages
+
+    def top_messages(self):
+        result = []
+        queue = self.root.find_node(["category: queue"])
+        if queue is not None:
+            generate_listing(None, queue, result)
+        return result[:30]
+
+    def tree_context(self):
+        result = []
+        result.extend(self.top_messages())
+        if result:
+            result.append("")
+        result.extend(super(RemoteInterface, self).tree_context())
+        return result
 
     def displaychain(self):
         result = super(RemoteInterface, self).displaychain()
