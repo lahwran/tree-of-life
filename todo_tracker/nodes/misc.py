@@ -137,9 +137,6 @@ class TodoReview(BaseTask):
         self.root.todo_review = self
         self.root.todo.move_review_task()
 
-    def start(self):
-        self.root.tracker.start_editor()
-
     def finish(self):
         super(TodoReview, self).finish()
         self.root.todo.move_review_task()
