@@ -1,0 +1,162 @@
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0px;
+        font-family: DejaVu Sans Mono;
+        font-size: 12px;
+      }
+
+      .messages {
+        height: 150px;
+        overflow: scroll;
+      }
+      .bottom {
+        width: 100%;
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        background-color: rgb(255,245,235);
+      }
+      .toggle-bottom {
+        width: 100%;
+        margin: 0px;
+        padding: 0px;
+        padding-top: 5px;
+        text-align: center;
+        padding-bottom: 5px;
+        color: rgb(235,225,215);
+      }
+      .bottom-line {
+        border-bottom: 1px solid rgb(235,225,215);
+      }
+      .bottom-content {
+        display: none;
+        padding-left: 5px;
+        padding-right: 5px;
+      }
+
+      .header {
+        height: 31px;
+        margin: 0px;
+        padding-top: 0px;
+        padding-bottom: 0px;
+        padding-left: 12px;
+        padding-right: 5px;
+        background: url(spotlight-bg.png) repeat-x left top;
+        z-index: 0;
+      }
+      .command-box-input {
+        width: 100%;
+        outline: none;
+        border: none;
+        background: url(spotlight-fg.png) repeat-x left top;
+        height: 31px;
+        padding-left: 11px;
+        padding-right: 17px;
+        z-index: 0;
+      }
+      .command-box-left {
+        background: url(spotlight-left.png) no-repeat left top;
+        width: 11px;
+        height: 31px;
+        z-index: 1;
+        left: 0px;
+        top: 0px;
+        position: absolute;
+      }
+      .command-box-right {
+        background: url(spotlight-right.png) no-repeat left top;
+        width: 17px;
+        height: 31px;
+        z-index: 1;
+        right: 0px;
+        top: 0px;
+        position: absolute;
+      }
+      .command-box-container {
+        margin: 0px;
+        padding: 0px;
+        position: relative;
+        z-index: 0;
+      }
+    </style>
+    <script src="jquery-1.8.2.min.js"></script>
+    <script>
+      console = {
+          log: function(message) {
+              var message_html = $("<div class='message'></div><br/>");
+              message_html.find('.message').text(message);
+              $(".messages").append(message + "<br/>");
+          }
+      };
+
+      function reload() {
+          window.location = window.location;
+      }
+
+      function do_connect() {
+          tracker_api.connect();
+      }
+
+      function on_panel_shown() {
+          setTimeout(function(){
+            $(".command-box-input").focus();
+          }, 10);
+      }
+      on_panel_hidden = function() {
+        // nothing to do here for now
+      }
+      on_attempting_reconnect = function() {
+          console.log("attempting_reconnect");
+      }
+      on_message_received = function(message) {
+          console.log("message_received: " + message);
+      }
+      function on_status_changed(message) {
+          console.log("status_changed: " + message);
+      }
+
+      function toggle_bottom(event) {
+        event.preventDefault();
+        if ($(".bottom-content").is(":visible")) {
+          $(".bottom-content").hide();
+          $(".toggle-bottom").text("show info").removeClass("bottom-line");
+        } else {
+          $(".bottom-content").show();
+          $(".toggle-bottom").text("hide info").addClass("bottom-line");
+        }
+      }
+
+      $(document).ready(function() {
+          $(".reload").click(reload);
+          $(".connect").click(do_connect);
+          $(".toggle-bottom").click(toggle_bottom);
+
+          var d = new Date();
+          var n = d.getTime();
+          $(".loaded-at").text("" + n);
+      });
+    </script>
+  </head>
+  <body>
+    <div class="header">
+      <div class="command-box-container">
+        <div class="command-box-left"></div>
+        <input type="text" class="command-box-input">
+        <div class="command-box-right"></div>
+    </div>
+    <div class="bottom">
+      <div class="toggle-bottom">
+        show info
+      </div>
+      <div class="bottom-content">
+        <div class="messages">
+        </div>
+        <button class="reload"> reload </button>
+        <button class="connect"> connect </button>
+        loaded at: <span class="loaded-at"> </span>
+      </div>
+    </div>
+  </body>
+</html>
