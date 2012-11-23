@@ -25,7 +25,6 @@ class BaseTask(Node):
         self.finished = None
         self.active = False
 
-        self.referred_to = set()
 
     def start(self):
         if self.started:

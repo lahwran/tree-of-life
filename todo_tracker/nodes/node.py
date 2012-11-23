@@ -179,6 +179,7 @@ class Node(object):
 
     def _init_children(self):
         self.children = _NodeListRoot()
+        self.referred_to = set()
 
         self._next_node = None
         self._prev_node = None
@@ -375,6 +376,17 @@ class Node(object):
                 return node
 
         return None
+
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+        result.update({
+            "type": self.node_type,
+            "text": self.text,
+            "options": self.option_values(),
+            "children": [child.ui_serialize() for child in self.children]
+        })
+        return result
 
 
 @nodecreator('-')

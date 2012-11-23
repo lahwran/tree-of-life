@@ -217,9 +217,6 @@ class CommandInterface(Tracker_Greppable_Fun):
         while len(lines) < max_lines and current:
             generate_listing(active, current, lines, indent=1)
             current = current.next_neighbor
-        if len(lines) >= max_lines:
-            lines = lines[:max_lines]
-            lines[-1] = _listing_node(None, "...", 2)
         return lines
 
 

@@ -12,6 +12,8 @@ from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import reactor
 from twisted.python import log
+import twisted.web.static
+import twisted.web.server
 
 from todo_tracker.userinterface import (SavingInterface, command,
     generate_listing)
@@ -413,6 +415,12 @@ def main(restarter, args):
 
     factory = JSONFactory(ui)
     reactor.listenTCP(config.port, factory, interface=config.listen_iface)
+
+    # serve ui directory
+    ui_dir = os.path.join(os.path.dirname(__file__), "ui")
+    resource = twisted.web.static.File(ui_dir)
+    static = twisted.web.server.Site(resource)
+    reactor.listenTCP(config.port + 1, static, interface=config.listen_iface)
     try:
         reactor.run()
     finally:

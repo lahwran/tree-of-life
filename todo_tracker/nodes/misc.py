@@ -1,5 +1,5 @@
 from todo_tracker.nodes.node import Node, nodecreator
-from todo_tracker.nodes.tasks import BaseTask
+from todo_tracker.nodes.tasks import BaseTask, ActiveMarker
 
 
 #######################
@@ -126,10 +126,17 @@ class TodoBucket(Node):
         self.move_review_task()
         return child
 
+class NoActiveMarker(ActiveMarker):
+    def get(self, node, name):
+        return False, None
 
 @nodecreator("todo review")
 class TodoReview(BaseTask):
     textless = True
+
+    options = (
+        ("active", NoActiveMarker()),
+    )
 
     def load_finished(self):
         if self.root.todo_review and self.root.todo_review is not self:

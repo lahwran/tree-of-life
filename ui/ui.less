@@ -1,0 +1,197 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  font: inherit;
+  vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+  display: block;
+}
+body {
+  line-height: 1;
+}
+ol, ul {
+  list-style: none;
+}
+blockquote, q {
+  quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+  content: '';
+  content: none;
+}
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/*********************************************/
+
+body {
+    position: relative;
+    overflow: hidden;
+}
+.size-container, pre {
+    font-family: DejaVu Sans Mono;
+    font-size: 12px;
+}
+.size-container {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    min-width: 600px;
+}
+
+._js_messages_scroller {
+    height: 150px;
+    overflow: scroll;
+}
+._js_message {
+    padding-bottom: 5px;
+    position: relative;
+}
+._js_message.highlit {
+    background-color: rgb(235,245,255);
+}
+._js_message .number {
+    position: absolute;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    width: 25px;
+
+    color: rgb(235,225,215);
+    display: inline-block;
+    margin-right: 7px;
+    padding-right: 3px;
+}
+
+._js_message .number,
+._js_message .message .arg {
+    border-right: 1px solid rgb(235,225,215);
+}
+._js_message.highlit .number {
+    color: rgb(215,225,235);
+}
+._js_message.highlit .number,
+._js_message.highlit .message .arg {
+    border-right: 1px solid rgb(215,225,235);
+}
+._js_message .message {
+    display: inline-block;
+    margin-left: 35px;
+    overflow-x: scroll;
+    .arg {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
+}
+
+.bottom {
+  width: 100%;
+  background-color: rgb(255,245,235);
+}
+.toggle-bottom {
+  width: 100%;
+  padding-top: 5px;
+  text-align: center;
+  padding-bottom: 5px;
+  color: rgb(235,225,215);
+}
+.bottom-line {
+  border-bottom: 1px solid rgb(235,225,215);
+}
+.bottom-content {
+  display: none;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.content {
+  white-space: nowrap;
+  margin-left: 5px;
+  margin-right: 5px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  padding: 0px;
+}
+.shadow-container {
+    position: relative;
+    z-index: 0;
+    margin: 0px;
+    padding: 0px;
+    border: 0px;
+}
+.shadow-container .shadow {
+    position: absolute;
+    width: 200%;
+    left: -50%;
+    height: 100%;
+    z-index: -1;
+    top: 0px;
+}
+.well .shadow {
+    box-shadow: 0 0 30px rgba(0,0,0,0.3) inset;
+}
+.context {
+    z-index: 0px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.content .context-outer {
+    overflow: scroll;
+}
+.content .suggestions {
+  max-height: 20px;
+}
+
+.content .messages {
+    margin-top: 10px;
+}
+
+.header {
+    height: 31px;
+    padding-left: 12px;
+    padding-right: 5px;
+    background: url(spotlight-bg.png) repeat-x left top;
+    z-index: 0;
+    * {
+        height: 31px;
+    }
+    .command-box {
+        position: relative;
+        z-index: 0;
+        .input {
+            width: 100%;
+            outline: none;
+            border: none;
+            background: url(spotlight-fg.png) repeat-x left top;
+            padding-left: 11px;
+            padding-right: 17px;
+            z-index: 0;
+        }
+        .edge {
+            position: absolute;
+            top: 0px;
+            z-index: 1;
+
+            &.left {
+                background: url(spotlight-left.png) no-repeat left top;
+                width: 11px;
+                left: 0px;
+            }
+            &.right {
+                background: url(spotlight-right.png) no-repeat left top;
+                width: 17px;
+                right: 0px;
+            }
+        }
+    }
+}
