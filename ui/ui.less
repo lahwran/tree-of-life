@@ -139,15 +139,30 @@ body {
 .well .shadow {
     box-shadow: 0 0 30px rgba(0,0,0,0.3) inset;
 }
-.context {
+.tree {
     z-index: 0px;
     margin-top: 20px;
     margin-bottom: 20px;
 }
 
-.content .context-outer {
+.content .tree-outer {
     overflow: scroll;
 }
+
+.node, .option {
+    .type, .text, .text-seperator {
+        display: inline-block;
+    }
+    .text-seperator:before {
+        content: ":";
+    }
+    .children, .options {
+        margin-left: 2em;
+        padding-bottom: 2px;
+    }
+    padding-bottom: 2px;
+}
+
 .content .suggestions {
   max-height: 20px;
 }
@@ -195,3 +210,4 @@ body {
         }
     }
 }
+

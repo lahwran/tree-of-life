@@ -9,6 +9,30 @@
     <script src="browser_compat.js"></script>
     <script src="ui.js"></script>
   </head>
+  <script class="node-template" type="text/x-handlebars">
+    <div class="node">
+      <div class="type">{{ type }}</div>{{#if text}}<div class="text-seperator"></div>
+      <div class="text">
+        {{ text }}
+      </div>
+      {{/if}}
+      {{#if options}}
+      <div class="options">
+        {{#each options}}
+        <div class="option">
+          <div class="type">@{{ this.type }}</div>{{#if this.text}}<div class="text-seperator"></div>
+          <div class="text">{{this.text}}</div>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{#if children}}
+      <div class="children">
+      </div>
+      {{/if}}
+    </div>
+  </script>
   <body>
     <div class="size-container height-add">
       <div class="header">
@@ -49,21 +73,14 @@
 
       <div class="content">
         <div class="content-inner">
-          <div class="suggestions">
-            <script class="template" type="text/x-handlebars">
-              <div class="suggestion"><pre>{{ suggestion }}</pre></div>
-            </script>
+          <div class="status">
           </div>
           <div class="shadow-container">
-            <div class="context-outer height-remaining">
-              <pre class="context"></pre>
+            <div class="tree-outer height-remaining">
+              <div class="tree">
+              </div>
             </div>
             <div class="shadow"></div>
-          </div>
-          <div class="messages">
-            <script class="template" type="text/x-handlebars">
-              <div class="message"> {{ message }} </div>
-            </script>
           </div>
         </div>
       </div>

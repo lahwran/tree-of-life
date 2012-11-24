@@ -7,36 +7,32 @@
 //////////////////////////
 // call-in handlers
 function on_panel_shown() {
-    console.log("on_panel_shown");
+    ui_console.log("on_panel_shown");
     setTimeout(function(){
       $(".command-box input").focus();
-        console.log("focused input box");
+        ui_console.log("focused input box");
     }, 10);
 }
 function on_panel_hidden () {
     // nothing to do here for now
 }
 function on_attempting_reconnect () {
-    console.log("attempting_reconnect");
+    ui_console.log("attempting_reconnect");
 }
 function on_message_received(message) {
-    try {
-        console.log("received message:", message);
-        var loaded = $.parseJSON(message);
-        $.each(loaded, function(key, value) {
-            var func = message_handlers[key];
-            console.log("calling func", func, "with", value);
-            if (func) {
-                func(value);
-            }
-        });
-        tracker_api.resize();
-    } catch(err) {
-        console.log("ERROR:", err);
-    }
+    ui_console.log("received message:", message);
+    var loaded = $.parseJSON(message);
+    $.each(loaded, function(key, value) {
+        var func = message_handlers[key];
+        ui_console.log("calling func", func, "with", value);
+        if (func) {
+            func(value);
+        }
+    });
+    tracker_api.resize();
 }
 function on_status_changed(message) {
-    console.log("status_changed: ", message);
+    ui_console.log("status_changed: ", message);
 }
 function on_calculate_width() {
     var width = min($(".size-container").width(), tracker_api.getScreenWidth()/2);
@@ -47,12 +43,12 @@ function on_calculate_height() {
 
     set_heights(max_height);
 
-    var context_height = $(".content .context-outer").height();
-    var context_real_height = $(".content .context").height();
-    if (context_real_height > context_height) {
-        $(".context-outer").parents(".shadow-container").addClass("well");
+    var tree_height = $(".content .tree-outer").height();
+    var tree_real_height = $(".content .tree").height();
+    if (tree_real_height > tree_height) {
+        $(".tree-outer").parents(".shadow-container").addClass("well");
     } else {
-        $(".context-outer").parents(".shadow-container").removeClass("well");
+        $(".tree-outer").parents(".shadow-container").removeClass("well");
     }
 
     var height = min($(".size-container").outerHeight(true), max_height);
@@ -66,7 +62,7 @@ function get_height_adds() {
     var total_height = {value: 0};
     $(".height-add").each(function(item) {
         var height = $(this).outerHeight(true);
-        console.log("item:", $(this).getPath(), "outerheight:", height);
+        ui_console.log("item:", $(this).getPath(), "outerheight:", height);
         total_height.value += height;
     });
     return total_height.value;
@@ -75,8 +71,8 @@ function get_height_adds() {
 function set_heights(max_height) {
     var used = get_height_adds();
     assert(used <= max_height, "height-add elements taller than max height");
-    console.log("max-height:", max_height);
-    console.log("used height:", used);
+    ui_console.log("max-height:", max_height);
+    ui_console.log("used height:", used);
 
     var height_remaining = $(".height-remaining");
     assert(height_remaining.length == 1, "wrong number of height-remaining elements");
@@ -84,13 +80,13 @@ function set_heights(max_height) {
 
     if (height_remaining.parents(".height-add").length) {
         used -= height_vestigial;
-        console.log("used changed to", used, "because vestigial", height_vestigial);
+        ui_console.log("used changed to", used, "because vestigial", height_vestigial);
     }
 
     var fat = height_vestigial - height_remaining.height();
-    console.log("fat:", fat);
+    ui_console.log("fat:", fat);
     var target_max = max_height - (used + fat);
-    console.log("target_max:", target_max);
+    ui_console.log("target_max:", target_max);
     assert(target_max > 0, "too much fat on height-remaining element");
     assert(target_max + used + fat == max_height, "calculation error");
     height_remaining.css("max-height", "" + target_max + "px");
@@ -98,7 +94,7 @@ function set_heights(max_height) {
 
 handlers = {
     on_panel_hidden: function() {
-        console.log("secondary panel hidden");
+        ui_console.log("secondary panel hidden");
     }
 }
 
@@ -114,30 +110,28 @@ function $handlebars(query, input) {
     return $(template(input));
 }
 
+function render_tree(tree) {
+    var rendered = $handlebars(".node-template", tree);
+    var children_bucket = rendered.find(".children");
+    if (tree.children) {
+        $.each(tree.children, function(index, item) {
+            children_bucket.append(render_tree(item));
+        });
+    }
+    return rendered;
+}
+
 /////////////////////////
 // handlers for message types
 
 message_handlers = {
-    suggestions: function(suggestions) {
-        console.log("suggestions:", suggestions);
-        $(".suggestions .suggestion").remove();
-        $.each(suggestions, function(index, item) {
-            $(".suggestions").append($handlebars(".suggestions .template", {"suggestion": item}));
-        });
-        console.log("suggestions done");
+    status: function(status) {
+        ui_console.log("remote status:", status);
+        $(".content .status").html(status);
     },
-    messages: function(messages) {
-        console.log("messages:", messages);
-        $(".messages .message").remove();
-        $.each(messages, function(index, item) {
-            $(".messages").append($handlebars(".messages .template", {"message": item}));
-        });
-        console.log("messages done");
-    },
-    context: function(context) {
-        console.log("context:", context);
-        $(".context").html(context.join("\n"));
-        console.log("context done");
+    tree: function(tree) {
+        $(".tree").empty().append(render_tree(tree));
+        ui_console.log("tree done");
     },
     prompt: function(prompt) {
         tracker_api.setMenuText(JSON.stringify(prompt));
@@ -147,8 +141,12 @@ message_handlers = {
             tracker_api.quit();
         }
     },
-    display: tracker_api.setPanelShown,
-    max_width: tracker_api.setMaxWidth
+    display: function(display) {
+        tracker_api.setPanelShown(display);
+    },
+    max_width: function(width) {
+        tracker_api.setMaxWidth(width);
+    }
 }
 
 function message(obj) {

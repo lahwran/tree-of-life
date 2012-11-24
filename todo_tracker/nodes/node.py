@@ -380,12 +380,18 @@ class Node(object):
     def ui_serialize(self, result=None):
         if result is None:
             result = {}
-        result.update({
-            "type": self.node_type,
-            "text": self.text,
-            "options": self.option_values(),
-            "children": [child.ui_serialize() for child in self.children]
-        })
+
+        if "options" not in result:
+            options = [dict(zip(["type", "text"], option)) for option
+                    in self.option_values() if option[-1]]
+            if options:
+                result["options"] = options
+        if "children" not in result:
+            children = [child.ui_serialize() for child in self.children]
+            if children:
+                result["children"] = children
+        result["type"] = self.node_type
+        result["text"] = self.text
         return result
 
 

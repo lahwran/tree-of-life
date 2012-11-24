@@ -1,6 +1,6 @@
 
 //////////////////////////
-// console.log hack
+// ui_console.log hack
 
 jQuery.fn.getPath = function () {
     if (this.length != 1) throw 'Requires one element.';
@@ -128,26 +128,21 @@ function repr(o, depth, max) {
       if (depth > max) {
         return '<..>';
       } else {
+        if (o == null) {
+          return 'null';
+        }
         switch (typeOf(o)) {
           case 'string':
             return "\"" + (o.replace(/"/g, '\\"')) + "\"";
           case 'function':
             return "" + o;
-          case 'null':
-            if (o === null) {
-              'null';
-
-            }
           case 'object':
               return '{' + [
                 (function() {
-                  var _i, _len, _ref, _results;
-                  _ref = _.keys(o);
                   _results = [];
-                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-                    k = _ref[_i];
-                    _results.push('' + k + ':' + repr(o[k], depth + 1, max));
-                  }
+                  $.each(o, function(index, item) {
+                    _results.push('' + index + ':' + repr(item, depth + 1, max));
+                  });
                   return _results;
                 })()
               ] + '}';
@@ -171,14 +166,21 @@ function repr(o, depth, max) {
       }
 };
 
-_old_console = console;
-var _old_log = Function.prototype.bind.call(console.log, console);
-console = {
+ui_console = {
     _count: 0,
     _highlit: false,
     log: function() {
-        var newargs = Array.prototype.slice.call(arguments);
-        _old_log.apply(null, newargs);
+        try {
+            ui_console._log_unsafe.apply(null, arguments);
+        } catch (e) {
+            var args = [];
+            for (index=0; index< arguments.length; index++) {
+                args.push("" + arguments[index]);
+            }
+            ui_console._log_unsafe("error logging: " + args + " error was " + e);
+        }
+    },
+    _log_unsafe: function() {
         var args = [];
         for (index=0; index< arguments.length; index++) {
             if (typeof arguments[index] == "string") {
@@ -189,11 +191,11 @@ console = {
         }
         var element = $handlebars("._js_messages .template", {
             args: args,
-            highlit: console._highlit,
-            count: console._count
+            highlit: ui_console._highlit,
+            count: ui_console._count
         });
-        console._count += 1;
-        console._highlit = !console._highlit;
+        ui_console._count += 1;
+        ui_console._highlit = !ui_console._highlit;
         $("._js_messages").append(element);
         $("._js_messages_scroller").scrollTop($("._js_messages").height());
     }
@@ -206,7 +208,7 @@ function min(x, y) {
 
 function assert(x, message) {
     if (!x) {
-        console.log("houston, we've had a problem", message);
+        ui_console.log("houston, we've had a problem", message);
     }
 }
 
