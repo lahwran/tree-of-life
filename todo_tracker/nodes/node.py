@@ -631,3 +631,9 @@ class TreeRootNode(Node):
         if activate:
             self.activate(newnode)
         return newnode
+
+    def ui_serialize(self):
+        result = super(TreeRootNode, self).ui_serialize()
+        for child in result["children"]:
+            child["is_toplevel"] = True
+        return result["children"] #!

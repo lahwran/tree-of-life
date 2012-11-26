@@ -79,3 +79,25 @@ class Days(Node):
         if self.repeating_tasks is not None:
             prefix.append(self.repeating_tasks)
         return prefix + list(self.children)
+
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+
+        today_string = timefmt.date_to_str(timefmt.str_to_date("today"))
+        past_days = []
+        future_days = []
+        current = past_days
+        for node in self.children:
+            if node.text == today_string:
+                current = future_days
+            current.append(node)
+
+        if "hidden_children" not in result and past_days:
+            hidden = [child.ui_serialize() for child in past_days]
+            result["hidden_children"] = hidden
+        if "children" not in result and future_days:
+            children = [child.ui_serialize() for child in future_days]
+            result["children"] = children
+
+        return super(Days, self).ui_serialize(result)

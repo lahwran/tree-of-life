@@ -111,6 +111,9 @@ function $handlebars(query, input) {
 }
 
 function render_tree(tree) {
+    if (tree.is_toplevel === true && tree.type != "days") {
+        return "";
+    }
     var rendered = $handlebars(".node-template", tree);
     var children_bucket = rendered.find(".children");
     if (tree.children) {
@@ -129,8 +132,11 @@ message_handlers = {
         ui_console.log("remote status:", status);
         $(".content .status").html(status);
     },
-    tree: function(tree) {
-        $(".tree").empty().append(render_tree(tree));
+    tree: function(tree_root) {
+        $(".tree").empty();
+        $.each(tree_root, function(index, item) {
+            $(".tree").append(render_tree(item));
+        });
         ui_console.log("tree done");
     },
     prompt: function(prompt) {
