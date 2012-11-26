@@ -158,7 +158,20 @@ body {
     }
     .children, .options {
         margin-left: 2em;
-        padding-bottom: 2px;
+    }
+    .title {
+        border-radius: 3px;
+    }
+    &.active > .title {
+        background-color: #a9f598;
+        padding: 3px;
+        margin: 3px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        position: relative;
+        left: -6px;
+    }
+    &.finished {
+        color: #969d97;
     }
     padding-bottom: 2px;
 }

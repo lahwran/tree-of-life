@@ -41,6 +41,13 @@ class BaseTask(Node):
     def can_activate(self):
         return self.finished is None
 
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+
+        result["active"] = self.active
+        result["finished"] = bool(self.finished)
+        return super(BaseTask, self).ui_serialize(result)
 
 @nodecreator("task")
 @nodecreator("project")
