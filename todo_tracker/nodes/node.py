@@ -636,4 +636,4 @@ class TreeRootNode(Node):
         result = super(TreeRootNode, self).ui_serialize()
         for child in result["children"]:
             child["is_toplevel"] = True
-        return result["children"] #!
+        return result["children"]  # !
