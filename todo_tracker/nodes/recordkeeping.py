@@ -28,7 +28,7 @@ class LogNode(Node):
     preferred_parent = ["fitness log"]
 
     options = (
-        ("time", timefmt.datetime_option),
+        timefmt.DatetimeOption("time"),
     )
 
     def __init__(self, *args, **kw):

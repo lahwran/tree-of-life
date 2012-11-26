@@ -126,16 +126,18 @@ class TodoBucket(Node):
         self.move_review_task()
         return child
 
+
 class NoActiveMarker(ActiveMarker):
-    def get(self, node, name):
+    def get(self, node):
         return False, None
+
 
 @nodecreator("todo review")
 class TodoReview(BaseTask):
     textless = True
 
     options = (
-        ("active", NoActiveMarker()),
+        (NoActiveMarker("active")),
     )
 
     def load_finished(self):

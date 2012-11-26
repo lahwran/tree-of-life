@@ -16,6 +16,7 @@ ignore = [
     "E128",  # E128 is "under-indented"
     "E126",  # E126 is "over-indented"
     "E124",  # Closing bracket does not match visual indentation
+    "E202",  # Whitespace before ) - used for Good Reason in test_time
 ]
 
 

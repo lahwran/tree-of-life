@@ -269,7 +269,7 @@ class Node(object):
             raise LoadError("node %r has no such option %r" % (self, option))
 
         try:
-            handler.set(self, option, value)
+            handler.set(self, value)
         except:  # haw haw
             print repr(self)
             print option
@@ -277,7 +277,6 @@ class Node(object):
             raise
 
     def _option_dict(self):
-        # note: this will redo some elements, but that's not a problem
         try:
             return self._option_dict_cache
         except AttributeError:
@@ -296,14 +295,14 @@ class Node(object):
                 continue
             seen.add(id(options))
 
-            for name, handler in options:
-                result[name] = handler
+            for option in options:
+                result[option.name] = option
         return result
 
     def option_values(self):
         result = []
         for name, handler in self._option_dict().items():
-            show, item = handler.get(self, name)
+            show, item = handler.get(self)
             result.append((name, item, show))
         return result
 
@@ -471,18 +470,26 @@ class _NodeMatcher(object):
 
 
 class Option(object):
-    def __init__(self, incoming=None, outgoing=None):
-        self.incoming = incoming
-        self.outgoing = outgoing
+    incoming = None
+    outgoing = None
 
-    def set(self, node, name, value):
+    def __init__(self, name=None, incoming=None, outgoing=None):
+        if name:
+            self.name = name
+        if incoming:
+            self.incoming = incoming
+        if outgoing:
+            self.outgoing = outgoing
+        assert self.name is not None, "name by arg or class-attr pls"
+
+    def set(self, node, value):
         if self.incoming is not None:
             value = self.incoming(value)
-        setattr(node, name, value)
+        setattr(node, self.name, value)
 
-    def get(self, node, name):
+    def get(self, node):
         try:
-            value = getattr(node, name)
+            value = getattr(node, self.name)
         except AttributeError:
             return False, None
 
@@ -497,11 +504,16 @@ class Option(object):
 
 
 class BooleanOption(object):
-    def set(self, node, name, value):
-        setattr(node, name, True)
+    def __init__(self, name=None):
+        if name:
+            self.name = name
+        assert self.name is not None, "name by arg or class-attr pls"
 
-    def get(self, node, name):
-        value = getattr(node, name)
+    def set(self, node, value):
+        setattr(node, self.name, True)
+
+    def get(self, node):
+        value = getattr(node, self.name)
         show = bool(value)
         return show, None
 

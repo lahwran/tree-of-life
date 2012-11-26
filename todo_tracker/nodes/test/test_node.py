@@ -208,9 +208,9 @@ class TestNode(object):
 
         class OptionedNode(Node):
             options = (
-                ("option1", Option()),
-                ("option2", Option()),
-                ("option3", Option(int, str))
+                Option("option1"),
+                Option("option2"),
+                Option("option3", int, str)
             )
 
             def __init__(self, *a, **k):
@@ -237,27 +237,28 @@ class TestNode(object):
 
     def test_option_values(self):
         class FakeOption(object):
-            def __init__(self, provideout):
+            def __init__(self, name, provideout):
+                self.name = name
                 self.incoming = None
                 self.outgoing = None
                 self.provideout = provideout
 
-            def set(self, parent, option, value):
-                self.incoming = (parent, option, value)
+            def set(self, parent, value):
+                self.incoming = (parent, value)
 
-            def get(self, parent, option):
-                self.outgoing = (parent, option)
+            def get(self, parent):
+                self.outgoing = parent
                 return self.provideout
 
         option1_sentinel = object()
-        option1 = FakeOption((True, option1_sentinel))
+        option1 = FakeOption("option1", (True, option1_sentinel))
         option2_sentinel = object()
-        option2 = FakeOption((False, option2_sentinel))
+        option2 = FakeOption("option2", (False, option2_sentinel))
 
         class OptionNode(Node):
             options = (
-                ("option1", option1),
-                ("option2", option2)
+                option1,
+                option2
             )
 
         tracker = self.tracker()
@@ -271,10 +272,10 @@ class TestNode(object):
             ("option2", option2_sentinel, False)
         ]
 
-        assert option1.incoming == (node, "option1", "option1_value")
-        assert option2.incoming == (node, "option2", "option2_value")
-        assert option1.outgoing == (node, "option1")
-        assert option2.outgoing == (node, "option2")
+        assert option1.incoming == (node, "option1_value")
+        assert option2.incoming == (node, "option2_value")
+        assert option1.outgoing == node
+        assert option2.outgoing == node
 
     def test_add_unexpected_child(self):
         tracker = self.tracker()
@@ -385,8 +386,8 @@ class TestFindNode(object):
 
 def test_get_missing_option():
     obj = object()
-    option = Option()
-    assert option.get(obj, "somename") == (False, None)
+    option = Option("somename")
+    assert option.get(obj) == (False, None)
 
 
 class TestNodeList(object):

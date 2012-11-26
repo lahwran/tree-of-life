@@ -5,17 +5,19 @@ from todo_tracker import timefmt
 
 
 class ActiveMarker(BooleanOption):
-    def set(self, node, name, value):
-        super(ActiveMarker, self).set(node, name, value)
+    name = "active"
+
+    def set(self, node, value):
+        super(ActiveMarker, self).set(node, value)
         node.root.activate(node)
 
 
 @nodecreator("worked on")
 class BaseTask(Node):
     options = (
-        ("started", timefmt.datetime_option),
-        ("finished", timefmt.datetime_option),
-        ("active", ActiveMarker())
+        timefmt.DatetimeOption("started"),
+        timefmt.DatetimeOption("finished"),
+        ActiveMarker()
     )
 
     def __init__(self, *args):
@@ -24,7 +26,6 @@ class BaseTask(Node):
         self.started = None
         self.finished = None
         self.active = False
-
 
     def start(self):
         if self.started:
@@ -47,14 +48,9 @@ class BaseTask(Node):
 @nodecreator("feature")
 class Task(BaseTask):
     multiline = True
-    options = (
-        ("timeframe", timefmt.datetime_option),
-    )
 
     def __init__(self, *args):
         super(Task, self).__init__(*args)
-
-        self.timeframe = None
 
 
 @nodecreator("category")
@@ -67,6 +63,6 @@ class Category(Node):
 class Event(BaseTask):
     multiline = True
     options = (
-        ("when", timefmt.datetime_option),
-        ("where", Option()),
+        timefmt.DatetimeOption("when"),
+        # need "where" option maybe
     )
