@@ -49,6 +49,7 @@ class BaseTask(Node):
         result["finished"] = bool(self.finished)
         return super(BaseTask, self).ui_serialize(result)
 
+
 @nodecreator("task")
 @nodecreator("project")
 @nodecreator("bug")

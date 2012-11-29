@@ -7,7 +7,7 @@ from todo_tracker import timefmt
 
 
 def test_string_date():
-    assert timefmt.str_to_date("June 7, 2012") == datetime.date(2012, 6, 7)
+    assert timefmt.str_to_date("june 7, 2012") == datetime.date(2012, 6, 7)
 
 
 class _FakeDatetime(object):
@@ -34,7 +34,7 @@ def test_string_time():
 
 def test_string_datetime():
     target = datetime.datetime(2012, 6, 7, 10)
-    assert timefmt.str_to_datetime("June 7, 2012 10:00 AM") == target
+    assert timefmt.str_to_datetime("june 7, 2012 10:00 AM") == target
 
 
 def test_time_string():
@@ -44,10 +44,10 @@ def test_time_string():
 class TestParsers(object):
     def test_months(self):
         with pytest.raises(ParseError):
-            timefmt.parse_time("March"   ).month()
+            timefmt.parse_time("Marceh"   ).month()
         with pytest.raises(ParseError):
-            timefmt.parse_time("April"   ).month()
-        assert timefmt.parse_time("April").month_optional() is None
+            timefmt.parse_time("Apiril"   ).month()
+        assert timefmt.parse_time("Apiril").month_optional() is None
         with pytest.raises(ParseError):
             timefmt.parse_time("janruary").month()
         with pytest.raises(ParseError):
@@ -55,11 +55,14 @@ class TestParsers(object):
 
         assert timefmt.parse_time("jan"      ).month() == 1
         assert timefmt.parse_time("january"  ).month() == 1
+#        assert timefmt.parse_time("January"  ).month() == 1
         assert timefmt.parse_time("feb"      ).month() == 2
         assert timefmt.parse_time("febuary"  ).month() == 2  # misspelling case
         assert timefmt.parse_time("february" ).month() == 2
+#        assert timefmt.parse_time("February" ).month() == 2
         assert timefmt.parse_time("mar"      ).month() == 3
         assert timefmt.parse_time("march"    ).month() == 3
+#        assert timefmt.parse_time("March"    ).month() == 3
         assert timefmt.parse_time("apr"      ).month_optional() == 4
         assert timefmt.parse_time("april"    ).month() == 4
         assert timefmt.parse_time("apr"      ).month() == 4
