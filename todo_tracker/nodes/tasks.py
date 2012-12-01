@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from todo_tracker.parseutil import Grammar
 from todo_tracker.nodes.node import Node, Option, BooleanOption, nodecreator
 from todo_tracker import timefmt
 
@@ -11,12 +12,74 @@ class ActiveMarker(BooleanOption):
         super(ActiveMarker, self).set(node, value)
         node.root.activate(node)
 
+    def get(self, node):
+        show, value = super(ActiveMarker, self).get(node)
+        if show and node is not node.root.active_node:
+            show = node.active = False
+        return show, value
+
+
+class _FinishGrammar(Grammar):
+    grammar = """
+    finished = (time.timedelta:td wss 'after' wss time.datetime:dt
+                        -> ("both", (td, dt))
+               |time.datetime:dt -> ("finished", dt)
+               )
+    """
+    bindings = {
+        "time": timefmt.TimeGrammar
+    }
+
+
+class StartedOption(timefmt.DatetimeOption):
+    def set(self, node, value):
+        if value is None:
+            node.started = datetime.now()
+        else:
+            super(StartedOption, self).set(node, value)
+
+    def get(self, node):
+        if getattr(node, "finished", None) is not None:
+            return False, None
+        else:
+            return super(StartedOption, self).get(node)
+
+
+class FinishedOption(object):
+    name = "finished"
+
+    def set(self, node, value):
+        if value is None:
+            node.finished = datetime.now()
+            return
+
+        kind, value = _FinishGrammar(value).finished()
+        if kind == "finished":
+            node.finished = value
+        elif kind == "both":
+            delta, started = value
+            node.finished = started + delta
+            node.started = started
+
+    def get(self, node):
+        started = getattr(node, "started", None)
+        finished = getattr(node, "finished", None)
+        if finished is None:
+            return False, None
+        elif started is None:
+            return True, timefmt.datetime_to_str(finished)
+        else:
+            delta = finished - started
+            return True, "%s after %s" % (
+                        timefmt.timedelta_to_str(delta),
+                        timefmt.datetime_to_str(started) )
+
 
 @nodecreator("worked on")
 class BaseTask(Node):
     options = (
-        timefmt.DatetimeOption("started"),
-        timefmt.DatetimeOption("finished"),
+        StartedOption("started"),
+        FinishedOption(),
         ActiveMarker()
     )
 

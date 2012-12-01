@@ -1,8 +1,10 @@
 import parsley
 from ometa.grammar import OMeta
-from ometa.runtime import ParseError, OMetaBase, EOFError
+from ometa.runtime import (ParseError, OMetaBase, EOFError, expected,
+        InputStream)
 import random
 import string
+import sys
 
 
 def unique_name(name):
@@ -10,24 +12,54 @@ def unique_name(name):
     return "%s_%s" % (name, unique)
 
 
-class BammarGrase(OMetaBase):
-#    def __init__(self, input, *args, **kwargs):
-#        if not kwargs.get("stream", False) and not kwargs.get("tree", False):
-#            input = input.lower()
-#        super(GrammarBase, self).__init__(input, *args, **kwargs)
+class GrammarExtensions(OMetaBase):
+    def __init__(self, input, *args, **kwargs):
+        if not kwargs.get("stream", False) and not kwargs.get("tree", False):
+            input = input.lower()
+        super(GrammarExtensions, self).__init__(input, *args, **kwargs)
 
-    def rule_s(self, string):
+    def rule_s(self, tok):
+        """
+        Match and return the given string, consuming any preceding whitespace.
+        """
         m = self.input
         try:
-            for c in string:
+            for c in tok:
                 v, e = self.exactly(c)
-            return string, e
+            return tok, e
         except ParseError, e:
             self.input = m
-            raise e.withMessage(expected("string", string))
+            raise e.withMessage(expected("string", tok))
 
-#    def exactly(self, string):
-#        return super(GrammarBase, self).exactly(string.lower())
+    def exactly(self, string):
+        return super(GrammarExtensions, self).exactly(string.lower())
+
+    def _match_or_none(self, rulename, *args):
+        def success():
+            apply_result, err = self.apply(rulename, args)
+            self.considerError(lastError, None)
+            return apply_result, self.currentError
+
+        def failure():
+            return None, self.input.nullError()
+
+        result, err = self._or([success, failure])
+        self.considerError(err, 'donk')
+
+        self.input = InputStream(self.input.data, len(self.input.data))
+
+        return result, self.currentError
+
+utility_source = """
+ws = ' '*
+wss = ' '+
+c_wss = ','? ' '+
+number = <digit+>:ds -> int(ds)
+number_2dg = <digit{1,2}>:ds -> int(ds)
+"""
+
+GrammarUtilities = OMeta.makeGrammar(utility_source, {},
+        name="GrammarBaseUtil", superclass=GrammarExtensions)
 
 
 class _GrammarMetaclass(type):
@@ -35,7 +67,6 @@ class _GrammarMetaclass(type):
         if name == "__Grammar":  # for bootstrapping
             name = "Grammar"
             return type.__new__(cls, name, bases, dct)
-        print name
 
         assert "grammar" in dct, ("Grammar subclasses must have "
                                 "'grammar' attribute")
@@ -43,11 +74,10 @@ class _GrammarMetaclass(type):
                                 "from Grammar subclasses")
         source = dct["grammar"]
         bindings = dct.get("bindings", {})
-        superclass = dct.get("superclass", OMetaBase)
+        superclass = dct.get("superclass", GrammarUtilities)
 
-        grammar_class = OMeta.makeGrammar(source, bindings, name="_" + name)
-                    #superclass=superclass)
-#        return parsley.makeGrammar(source, bindings, unique_name(name))
+        grammar_class = OMeta.makeGrammar(source, bindings, name="_" + name,
+                    superclass=superclass)
         dct["_grammarClass"] = grammar_class
 
         return type.__new__(cls, name, bases, dct)
@@ -70,8 +100,12 @@ class __Grammar(object):  # Funny name for bootstrapping
             """
             Invoke a Parsley rule. Passes any positional args to the rule.
             """
+            optional = kwargs.get("optional", False)
             try:
-                ret, err = self._grammar.apply(name, *args)
+                if optional:
+                    ret, err = self._grammar._match_or_none(name, *args)
+                else:
+                    ret, err = self._grammar.apply(name, *args)
             except ParseError, e:
                 err = e
             else:
@@ -83,10 +117,15 @@ class __Grammar(object):  # Funny name for bootstrapping
         return invokeRule
 
     @classmethod
-    def wraprule(cls, name):
+    def wraprule(cls, name, optional=False):
         def wrapper(string, *args):
-            return getattr(cls(string), name)(*args)
+            return getattr(cls(string), name)(*args,
+                        optional=optional)
         return wrapper
+
+    @classmethod
+    def printSource(cls):
+        print sys.modules[cls._grammarClass.__module__].__loader__.source
 
 
 # de-bootstrap the metaclass

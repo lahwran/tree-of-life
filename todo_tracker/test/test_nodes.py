@@ -54,18 +54,18 @@ def test_activate_deactivate(monkeypatch):
         "task: 3\n"
     )
 
+    monkeypatch.setattr(tasks, "datetime",
+            FakeDatetime(datetime(2012, 10, 25)))
     tracker.root.activate_next()
     tracker.root.activate_next()
 
     assert tracker.serialize("str") == (
         "task: 1\n"
-        "    @started: October 24, 2012 12:00 AM\n"
-        "    @finished: October 24, 2012 12:00 AM\n"
+        "    @finished: 1d after October 24, 2012 12:00:00 AM\n"
         "task: 2\n"
-        "    @started: October 24, 2012 12:00 AM\n"
-        "    @finished: October 24, 2012 12:00 AM\n"
+        "    @finished: 0s after October 25, 2012 12:00:00 AM\n"
         "task: 3\n"
-        "    @started: October 24, 2012 12:00 AM\n"
+        "    @started: October 25, 2012 12:00:00 AM\n"
         "    @active\n"
     )
 

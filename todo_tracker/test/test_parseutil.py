@@ -3,9 +3,18 @@ import parsley
 
 
 def test_grammar():
-    class MyGrammar(parseutil.Grammar):
+    class MyOtherGrammar(parseutil.Grammar):
         grammar = """
-            herp = '12'
+            target :arg = s('herp') -> arg + 100
         """
 
-    assert MyGrammar("12").herp() == "12"
+    class MyGrammar(parseutil.Grammar):
+        grammar = """
+            source :arg = othergrammar.target(arg):t ' derp' -> t + 10
+        """
+        bindings = {
+            "othergrammar": MyOtherGrammar
+        }
+
+    assert MyGrammar("herp derp").source(1000) == 1110
+    assert MyGrammar("herk derk").source(1000, optional=True) is None

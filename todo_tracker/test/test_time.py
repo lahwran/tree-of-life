@@ -38,71 +38,71 @@ def test_string_datetime():
 
 
 def test_time_string():
-    assert timefmt.time_to_str(datetime.time(10)) == "10:00 AM"
+    assert timefmt.time_to_str(datetime.time(10)) == "10:00:00 AM"
 
 
 class TestParsers(object):
     def test_months(self):
         with pytest.raises(ParseError):
-            timefmt.parse_time("Marceh"   ).month()
+            timefmt.TimeGrammar("Marceh"   ).month()
         with pytest.raises(ParseError):
-            timefmt.parse_time("Apiril"   ).month()
-        assert timefmt.parse_time("Apiril").month_optional() is None
+            timefmt.TimeGrammar("Apiril"   ).month()
+        assert timefmt.TimeGrammar("Apiril").month_optional() is None
         with pytest.raises(ParseError):
-            timefmt.parse_time("janruary").month()
+            timefmt.TimeGrammar("janruary").month()
         with pytest.raises(ParseError):
-            timefmt.parse_time("ferbuary").month()
+            timefmt.TimeGrammar("ferbuary").month()
 
-        assert timefmt.parse_time("jan"      ).month() == 1
-        assert timefmt.parse_time("january"  ).month() == 1
-#        assert timefmt.parse_time("January"  ).month() == 1
-        assert timefmt.parse_time("feb"      ).month() == 2
-        assert timefmt.parse_time("febuary"  ).month() == 2  # misspelling case
-        assert timefmt.parse_time("february" ).month() == 2
-#        assert timefmt.parse_time("February" ).month() == 2
-        assert timefmt.parse_time("mar"      ).month() == 3
-        assert timefmt.parse_time("march"    ).month() == 3
-#        assert timefmt.parse_time("March"    ).month() == 3
-        assert timefmt.parse_time("apr"      ).month_optional() == 4
-        assert timefmt.parse_time("april"    ).month() == 4
-        assert timefmt.parse_time("apr"      ).month() == 4
-        assert timefmt.parse_time("may"      ).month() == 5
-        assert timefmt.parse_time("jun"      ).month() == 6
-        assert timefmt.parse_time("june"     ).month() == 6
-        assert timefmt.parse_time("jul"      ).month() == 7
-        assert timefmt.parse_time("july"     ).month() == 7
-        assert timefmt.parse_time("august"   ).month() == 8
-        assert timefmt.parse_time("aug"      ).month() == 8
-        assert timefmt.parse_time("sep"      ).month() == 9
-        assert timefmt.parse_time("sept"     ).month() == 9
-        assert timefmt.parse_time("september").month() == 9
-        assert timefmt.parse_time("oct"      ).month() == 10
-        assert timefmt.parse_time("october"  ).month() == 10
-        assert timefmt.parse_time("nov"      ).month() == 11
-        assert timefmt.parse_time("november" ).month() == 11
-        assert timefmt.parse_time("dec"      ).month() == 12
-        assert timefmt.parse_time("december" ).month() == 12
+        assert timefmt.TimeGrammar("jan"      ).month() == 1
+        assert timefmt.TimeGrammar("january"  ).month() == 1
+        assert timefmt.TimeGrammar("January"  ).month() == 1
+        assert timefmt.TimeGrammar("feb"      ).month() == 2
+        assert timefmt.TimeGrammar("febuary"  ).month() == 2  # misspelling
+        assert timefmt.TimeGrammar("february" ).month() == 2
+        assert timefmt.TimeGrammar("February" ).month() == 2
+        assert timefmt.TimeGrammar("mar"      ).month() == 3
+        assert timefmt.TimeGrammar("march"    ).month() == 3
+        assert timefmt.TimeGrammar("March"    ).month() == 3
+        assert timefmt.TimeGrammar("apr"      ).month_optional() == 4
+        assert timefmt.TimeGrammar("april"    ).month() == 4
+        assert timefmt.TimeGrammar("apr"      ).month() == 4
+        assert timefmt.TimeGrammar("may"      ).month() == 5
+        assert timefmt.TimeGrammar("jun"      ).month() == 6
+        assert timefmt.TimeGrammar("june"     ).month() == 6
+        assert timefmt.TimeGrammar("jul"      ).month() == 7
+        assert timefmt.TimeGrammar("july"     ).month() == 7
+        assert timefmt.TimeGrammar("august"   ).month() == 8
+        assert timefmt.TimeGrammar("aug"      ).month() == 8
+        assert timefmt.TimeGrammar("sep"      ).month() == 9
+        assert timefmt.TimeGrammar("sept"     ).month() == 9
+        assert timefmt.TimeGrammar("september").month() == 9
+        assert timefmt.TimeGrammar("oct"      ).month() == 10
+        assert timefmt.TimeGrammar("october"  ).month() == 10
+        assert timefmt.TimeGrammar("nov"      ).month() == 11
+        assert timefmt.TimeGrammar("november" ).month() == 11
+        assert timefmt.TimeGrammar("dec"      ).month() == 12
+        assert timefmt.TimeGrammar("december" ).month() == 12
 
     def test_time(self):
-        assert timefmt.parse_time("12:00 am").time() == datetime.time(0, 0)
-        assert timefmt.parse_time("00:00 am").time() == datetime.time(0, 0)
-        assert timefmt.parse_time("00:00"   ).time() == datetime.time(0, 0)
-        assert timefmt.parse_time("1:00 am" ).time() == datetime.time(1, 0)
-        assert timefmt.parse_time("1:00"    ).time() == datetime.time(1, 0)
-        assert timefmt.parse_time("01:00"   ).time() == datetime.time(1, 0)
-        assert timefmt.parse_time("09:00"   ).time() == datetime.time(9, 0)
+        assert timefmt.TimeGrammar("12:00 am").time() == datetime.time(0, 0)
+        assert timefmt.TimeGrammar("00:00 am").time() == datetime.time(0, 0)
+        assert timefmt.TimeGrammar("00:00"   ).time() == datetime.time(0, 0)
+        assert timefmt.TimeGrammar("1:00 am" ).time() == datetime.time(1, 0)
+        assert timefmt.TimeGrammar("1:00"    ).time() == datetime.time(1, 0)
+        assert timefmt.TimeGrammar("01:00"   ).time() == datetime.time(1, 0)
+        assert timefmt.TimeGrammar("09:00"   ).time() == datetime.time(9, 0)
 
         with pytest.raises(ParseError):
-            timefmt.parse_time("13:00 am").time()
+            timefmt.TimeGrammar("13:00 am").time()
         with pytest.raises(ParseError):
-            timefmt.parse_time("13:00 pm").time()
+            timefmt.TimeGrammar("13:00 pm").time()
         with pytest.raises(ParseError):
-            timefmt.parse_time("1300").time()
+            timefmt.TimeGrammar("1300").time()
         with pytest.raises(ParseError):
-            timefmt.parse_time("1300").time()
+            timefmt.TimeGrammar("1300").time()
 
-        assert timefmt.parse_time("12:00"   ).time() == datetime.time(12, 0)
-        assert timefmt.parse_time("12:00 pm").time() == datetime.time(12, 0)
-        assert timefmt.parse_time("00:00 pm").time() == datetime.time(12, 0)
-        assert timefmt.parse_time("01:00 pm").time() == datetime.time(13, 0)
-        assert timefmt.parse_time("13:00"   ).time() == datetime.time(13, 0)
+        assert timefmt.TimeGrammar("12:00"   ).time() == datetime.time(12, 0)
+        assert timefmt.TimeGrammar("12:00 pm").time() == datetime.time(12, 0)
+        assert timefmt.TimeGrammar("00:00 pm").time() == datetime.time(12, 0)
+        assert timefmt.TimeGrammar("01:00 pm").time() == datetime.time(13, 0)
+        assert timefmt.TimeGrammar("13:00"   ).time() == datetime.time(13, 0)

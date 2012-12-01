@@ -174,7 +174,7 @@ class TestTracker(object):
         assert serialize_to_str(tracker.root) == (
             "days\n"
             "    day: %s\n"
-            "        @started: September 23, 2012 11:00 AM\n"
+            "        @started: September 23, 2012 11:00:00 AM\n"
             "        _genactive: something\n"
             "            @active\n"
             "todo bucket\n"
