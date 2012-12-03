@@ -20,11 +20,9 @@ function on_attempting_reconnect () {
     ui_console.log("attempting_reconnect");
 }
 function on_message_received(message) {
-    ui_console.log("received message:", message);
     var loaded = $.parseJSON(message);
     $.each(loaded, function(key, value) {
         var func = message_handlers[key];
-        ui_console.log("calling func", func, "with", value);
         if (func) {
             func(value);
         }
@@ -53,6 +51,19 @@ function on_calculate_height() {
 
     var height = min($(".size-container").outerHeight(true), max_height);
     return height;
+}
+
+function on_disconnected() {
+    // derp...
+    ui_console.log("disconnected");
+}
+
+function on_connected() {
+    $("._js_messages").empty();
+    $(".content .status").empty();
+    $(".content .todo").empty();
+    $(".content .tree").empty();
+    ui_console.log("connected");
 }
 
 /////////////////////////
