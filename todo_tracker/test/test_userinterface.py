@@ -2,7 +2,7 @@ import pytest
 
 from todo_tracker import userinterface
 from todo_tracker import exceptions
-from todo_tracker.tracker import Tracker_Greppable_Fun
+from todo_tracker.tracker import Tracker
 
 
 class Test_makenode(object):
@@ -26,7 +26,7 @@ class Test_makenode(object):
 
 class TestGenerateListing(object):
     def stuff(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
         tracker.root.createchild("_gennode", "herp")
         derp = tracker.root.createchild("_gennode", "derp")
         active = derp.createchild("_genactive", "honk")

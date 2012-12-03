@@ -70,7 +70,7 @@ class AlarmProxyCache(object):
                 continue
 
 
-class Tracker_Greppable_Fun(object):
+class Tracker(object):
     def __init__(self, skeleton=True, nodecreator=nodecreator):
         self.make_skeleton = skeleton
         self.nodecreator = nodecreator

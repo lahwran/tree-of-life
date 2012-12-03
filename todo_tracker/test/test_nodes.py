@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from todo_tracker.tracker import Tracker_Greppable_Fun, nodecreator
+from todo_tracker.tracker import Tracker, nodecreator
 from todo_tracker import nodes
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
@@ -19,7 +19,7 @@ def test_registration():
 
 
 def test_task():
-    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
             skeleton=False)
 
     tracker.deserialize("str",
@@ -29,7 +29,7 @@ def test_task():
 
 
 def test_active_option():
-    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
             skeleton=False)
 
     tracker.deserialize("str",
@@ -44,7 +44,7 @@ def test_activate_deactivate(monkeypatch):
     from todo_tracker.nodes import tasks
     monkeypatch.setattr(tasks, "datetime",
             FakeDatetime(datetime(2012, 10, 24)))
-    tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
             skeleton=False)
 
     tracker.deserialize("str",
@@ -71,7 +71,7 @@ def test_activate_deactivate(monkeypatch):
 
 
 def test_reference_set_reset():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target1 = tracker.root\
         .createchild("task", "something")\
@@ -95,7 +95,7 @@ def listify_children(children):
 
 
 def test_nested_reference():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child = target.createchild("task", "subthing")
@@ -111,7 +111,7 @@ def test_nested_reference():
 
 
 def test_reference_autoproxy():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")
@@ -139,7 +139,7 @@ def test_reference_autoproxy():
 
 
 def test_reference_emptyproxy():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
 
@@ -148,7 +148,7 @@ def test_reference_emptyproxy():
 
 
 def test_addchild_passthrough():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
 
@@ -183,7 +183,7 @@ def test_addchild_passthrough():
 
 
 def test_addchild_relative():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     target.createchild("task", "subthing 1")
@@ -210,7 +210,7 @@ def test_addchild_relative():
 
 
 def test_finish_solidify():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")
@@ -240,7 +240,7 @@ def test_finish_solidify():
 
 
 def test_jump_past_inactive():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     target = tracker.root.createchild("task", "something")
     child1 = target.createchild("task", "subthing 1")

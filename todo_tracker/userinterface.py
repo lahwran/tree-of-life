@@ -10,7 +10,7 @@ from twisted.python import log
 
 from todo_tracker.file_storage import parse_line
 from todo_tracker.nodes.node import nodecreator
-from todo_tracker.tracker import Tracker_Greppable_Fun
+from todo_tracker.tracker import Tracker
 from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile, HandlerList
 
@@ -104,7 +104,7 @@ class Event(object):
         self.ui = ui
 
 
-class CommandInterface(Tracker_Greppable_Fun):
+class CommandInterface(Tracker):
     max_format_depth = 2
     _default_command = "createauto"
 

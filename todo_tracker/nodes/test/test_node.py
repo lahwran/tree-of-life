@@ -3,7 +3,7 @@ from itertools import izip_longest
 import pytest
 
 from todo_tracker.test.util import FakeNodeCreator
-from todo_tracker.tracker import Tracker_Greppable_Fun
+from todo_tracker.tracker import Tracker
 from todo_tracker.nodes.node import Node, _NodeListRoot, Option, _NodeMatcher
 from todo_tracker.nodes.misc import GenericNode, GenericActivate
 from todo_tracker import exceptions
@@ -11,7 +11,7 @@ from todo_tracker import exceptions
 
 class TestNode(object):
     def test_iter_parents(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
 
         input_str = (
             "_genactive: 0\n"
@@ -38,7 +38,7 @@ class TestNode(object):
             assert text == node.text
 
     def tracker(self):
-        return Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(Node),
+        return Tracker(nodecreator=FakeNodeCreator(Node),
                 skeleton=False)
 
     def test_multiline_init(self):
@@ -306,7 +306,7 @@ class TestNode(object):
         class SimpleActivateNode(Node):
             can_activate = True
 
-        tracker = Tracker_Greppable_Fun(skeleton=False,
+        tracker = Tracker(skeleton=False,
                 nodecreator=FakeNodeCreator(SimpleActivateNode))
         tracker.root.activate(tracker.root.createchild("node1"))
         tracker.root.create_after("node2")
@@ -323,7 +323,7 @@ class TestNode(object):
 
 class TestFindNode(object):
     def test_flatten(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(Node),
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node),
                 skeleton=False)
         node1 = tracker.root.createchild("node1", "value1")
         node1.createchild("node3", "value3")
@@ -335,13 +335,13 @@ class TestFindNode(object):
         assert result is target
 
     def test_empty_flatten(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(Node),
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node),
                 skeleton=False)
 
         assert tracker.root.find_node(["**"]) is None
 
     def test_find_parents(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(Node),
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node),
                 skeleton=False)
         target = tracker.root.createchild("target", "value1")
         target.createchild("node3", "value3")
@@ -353,7 +353,7 @@ class TestFindNode(object):
         assert result is target
 
     def test_empty_find_parents(self):
-        tracker = Tracker_Greppable_Fun(nodecreator=FakeNodeCreator(Node),
+        tracker = Tracker(nodecreator=FakeNodeCreator(Node),
                 skeleton=False)
         node3 = tracker.root.createchild("node3", "value3")
         node2 = node3.createchild("node2", "value2")
@@ -365,7 +365,7 @@ class TestFindNode(object):
     def test_find_text(self):
         # FakeNodeCreator would interfere with this test as it always
         # returns 'existant'
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
         value1 = tracker.root.createchild("comment", "value one")
         target = value1.createchild("comment", "value two")
 
@@ -377,7 +377,7 @@ class TestFindNode(object):
         class AlwaysOrphanedNode(Node):
             toplevel = True
             children_of = ("life",)
-        tracker = Tracker_Greppable_Fun(skeleton=False,
+        tracker = Tracker(skeleton=False,
                 nodecreator=FakeNodeCreator(AlwaysOrphanedNode))
         result = tracker.root.find_node([
             "this: had", "better: not", "make: things", "blow: up"])
@@ -505,7 +505,7 @@ class TestNodeList(object):
 
 class TestRootNode(object):
     def test_activate_next(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
         sequence = [
             (
                 "_genactive: 0\n"
@@ -585,7 +585,7 @@ class TestRootNode(object):
             assert asdf == output_str
 
     def test_random_insertion(self, monkeypatch):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
 
         input_str = (
             "_genactive: 0\n"
@@ -632,7 +632,7 @@ class TestRootNode(object):
         assert serialized == expected_str
 
     def test_create_nonactivate(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
         node = GenericActivate("herp", None, tracker.root)
         tracker.root.addchild(node)
         tracker.root.activate(node)
@@ -641,7 +641,7 @@ class TestRootNode(object):
         assert node.next_neighbor.text == "honk"
 
     def test_create_child(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False,
+        tracker = Tracker(skeleton=False,
                 nodecreator=FakeNodeCreator(GenericActivate))
         root = tracker.root
         node = GenericActivate("herp", "derp", tracker.root)
@@ -656,7 +656,7 @@ class TestRootNode(object):
         assert node2.node_type == "node2"
 
     def test_next_empty(self):
-        tracker = Tracker_Greppable_Fun(skeleton=False)
+        tracker = Tracker(skeleton=False)
         node = GenericActivate("herp", None, tracker.root)
         tracker.root.addchild(node)
         tracker.root.activate(node)

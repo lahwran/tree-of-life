@@ -1,6 +1,6 @@
 import re
 
-from todo_tracker.tracker import Tracker_Greppable_Fun
+from todo_tracker.tracker import Tracker
 from todo_tracker.file_storage import serialize_to_str
 
 from todo_tracker.nodes import FitnessLog, Weight, Waist
@@ -14,7 +14,7 @@ class SimpleMeasurement(Measurement):
 
 
 def test_measurement_noclothes():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
@@ -29,7 +29,7 @@ def test_measurement_noclothes():
 
 
 def test_measurement_withclothes():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
@@ -45,7 +45,7 @@ def test_measurement_withclothes():
 
 
 def test_measurement_text():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
@@ -62,7 +62,7 @@ def test_measurement_text():
 
 
 def test_measurement_time():
-    tracker = Tracker_Greppable_Fun(skeleton=False)
+    tracker = Tracker(skeleton=False)
 
     fitnesslog = FitnessLog("fitness log", None, tracker.root)
     fitnesslog._validate()
