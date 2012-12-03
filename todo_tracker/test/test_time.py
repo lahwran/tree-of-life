@@ -1,4 +1,5 @@
 import datetime
+real_datetime = datetime.datetime
 
 from ometa.runtime import ParseError
 import pytest
@@ -10,21 +11,24 @@ def test_string_date():
     assert timefmt.str_to_date("june 7, 2012") == datetime.date(2012, 6, 7)
 
 
-class _FakeDatetime(object):
-    def __init__(self, *args, **kwargs):
-        self._now = datetime.datetime(*args, **kwargs)
+def fakedatetime(*args, **kwargs):
+    class Datetime(real_datetime):
+        _now = real_datetime(*args, **kwargs)
 
-    def now(self):
-        return self._now
+        @classmethod
+        def now(cls):
+            return cls._now
+
+    return Datetime
 
 
 def test_string_tomorrow(monkeypatch):
-    monkeypatch.setattr(datetime, "datetime", _FakeDatetime(2012, 6, 7))
+    monkeypatch.setattr(datetime, "datetime", fakedatetime(2012, 6, 7))
     assert timefmt.str_to_date("tomorrow") == datetime.date(2012, 6, 8)
 
 
 def test_string_today(monkeypatch):
-    monkeypatch.setattr(datetime, "datetime", _FakeDatetime(2012, 6, 7))
+    monkeypatch.setattr(datetime, "datetime", fakedatetime(2012, 6, 7))
     assert timefmt.str_to_date("today") == datetime.date(2012, 6, 7)
 
 

@@ -146,8 +146,10 @@ class CommandInterface(Tracker_Greppable_Fun):
         # USER MESSAGE
         print "tmp-backup:", tmp_backup
 
-        self.serialize("file", open(tmp, "w"))
-        self.serialize("file", open(tmp_backup, "w"))
+        with open(tmp, "w") as writer:
+            self.serialize("file", writer)
+        with open(tmp_backup, "w") as writer:
+            self.serialize("file", writer)
 
         def callback():
             if open(tmp, "r").read() == open(tmp_backup, "r").read():
@@ -158,17 +160,18 @@ class CommandInterface(Tracker_Greppable_Fun):
                 return True
 
             try:
-                self.deserialize("file", open(tmp, "r"))
+                with open(tmp, "r") as reader:
+                    self.deserialize("file", reader)
             except Exception:
                 # USER MESSAGE NEEDED
                 log.err()
                 formatted = traceback.format_exc()
                 tmp_exception = tempfile()
-                writer = open(tmp_exception, "w")
-                writer.write(formatted)
-                writer.close()
+                with open(tmp_exception, "w") as writer:
+                    writer.write(formatted)
                 exceptions.append(tmp_exception)
-                self.deserialize("file", open(tmp_backup, "r"))
+                with open(tmp_backup, "r") as reader:
+                    self.deserialize("file", reader)
                 self._run_vim(source, callback, tmp, tmp_exception, **keywords)
                 return False
             else:
@@ -230,9 +233,9 @@ class Git(object):
 
     def gitignore(self, names):
         if not os.path.exists(os.path.join(self.path, ".gitignore")):
-            writer = open(os.path.join(self.path, ".gitignore"), "w")
-            for name in names:
-                writer.write("%s\n" % name)
+            with open(os.path.join(self.path, ".gitignore"), "w") as writer:
+                for name in names:
+                    writer.write("%s\n" % name)
 
     def add(self, *filenames):
         self._git("add", *filenames)
@@ -290,11 +293,13 @@ class SavingInterface(CommandInterface):
 
         self.git.init()
 
-        json.dump(self.config, open(self.config_file, "w"), sort_keys=True,
-                indent=4)
+        with open(self.config_file, "w") as writer:
+            json.dump(self.config, writer, sort_keys=True,
+                    indent=4)
         self.git.add(self.config_file)
 
-        self.serialize("file", open(self.save_file, "w"))
+        with open(self.save_file, "w") as writer:
+            self.serialize("file", writer)
         self.git.add(self.save_file)
 
         self.git.gitignore(["_*"])
@@ -323,8 +328,6 @@ class SavingInterface(CommandInterface):
             return
 
         filename = name_format.format(main_file=self.main_file, time=int(time))
-        writer = open(filename, "w")
-
-        self.serialize("file", writer)
-        writer.close()
+        with open(filename, "w") as writer:
+            self.serialize("file", writer)
         setattr(self, lastname, datetime.now())

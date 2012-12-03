@@ -1,5 +1,6 @@
 import os
 import tempfile as _tempfile
+import time
 
 
 def tempfile():
@@ -26,3 +27,16 @@ class HandlerList(object):
             getattr(self, self.name)[_name] = func
             return func
         return _inner
+
+
+class Profile(object):
+    def __init__(self, name):
+        self.name = name
+
+    def __enter__(self):
+        self.started = time.time()
+
+    def __exit__(self, x, y, z):
+        self.finished = time.time()
+        print "Profile %r finished in %r" % (self.name,
+                self.finished - self.started)

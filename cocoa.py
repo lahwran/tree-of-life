@@ -17,7 +17,7 @@ import twisted.web.server
 
 from todo_tracker.userinterface import (SavingInterface, command,
     generate_listing)
-from todo_tracker.util import tempfile
+from todo_tracker.util import tempfile, Profile
 
 
 @command()
@@ -61,9 +61,8 @@ def quit_popup(event):
 
 def osascript(code):
     temp_code = tempfile()
-    code_writer = open(temp_code, "w")
-    code_writer.write(code)
-    code_writer.close()
+    with open(temp_code, "w") as code_writer:
+        code_writer.write(code)
     subprocess.call(["osascript", temp_code])
     os.unlink(temp_code)
 
@@ -74,7 +73,7 @@ class VimRunner(object):
     after vim finishes, the command will send a json message to the main port
     """
 
-    outer_command = "exec bash -c '%s'\n"
+    outer_command = 'exec bash -c "%s"\n'
 
     # > /dev/null because the initialization message is uninteresting
     base_inner_command = "vim %s;echo '%s' | base64 --decode | nc 127.0.0.1 %d"
@@ -114,8 +113,8 @@ class VimRunner(object):
         log.msg("Starting vim with id %r: %s" % (self.id, self.command))
 
         self.tempfile = tempfile()
-        temp_writer = open(self.tempfile, "w")
-        temp_writer.write(self.command)
+        with open(self.tempfile, "w") as temp_writer:
+            temp_writer.write(self.command)
 
     def run(self):
         osascript(self.applescript.format(tempfile=self.tempfile))

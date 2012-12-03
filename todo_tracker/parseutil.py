@@ -1,3 +1,5 @@
+import ometa
+ometa.FAST = True
 import parsley
 from ometa.grammar import OMeta
 from ometa.runtime import (ParseError, OMetaBase, EOFError, expected,
@@ -119,8 +121,8 @@ class __Grammar(object):  # Funny name for bootstrapping
     @classmethod
     def wraprule(cls, name, optional=False):
         def wrapper(string, *args):
-            return getattr(cls(string), name)(*args,
-                        optional=optional)
+            func = getattr(cls(string), name)
+            return func(*args, optional=optional)
         return wrapper
 
     @classmethod

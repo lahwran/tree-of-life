@@ -105,11 +105,6 @@ def timedelta_to_str(delta):
     if seconds > 0 or not len(result):
         result.append("%ds" % seconds)
     result_str = " ".join(result)
-    accuracy_delta = str_to_timedelta(result_str) - delta
-    minimum = datetime.timedelta(seconds=-1)
-    maximum = datetime.timedelta(seconds=1)
-    assert minimum < accuracy_delta < maximum, "%r != %r" % (result_str,
-            delta)
     return result_str
 
 
