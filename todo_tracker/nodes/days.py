@@ -36,6 +36,16 @@ class Days(Node):
         self.repeating_tasks = None
         self.day_children = {}
 
+    @classmethod
+    def make_skeleton(cls, root):
+        root.days = root.find_node(["days"]) or root.createchild('days')
+        today = root.find_node(["days", "day: today"])
+        if not today:
+            today = root.days.createchild('day', 'today')
+        if (not root.active_node or
+                today not in list(root.active_node.iter_parents())):
+            root.activate(today)
+
     @property
     def today(self):
         today = datetime.now().date()

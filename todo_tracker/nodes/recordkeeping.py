@@ -15,6 +15,12 @@ class FitnessLog(Node):
     def load_finished(self):
         self.root.fitness_log = self
 
+    @classmethod
+    def make_skeleton(cls, root):
+        root.fitness_log = root.find_node(["fitness log"])
+        if not root.fitness_log:
+            root.fitness_log = root.createchild("fitness log")
+
 
 def full_match(regex, *args):
     return re.match(regex + "$", *args)

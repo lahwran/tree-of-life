@@ -8,3 +8,6 @@ class FakeNodeCreator(object):
 
     def exists(self, node_type):
         return True
+
+    def values(self):
+        return [self.create]

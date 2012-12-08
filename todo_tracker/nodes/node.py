@@ -27,6 +27,9 @@ class _NodeCreatorTracker(HandlerList):
     def exists(self, node_type):
         return node_type in self.creators
 
+    def values(self):
+        return self.creators.values()
+
     def __call__(self, name):
         return self.add(name)
 
@@ -329,6 +332,10 @@ class Node(object):
     def load_finished(self):
         pass
 
+    @classmethod
+    def make_skeleton(self, root):
+        pass
+
     def auto_add(self, creator, root):
         self.root = root
         if self.preferred_parent is not None:
@@ -533,20 +540,10 @@ class TreeRootNode(Node):
         self.todo_review = None
 
     def make_skeleton(self):
-        self.days = self.find_node(["days"]) or self.createchild('days')
-        today = self.find_node(["days", "day: today"])
-        if not today:
-            today = self.days.createchild('day', 'today')
-        if (not self.active_node or
-                today not in list(self.active_node.iter_parents())):
-            self.activate(today)
-
-        self.todo = self.find_node(["todo bucket"])
-        if not self.todo:
-            self.createchild("todo bucket")
-        self.fitness_log = self.find_node(["fitness log"])
-        if not self.fitness_log:
-            self.fitness_log = self.createchild("fitness log")
+        for node_class in set(self.nodecreator.values()):
+            func = getattr(node_class, "make_skeleton", None)
+            if func:
+                func(self)
 
     def activate(self, node):
         # jump to a particular node as active

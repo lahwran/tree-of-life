@@ -88,6 +88,12 @@ class TodoBucket(Node):
     def load_finished(self):
         self.root.todo = self
 
+    @classmethod
+    def make_skeleton(cls, root):
+        root.todo = root.find_node(["todo bucket"])
+        if not root.todo:
+            root.createchild("todo bucket")
+
     def move_review_task(self):
         todo_review = self.root.todo_review
         if not len(self.children):

@@ -6,6 +6,7 @@ from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker.tracker import Tracker
 from todo_tracker.nodes.node import Node, _NodeListRoot, Option, _NodeMatcher
 from todo_tracker.nodes.misc import GenericNode, GenericActivate
+from todo_tracker.file_storage import serialize_to_str
 from todo_tracker import exceptions
 
 
@@ -663,3 +664,77 @@ class TestRootNode(object):
 
         tracker.root.activate_next()
         assert tracker.root.active_node is node
+
+    @pytest.mark.xfail
+    def test_skeleton(self):
+        tracker = Tracker(
+                nodecreator=FakeNodeCreator(GenericActivate))
+        serialized = serialize_to_str(tracker.root)
+        assert serialized == (
+            "days\n"
+            "    day: today\n"
+            "        @active\n"
+            "todo bucket\n"
+            "fitness log\n"
+        )
+
+    @pytest.mark.xfail
+    def test_skeleton_load(self):
+        tracker = Tracker(
+                nodecreator=FakeNodeCreator(GenericActivate))
+        tracker.deserialize("str",
+            "days\n"
+            "    day: yesterday\n"
+            "        @active\n"
+        )
+
+        serialized = serialize_to_str(tracker.root)
+        assert serialized == (
+            "days\n"
+            "    day: yesterday\n"
+            "    day: today\n"
+            "        @active\n"
+            "todo bucket\n"
+            "fitness log\n"
+        )
+
+    def test_skeleton_load_integration(self):
+        tracker = Tracker()
+        tracker.deserialize("str",
+            "days\n"
+            "    day: today\n"
+            "todo bucket\n"
+            "fitness log"
+        )
+        today = tracker.root.active_node.text
+        tracker.root.active_node.started = None
+        assert serialize_to_str(tracker.root) == (
+            "days\n"
+            "    day: %s\n"
+            "        @active\n"
+            "todo bucket\n"
+            "fitness log\n"
+        ) % today
+
+    def test_skeleton_day_active(self):
+        tracker = Tracker()
+        tracker.deserialize("str",
+            "days\n"
+            "    day: today\n"
+            "        @started: September 23, 2012 11:00 AM\n"
+            "        _genactive: something\n"
+            "            @active\n"
+            "todo bucket\n"
+            "fitness log"
+        )
+        today = tracker.root.find_node(["days", "day: today"])
+        tracker.root.active_node.started = None
+        assert serialize_to_str(tracker.root) == (
+            "days\n"
+            "    day: %s\n"
+            "        @started: September 23, 2012 11:00:00 AM\n"
+            "        _genactive: something\n"
+            "            @active\n"
+            "todo bucket\n"
+            "fitness log\n"
+        ) % today.text
