@@ -1,5 +1,6 @@
 import pep8
 import os
+import sys
 
 parent_dir = os.path.dirname(__file__)
 root_package = os.path.dirname(parent_dir)
@@ -20,8 +21,24 @@ ignore = [
 ]
 
 
+class ShutPypyUp(object):
+    """
+    Workaround for pypy's jit having its head up its
+    """
+    def __init__(self):
+        self.done = False
+        sys.settrace(self.trace)
+
+    def trace(self, x, y, z):
+        if self.done:
+            return None
+        return self.trace
+
+
 def test_pep8():
     styleguide = pep8.StyleGuide(paths=paths, ignore=ignore,
             show_source=True, show_pep8=False)
+    x = ShutPypyUp()
     report = styleguide.check_files()
+    x.done = True
     assert not report.total_errors
