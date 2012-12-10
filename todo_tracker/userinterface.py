@@ -12,7 +12,7 @@ from todo_tracker.file_storage import parse_line
 from todo_tracker.nodes.node import nodecreator
 from todo_tracker.tracker import Tracker
 from todo_tracker.exceptions import InvalidInputError
-from todo_tracker.util import tempfile, HandlerList
+from todo_tracker.util import tempfile, HandlerList, Profile
 
 
 def _makenode(string):
@@ -161,7 +161,8 @@ class CommandInterface(Tracker):
 
             try:
                 with open(tmp, "r") as reader:
-                    self.deserialize("file", reader)
+                    with Profile("deserialize"):
+                        self.deserialize("file", reader)
             except Exception:
                 # USER MESSAGE NEEDED
                 log.err()

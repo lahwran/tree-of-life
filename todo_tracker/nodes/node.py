@@ -253,15 +253,20 @@ class Node(object):
         if self.parent:
             self.parent.removechild(self)
 
-    def copy(self, parent=None):
+    def copy(self, parent=None, children=True, options=True):
         if parent is None:
             parent = self.parent
 
         newnode = self.root.nodecreator.create(self.node_type, self.text,
                 parent)
-        for child in self.children_export():
-            child_copy = child.copy(parent=newnode)
-            newnode.addchild(child_copy)
+        if options:
+            for option, value, show in self.option_values():
+                if show:
+                    newnode.setoption(option, value)
+        if children:
+            for child in self.children_export():
+                child_copy = child.copy(parent=newnode)
+                newnode.addchild(child_copy)
         return newnode
 
     def setoption(self, option, value):

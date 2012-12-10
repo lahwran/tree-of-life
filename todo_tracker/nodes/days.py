@@ -1,8 +1,11 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta
+
+from twisted.python import log
 
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
+from todo_tracker.nodes.misc import Archived
 
 
 @nodecreator("day")
@@ -29,12 +32,13 @@ class Day(BaseTask):
 class Days(Node):
     textless = True
     toplevel = True
-    allowed_children = ["repeating tasks", "day"]
+    allowed_children = ["repeating tasks", "day", "archived", "unarchive"]
 
     def __init__(self, *args):
         super(Days, self).__init__(*args)
         self.repeating_tasks = None
         self.day_children = {}
+        self.archive_date = (datetime.now() - timedelta(days=31)).date()
 
     @classmethod
     def make_skeleton(cls, root):
@@ -55,34 +59,48 @@ class Days(Node):
             result = self.createchild("day", today)
         return result
 
-    def addchild(self, child, *args, **keywords):
+    def addchild(self, child, before=None, after=None):
         if child.node_type == "repeating tasks":
             if self.repeating_tasks is not None:
                 raise Exception("herp derp")
             self.repeating_tasks = child
             return
 
-        if len(args) or len(keywords):
-            raise Exception("this addchild does not take order arguments")
-        before = None
-        after = None
+        if child.node_type == "day":
+            if before is not None or after is not None:
+                log.msg("attempted to specify position of day node")
 
-        if (self.allowed_children is not None and
-                child.node_type not in self.allowed_children):
-            raise Exception("node %s cannot be child of %r" % (
-                child._do_repr(parent=False), self))
+            if (self.allowed_children is not None and
+                    child.node_type not in self.allowed_children):
+                raise Exception("node %s cannot be child of %r" % (
+                    child._do_repr(parent=False), self))
 
-        for existing_child in self.children:
-            if existing_child.date < child.date:
-                if after is None or existing_child.date > after.date:
-                    after = existing_child
-            elif existing_child.date > child.date:
-                if before is None or existing_child.date < before.date:
-                    before = existing_child
+            for existing_child in self.children:
+                if existing_child.node_type != "day":
+                    if after is not None:
+                        after = existing_child
+                    continue
+
+                if existing_child.date < child.date:
+                    if after is None or existing_child.date > after.date:
+                        after = existing_child
+                elif existing_child.date > child.date:
+                    if before is None or existing_child.date < before.date:
+                        before = existing_child
 
         ret = super(Days, self).addchild(child, before=before, after=after)
-        self.day_children[child.date] = child
+        if child.node_type == "day":
+            self.day_children[child.date] = child
         return ret
+
+    def load_finished(self):
+        for child in self.children:
+            if child.node_type == "day" and child.date < self.archive_date:
+                prev_node = child.prev_neighbor
+                next_node = child.next_neighbor
+                child.detach()
+                self.addchild(Archived.fromnode(child, parent=self),
+                        before=next_node, after=prev_node)
 
     def children_export(self):
         prefix = []

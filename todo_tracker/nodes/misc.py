@@ -1,5 +1,7 @@
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask, ActiveMarker
+from todo_tracker.ordereddict import OrderedDict
+from todo_tracker.file_storage import parse_line
 
 
 #######################
@@ -12,13 +14,81 @@ class GenericNode(Node):
 
     def __init__(self, node_type="_gennode", text=None, parent=None):
         super(GenericNode, self).__init__(node_type, text, parent)
-        self.metadata = {}
+        self.metadata = OrderedDict()
 
     def setoption(self, option, value):
         self.metadata[option] = value
 
     def option_values(self, adapter=None):
-        return [(x, y, True) for x, y in self.metadata.items()]
+        result = [(x, y, True) for x, y in self.metadata.items()]
+        return result
+
+
+@nodecreator("archived")
+class Archived(GenericNode):
+    @classmethod
+    def fromnode(cls, node, parent):
+        if node.node_type == "archived":
+            newnode = node.copy(parent=parent, children=False)
+        else:
+            text = "%s: %s" % (node.node_type, node.text)
+            newnode = cls("archived", text, parent)
+            for option, value, show in node.option_values():
+                if show:
+                    newnode.setoption(option, value)
+        newnode.setoption("_af", None)
+
+        for child in node.children:
+            newnode.addchild(cls.fromnode(child, parent=newnode))
+        return newnode
+
+    def load_finished(self):
+        if ("__af" in self.metadata or
+                ("__af", None, True) in self.parent.option_values()):
+            self.metadata["__af"] = None
+            return
+
+        prev_node = self.prev_neighbor
+        next_node = self.next_neighbor
+        parent = self.parent
+        self.detach()
+        parent.addchild(self.fromnode(self, parent=parent),
+                before=next_node, after=prev_node)
+
+
+@nodecreator("unarchive")
+@nodecreator("unarchived")
+class Unarchiver(GenericNode):
+    @classmethod
+    def unarchive(cls, node, parent):
+        if node.node_type not in ("archived", "unarchive", "unarchived"):
+            newnode = node.copy(parent=parent, children=False)
+        else:
+            indent, ismetadata, node_type, text = parse_line(node.text)
+            assert not indent
+            assert not ismetadata
+            if node_type == "archived":
+                indent, ismetadata, node_type, text = parse_line(text)
+                assert not indent
+                assert not ismetadata
+
+            newnode = node.root.nodecreator.create(node_type, text, parent)
+            for option, value, show in node.option_values():
+                if show and option != "_af":
+                    newnode.setoption(option, value)
+
+        for child in node.children:
+            newnode.addchild(cls.unarchive(child, parent=newnode))
+
+        return newnode
+
+    def load_finished(self):
+        prev_node = self.prev_neighbor
+        next_node = self.next_neighbor
+        parent = self.parent
+        self.detach()
+        parent.addchild(self.unarchive(self, parent=parent),
+                after=prev_node, before=next_node)
 
 
 @nodecreator("_genactive")

@@ -339,7 +339,8 @@ class JSONProtocol(LineOnlyReceiver):
 
     def message_vim_finished(self, identifier):
         self._is_vim_connection = True
-        self.commandline._vim_finished(identifier)
+        with Profile("vim finished"):
+            self.commandline._vim_finished(identifier)
 
 
 class JSONFactory(Factory):

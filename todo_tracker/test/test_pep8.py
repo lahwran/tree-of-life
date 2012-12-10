@@ -34,11 +34,20 @@ class ShutPypyUp(object):
             return None
         return self.trace
 
+try:
+    import __pypy__
+except ImportError:
+    __pypy__ = None
+
 
 def test_pep8():
     styleguide = pep8.StyleGuide(paths=paths, ignore=ignore,
             show_source=True, show_pep8=False)
-    x = ShutPypyUp()
+    if __pypy__ is not None:
+        x = ShutPypyUp()
+    else:
+        x = None
     report = styleguide.check_files()
-    x.done = True
+    if x:
+        x.done = True
     assert not report.total_errors
