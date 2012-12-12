@@ -395,6 +395,10 @@ class Restarter(object):
 
 
 def main(restarter, args):
+    import pytest
+    if pytest.main([]) != 0:
+        return
+
     config = argparser.parse_args(args)
     if config.dev:
         config.path += "_dev"
