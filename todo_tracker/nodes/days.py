@@ -1,4 +1,4 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time, timedelta
 
 from twisted.python import log
 
@@ -8,10 +8,13 @@ from todo_tracker.nodes.tasks import BaseTask
 from todo_tracker.nodes.misc import Archived
 
 
-@nodecreator("day")
-class Day(BaseTask):
+class DateTask(BaseTask):
     chidren_of = ("days",)
     text_required = True
+
+    @property
+    def can_activate(self):
+        return super(DateTask, self).can_activate and self.acceptable()
 
     @property
     def text(self):
@@ -21,72 +24,123 @@ class Day(BaseTask):
     def text(self, new):
         self.date = timefmt.str_to_date(new)
 
-    @property
-    def can_activate(self):
-        if not datetime.now().date() == self.date:
-            return False
-        return super(Day, self).can_activate
+
+@nodecreator("day")
+class Day(DateTask):
+    def __gt__(self, other):
+        return self.date > other.date
+
+    def __lt__(self, other):
+        if other.node_type == "sleep":
+            return self.date <= other.date
+        return self.date < other.date
+
+    def acceptable(self):
+        """
+        Returns level of acceptable-ness of activating this day
+        """
+        now = datetime.now()
+        origin = datetime.combine(self.date, time.min)
+        start = origin + timedelta(hours=6)
+        end = origin + timedelta(days=1)
+        morning = end + timedelta(hours=6)
+        if now < origin or now > morning:
+            return 0
+        if now >= end or now <= start:
+            return 1
+        return 3
+
+
+@nodecreator("sleep")
+class Sleep(DateTask):
+    def __gt__(self, other):
+        if other.node_type == "day":
+            return self.date >= other.date
+        return self.date > other.date
+
+    def __lt__(self, other):
+        return self.date < other.date
+
+    def acceptable(self):
+        # because sleep is shifted forwards
+        if (datetime.now() - timedelta(hours=12)).date() == self.date:
+            return 2
+        return 0
 
 
 @nodecreator("days")
 class Days(Node):
     textless = True
     toplevel = True
-    allowed_children = ["repeating tasks", "day", "archived", "unarchive"]
+    allowed_children = [
+        "day",
+        "archived",
+        "unarchive",
+        "sleep"
+    ]
+    sort_children = ("day", "sleep")
 
     def __init__(self, *args):
         super(Days, self).__init__(*args)
-        self.repeating_tasks = None
         self.day_children = {}
         self.archive_date = (datetime.now() - timedelta(days=31)).date()
 
     @classmethod
     def make_skeleton(cls, root):
         root.days = root.find_node(["days"]) or root.createchild('days')
-        today = root.find_node(["days", "day: today"])
-        if not today:
-            today = root.days.createchild('day', 'today')
-        if (not root.active_node or
-                today not in list(root.active_node.iter_parents())):
-            root.activate(today)
 
-    @property
-    def today(self):
-        today = datetime.now().date()
-        try:
-            result = self.day_children[today]
-        except KeyError:
-            result = self.createchild("day", today)
-        return result
+        do_activate = False
+        if root.active_node is None:
+            do_activate = True
+        else:
+            for parent in root.active_node.iter_parents():
+                if (parent.node_type in cls.sort_children and
+                        parent.acceptable()):
+                    break
+            else:
+                do_activate = True
+
+        if do_activate:
+            acceptables = []
+            for child in root.days.children:
+                if child.node_type in cls.sort_children:
+                    acceptability = child.acceptable()
+                    if acceptability:
+                        if not child.can_activate:
+                            log.msg(("WARNING: node was acceptable but could "
+                                "not activate: %r") % child)
+                            continue
+                        acceptables.append((acceptability, child))
+
+            if acceptables:
+                acceptables = sorted(acceptables, key=lambda x: x[0])
+                root.activate(acceptables[-1][1])
+            else:
+                today = root.days.createchild("day", "today")
+                root.activate(today)
 
     def addchild(self, child, before=None, after=None):
-        if child.node_type == "repeating tasks":
-            if self.repeating_tasks is not None:
-                raise Exception("herp derp")
-            self.repeating_tasks = child
-            return
-
-        if child.node_type == "day":
+        if child.node_type in self.sort_children:
             if before is not None or after is not None:
-                log.msg("attempted to specify position of day node")
+                log.msg("attempted to specify position of days-sorted node")
 
-            if (self.allowed_children is not None and
-                    child.node_type not in self.allowed_children):
-                raise Exception("node %s cannot be child of %r" % (
-                    child._do_repr(parent=False), self))
-
-            for existing_child in self.children:
-                if existing_child.node_type != "day":
-                    if after is not None:
-                        after = existing_child
+            before = None
+            after = None
+            for existing_child in reversed(self.children):
+                if existing_child.node_type not in self.sort_children:
                     continue
 
-                if existing_child.date < child.date:
-                    if after is None or existing_child.date > after.date:
-                        after = existing_child
-                elif existing_child.date > child.date:
-                    if before is None or existing_child.date < before.date:
-                        before = existing_child
+                if (existing_child.node_type == child.node_type and
+                        existing_child.date == child.date):
+                    log.msg("WARNING: duplicate nodes added: %r and %r"
+                            % (existing_child, child))
+                elif existing_child < child:
+                    break
+                else:
+                    before = existing_child
+        if child.node_type not in self.allowed_children:
+            raise Exception("node %s cannot be child of %r" % (
+                child._do_repr(parent=False), self))
 
         ret = super(Days, self).addchild(child, before=before, after=after)
         if child.node_type == "day":
@@ -101,12 +155,6 @@ class Days(Node):
                 child.detach()
                 self.addchild(Archived.fromnode(child, parent=self),
                         before=next_node, after=prev_node)
-
-    def children_export(self):
-        prefix = []
-        if self.repeating_tasks is not None:
-            prefix.append(self.repeating_tasks)
-        return prefix + list(self.children)
 
     def ui_serialize(self, result=None):
         if result is None:

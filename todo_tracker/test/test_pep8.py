@@ -15,24 +15,15 @@ paths = [
 ]
 ignore = [
     "E128",  # E128 is "under-indented"
+    "E127",  # E127 is "visual indent mismatch"
     "E126",  # E126 is "over-indented"
     "E124",  # Closing bracket does not match visual indentation
     "E202",  # Whitespace before ) - used for Good Reason in test_time
+    "E241",  # Too much whitespace after : or ,
+    "E702",  # Multiple statements on one line (get over yourself, I know when
+             #     to use this)
+    "E121",  # stfu about continued comment on previous line in this file
 ]
-
-
-class ShutPypyUp(object):
-    """
-    Workaround for pypy's jit having its head up its
-    """
-    def __init__(self):
-        self.done = False
-        sys.settrace(self.trace)
-
-    def trace(self, x, y, z):
-        if self.done:
-            return None
-        return self.trace
 
 try:
     import __pypy__
@@ -43,11 +34,8 @@ except ImportError:
 def test_pep8():
     styleguide = pep8.StyleGuide(paths=paths, ignore=ignore,
             show_source=True, show_pep8=False)
-    if __pypy__ is not None:
-        x = ShutPypyUp()
+    if __pypy__ is None:
+        report = styleguide.check_files()
+        assert not report.total_errors
     else:
-        x = None
-    report = styleguide.check_files()
-    if x:
-        x.done = True
-    assert not report.total_errors
+        print "WARNING: did not run test due to pypy"
