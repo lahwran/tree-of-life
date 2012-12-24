@@ -40,3 +40,29 @@ class Profile(object):
         self.finished = time.time()
         print "Profile %r finished in %r" % (self.name,
                 self.finished - self.started)
+
+template = """
+@property
+def {0}(self):
+    return self._hack_{0}
+
+@{0}.setter
+def {0}(self, newvalue):
+    print
+    print
+    print
+    print
+    print "writing to {0}: %s" % newvalue
+    import traceback
+    f = "".join(traceback.format_stack())
+    print f
+    self._hack_{0} = newvalue
+"""
+
+
+def _monitor(name):
+    import inspect
+    frames = inspect.stack()
+    f = frames[1][0]
+    render = template.format(name)
+    exec(render, f.f_globals, f.f_locals)
