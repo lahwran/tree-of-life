@@ -1,5 +1,4 @@
 import traceback
-import weakref
 
 from twisted.internet.defer import Deferred
 
@@ -13,63 +12,6 @@ class ErrorContext(object):
         self.line = None
 
 
-class AlarmProxyCache(object):
-    """
-    Proxy for timers that will automatically unregister when a root is unloaded
-    """
-    def __init__(self, root, tracker):
-        """
-        root: the root node this timerproxy is associated with. tracker.root
-                may change, which would cause this timerproxy to free itself
-        tracker: tracker.root will be compared with root each time, and if
-                they are not identity, then the timerproxy will be freed
-        """
-        self.root_ref = weakref.ref(root)
-        self.tracker_ref = weakref.ref(tracker)
-        self.timers = []
-
-    @property
-    def alive(self):
-        root = self.root_ref()
-        if root is None:
-            return False
-
-        tracker = self.tracker_ref()
-        if tracker is None:
-            return False
-
-        if root is not tracker.root:
-            return False
-
-        return True
-
-    def make_callback(self, original_callback):
-        def proxy(tracker_ref):
-            tracker = tracker_ref()
-            if not self.alive:
-                self.die()
-                return result
-
-            assert tracker is not None, ("should not have failed to resolve "
-                    "tracker on a live AlarmProxyCache")
-
-            return original_callback(tracker)
-        return proxy
-
-    def add_timer(self, timer):
-        self.timers.append(weakref.ref(timer))
-
-    def die(self):
-        for timer_ref in self.timers:
-            timer = timer_ref()
-            if timer_ref is None:
-                continue
-            try:
-                timer.cancel()
-            except ValueError:
-                continue
-
-
 class Tracker(object):
     def __init__(self, skeleton=True, nodecreator=nodecreator):
         self.make_skeleton = skeleton
@@ -79,10 +21,9 @@ class Tracker(object):
         if self.make_skeleton:
             self.root.make_skeleton()
 
-        self._alarm_proxy_caches = weakref.WeakKeyDictionary()
-
     def deserialize(self, format, reader):
         self.root = root = TreeRootNode(self, self.nodecreator)
+        root.loading_in_progress = True
         stack = []
         lastnode = root
         lastindent = -1
@@ -129,8 +70,12 @@ class Tracker(object):
         if self.make_skeleton:
             root.make_skeleton()
 
+        root.load_finished()
         for depth, node in root.iter_flat_children():
             node.load_finished()
+
+        # enable instant load_finished() on node creation
+        root.loading_in_progress = False
 
     def serialize(self, format, *args, **keywords):
         serializer = serializers.handlers[format]
@@ -138,30 +83,3 @@ class Tracker(object):
 
     def start_editor(self):
         raise NotImplementedError
-
-    def set_alarm(self, callback=None, delta=None, date=None):
-        deferred = Deferred()
-        if callback is not None:
-            deferred.addCallback(callback)
-
-        if delta is None:
-            current_time = datetime.datetime()
-            if date <= current_time:
-                raise Exception("wat? %r %r" % (date, current_time))
-            delta = date - current_time
-
-        seconds = delta.total_seconds()
-
-        # weakref hack, weakref hacks everywhere
-        # if you're just reading this code, you can
-        # pretend that these next few lines are just:
-        # reactor.callLater(seconds, deferred.callback, self)
-        # this is only relevant if you're worried about reloading of self.root
-        proxy = self._alarm_proxy_caches.setdefault(self.root,
-                    AlarmProxyCache(self.root, self))
-        callback = proxy.make_callback(deferred.callback)
-        timer = reactor.callLater(seconds, callback, weakref.ref(self))
-        proxy.add_timer(timer)
-        # and we return you to your regularly scheduled sanity
-
-        return timer, deferred

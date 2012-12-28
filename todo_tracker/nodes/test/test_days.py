@@ -312,6 +312,7 @@ def test_bad_child():
 
 def test_archiving(setdt):
     tracker = Tracker(skeleton=False)
+    tracker.root.loading_in_progress = True
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
@@ -325,6 +326,7 @@ def test_archiving(setdt):
     days_node.createchild("day", "July 20, 2012")
 
     days_node.load_finished()
+    tracker.root.loading_in_progress = False
 
     assert all(node.node_type == "archived" for node in days_node.children)
     assert [node.text for node in days_node.children] == [
@@ -383,6 +385,39 @@ def test_ui_serialize_existing(setdt):
     assert days_node.ui_serialize(existing) == {
         "children": existing_children,
         "hidden_children": existing_hidden_children,
+        "text": None,
+        "type": "days"
+    }
+
+
+@pytest.mark.xfail
+def test_ui_serialize_rollover(setdt):
+    tracker = Tracker(skeleton=False)
+    days_node = Days("days", None, tracker.root)
+    tracker.root.addchild(days_node)
+
+    from todo_tracker.nodes import tasks
+    setdt(days, tasks, 2012, 12, 22, 12)
+
+    before = [
+        days_node.createchild("day", "December 19, 2012"),
+        days_node.createchild("day", "December 20, 2012"),
+        days_node.createchild("day", "December 21, 2012"),
+    ]
+    after = [
+        days_node.createchild("day", "December 22, 2012"),
+        days_node.createchild("day", "December 23, 2012"),
+        days_node.createchild("day", "December 24, 2012"),
+        days_node.createchild("day", "December 25, 2012"),
+        days_node.createchild("day", "December 26, 2012"),
+    ]
+
+    Days.make_skeleton(tracker.root)
+    setdt(days, tasks, 2012, 12, 23, 12)
+
+    assert days_node.ui_serialize() == {
+        "children": [node.ui_serialize() for node in after],
+        "hidden_children": [node.ui_serialize() for node in before],
         "text": None,
         "type": "days"
     }

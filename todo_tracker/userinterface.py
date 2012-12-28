@@ -51,6 +51,30 @@ def before(event):
     event.root.create_before(node_type, text, activate=True)
 
 
+#@command("sleep")
+#@command("zzz")
+def command_sleep(event):
+    current = None
+    for parent in event.root.active_node.iter_parents():
+        if parent.node_type == "sleep":
+            log.msg("WARNING: already sleeping!")
+            return
+        elif parent.node_type == "day":
+            current = parent
+            break
+    if current is None:
+        log.msg("WARNING: not in a day!")
+    n_node = current.next_node
+    if (n_node.node_type == "sleep" and
+            n_node.is_acceptable()):
+        if not n_node.can_activate:
+            log.msg(("WARNING: %r is acceptable but not activateable, "
+                        "making new node") % n_node)
+        else:
+            # wait, what about arguments
+            event.root.activate(n_node)
+
+
 @command()
 def createchild(event):
     node_type, text = _makenode(event.text)

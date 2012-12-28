@@ -62,3 +62,18 @@ def setdt(monkeypatch):
 
             return patcheddatetime
     return setdt
+
+def pytest_addoption(parser):
+    parser.addoption("--weakref", action="store_true",
+        dest="weakref",
+        help="run tests marked as weakref.")
+
+def pytest_configure(config):
+    # register an additional marker
+    config.addinivalue_line("markers",
+        "weakref: mark test as testing weakref code")
+
+def pytest_runtest_setup(item):
+    if ("weakref" in item.keywords
+            and not item.config.getoption("weakref")):
+        pytest.skip("not running weakref tests")

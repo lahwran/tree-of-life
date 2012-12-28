@@ -38,8 +38,14 @@ nodecreator = _NodeCreatorTracker()
 
 
 class _NodeListIter(object):
-    def __init__(self, nodelist, reverse=False):
-        self.nodelist = self.node = nodelist
+    def __init__(self, nodelist, init_node=None, reverse=False):
+        self.nodelist = nodelist
+
+        if init_node is not None:
+            self.node = init_node
+        else:
+            self.node = self.nodelist
+
         self.reverse = reverse
 
     def __iter__(self):
@@ -144,12 +150,22 @@ class Node(object):
     allowed_children = None
     preferred_parent = None
 
+    #-------------------------------------------------#
+    #                 initialization                  #
+    #-------------------------------------------------#
+
     def __init__(self, node_type, text, parent):
         self._init_children()
 
-        self.parent = parent
+        self.__initing = True  # hack for assignment hooks
+
+        self.root = None
         self.node_type = node_type
+        self.parent = parent  # bootstrap text
         self.text = text
+
+        self.__initing = False
+        self.parent = parent  # re-run the assignment hooks!
 
         if self.textless and text is not None:
             raise LoadError("%r node cannot have text" % self)
@@ -167,8 +183,22 @@ class Node(object):
     @parent.setter
     def parent(self, newparent):
         self._parent = newparent
-        if self._parent is not None:
-            self.root = self._parent.root
+        if newparent is not None:
+            self.root = newparent.root
+        ihook = getattr(self, "_insertion_hook", None)
+        if ihook is not None and not self.__initing:
+            ihook()
+
+    @property
+    def root(self):
+        return self._root
+
+    @root.setter
+    def root(self, root):
+        self._root = root
+        if (root is not None and not root.loading_in_progress
+                and not self.__initing):
+            self.load_finished()
 
     def _validate(self):
         if self.toplevel and self.parent != self.root:
@@ -186,6 +216,69 @@ class Node(object):
 
         self._next_node = None
         self._prev_node = None
+
+    def continue_text(self, text):
+        if not self.multiline:
+            raise LoadError("%r node cannot have newline in text" % self)
+        if self.text is None:
+            raise LoadError("Cannot add new line to text of node %r,"
+                    " since it has no text set" % self)
+
+        self.text += "\n"
+        self.text += text
+
+    #-------------------------------------------------#
+    #                     options                     #
+    #-------------------------------------------------#
+
+    def setoption(self, option, value):
+        options = self._option_dict()
+        try:
+            handler = options[option]
+        except KeyError:
+            raise LoadError("node %r has no such option %r" % (self, option))
+
+        try:
+            handler.set(self, value)
+        except:  # haw haw
+            print repr(self)
+            print option
+            print value
+            raise
+
+    def _option_dict(self):
+        try:
+            return self._option_dict_cache
+        except AttributeError:
+            pass
+
+        result = OrderedDict()
+        mro = [self] + list(inspect.getmro(type(self)))
+        seen = set()
+        for resolve_element in reversed(mro):
+            try:
+                options = resolve_element.options
+            except AttributeError:
+                continue
+
+            if id(options) in seen:
+                continue
+            seen.add(id(options))
+
+            for option in options:
+                result[option.name] = option
+        return result
+
+    def option_values(self):
+        result = []
+        for name, handler in self._option_dict().items():
+            show, item = handler.get(self)
+            result.append((name, item, show))
+        return result
+
+    #-------------------------------------------------#
+    #            iterators and movement               #
+    #-------------------------------------------------#
 
     def iter_parents(self, skip_root=False):
         node = self
@@ -209,6 +302,12 @@ class Node(object):
                 yield len(stack), item
                 stack.append(iter(item.children))
 
+    def iter_forward(self):
+        return _NodeListIter(self.children, init_node=self)
+
+    def iter_backward(self):
+        return _NodeListIter(self.children, init_node=self, reverse=True)
+
     @property
     def next_neighbor(self):
         if self._next_node and self._next_node is self.parent.children:
@@ -220,6 +319,24 @@ class Node(object):
         if self._prev_node and self._prev_node is self.parent.children:
             return None
         return self._prev_node
+
+    def find_node(self, path, offset=0):
+        if offset >= len(path):
+            return self
+        segment = path[offset]
+
+        matcher = _NodeMatcher(self.root.nodecreator, segment, self, self.root)
+        for child in matcher.iter_results():
+            node = child.find_node(path, offset + 1)
+
+            if node is not None:
+                return node
+
+        return None
+
+    #-------------------------------------------------#
+    #          adding and removing children           #
+    #-------------------------------------------------#
 
     def addchild(self, child, before=None, after=None):
         if (self.allowed_children is not None and
@@ -269,63 +386,16 @@ class Node(object):
                 newnode.addchild(child_copy)
         return newnode
 
-    def setoption(self, option, value):
-        options = self._option_dict()
-        try:
-            handler = options[option]
-        except KeyError:
-            raise LoadError("node %r has no such option %r" % (self, option))
+    #-------------------------------------------------#
+    #        hooks for subclasses to override         #
+    #-------------------------------------------------#
 
-        try:
-            handler.set(self, value)
-        except:  # haw haw
-            print repr(self)
-            print option
-            print value
-            raise
-
-    def _option_dict(self):
-        try:
-            return self._option_dict_cache
-        except AttributeError:
-            pass
-
-        result = OrderedDict()
-        mro = [self] + list(inspect.getmro(type(self)))
-        seen = set()
-        for resolve_element in reversed(mro):
-            try:
-                options = resolve_element.options
-            except AttributeError:
-                continue
-
-            if id(options) in seen:
-                continue
-            seen.add(id(options))
-
-            for option in options:
-                result[option.name] = option
-        return result
-
-    def option_values(self):
-        result = []
-        for name, handler in self._option_dict().items():
-            show, item = handler.get(self)
-            result.append((name, item, show))
-        return result
+    @classmethod
+    def make_skeleton(self, root):
+        pass
 
     def children_export(self):
         return list(self.children)
-
-    def continue_text(self, text):
-        if not self.multiline:
-            raise LoadError("%r node cannot have newline in text" % self)
-        if self.text is None:
-            raise LoadError("Cannot add new line to text of node %r,"
-                    " since it has no text set" % self)
-
-        self.text += "\n"
-        self.text += text
 
     def start(self):
         if not self.can_activate:
@@ -337,10 +407,6 @@ class Node(object):
     def load_finished(self):
         pass
 
-    @classmethod
-    def make_skeleton(self, root):
-        pass
-
     def auto_add(self, creator, root):
         self.root = root
         if self.preferred_parent is not None:
@@ -349,6 +415,27 @@ class Node(object):
             return parent
         else:
             return None
+
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+
+        if "options" not in result:
+            options = [dict(zip(["type", "text"], option)) for option
+                    in self.option_values() if option[-1]]
+            if options:
+                result["options"] = options
+        if "children" not in result:
+            children = [child.ui_serialize() for child in self.children]
+            if children:
+                result["children"] = children
+        result["type"] = self.node_type
+        result["text"] = self.text
+        return result
+
+    #-------------------------------------------------#
+    #                      misc                       #
+    #-------------------------------------------------#
 
     def __str__(self):
         return file_storage.serialize(self, one_line=True)[0]
@@ -373,37 +460,6 @@ class Node(object):
 
     def __repr__(self):
         return self._do_repr()
-
-    def find_node(self, path, offset=0):
-        if offset >= len(path):
-            return self
-        segment = path[offset]
-
-        matcher = _NodeMatcher(self.root.nodecreator, segment, self, self.root)
-        for child in matcher.iter_results():
-            node = child.find_node(path, offset + 1)
-
-            if node is not None:
-                return node
-
-        return None
-
-    def ui_serialize(self, result=None):
-        if result is None:
-            result = {}
-
-        if "options" not in result:
-            options = [dict(zip(["type", "text"], option)) for option
-                    in self.option_values() if option[-1]]
-            if options:
-                result["options"] = options
-        if "children" not in result:
-            children = [child.ui_serialize() for child in self.children]
-            if children:
-                result["children"] = children
-        result["type"] = self.node_type
-        result["text"] = self.text
-        return result
 
 
 @nodecreator('-')
@@ -534,6 +590,8 @@ class TreeRootNode(Node):
     def __init__(self, tracker, nodecreator):
         self.nodecreator = nodecreator
         self.tracker = tracker
+        self.loading_in_progress = False
+
         super(TreeRootNode, self).__init__("life", None, None)
         self.root = self
 

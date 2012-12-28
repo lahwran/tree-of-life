@@ -13,8 +13,8 @@ class GenericNode(Node):
     multiline = True
 
     def __init__(self, node_type="_gennode", text=None, parent=None):
-        super(GenericNode, self).__init__(node_type, text, parent)
         self.metadata = OrderedDict()
+        super(GenericNode, self).__init__(node_type, text, parent)
 
     def setoption(self, option, value):
         self.metadata[option] = value
