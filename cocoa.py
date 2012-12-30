@@ -5,19 +5,22 @@ import subprocess
 import argparse
 import uuid
 import shlex
+import logging
 from datetime import datetime
 from collections import defaultdict
 
 from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet import reactor
-from twisted.python import log
+import twisted.python.log
 import twisted.web.static
 import twisted.web.server
 
 from todo_tracker.userinterface import (SavingInterface, command,
     generate_listing)
 from todo_tracker.util import tempfile, Profile
+
+logger = logging.getLogger(__name__)
 
 
 @command()
@@ -110,7 +113,7 @@ class VimRunner(object):
                 " ".join(args), b64_data, port)
         inner_command = inner_command.replace("\\'", "'\"'\"'")
         self.command = self.outer_command % inner_command
-        log.msg("Starting vim with id %r: %s" % (self.id, self.command))
+        logger.info("Starting vim with id %r: %s", self.id, self.command)
 
         self.tempfile = tempfile()
         with open(self.tempfile, "w") as temp_writer:
@@ -162,9 +165,10 @@ class RemoteInterface(SavingInterface):
 
     def _vim_finished(self, identifier):
         if identifier not in self._vim_instances:
-            log.msg("can't finish nonexistant vim invocation: %r" % identifier)
+            logger.error("can't finish nonexistant vim invocation: %r",
+                            identifier)
             return
-        log.msg("finishing vim invocation: %r" % identifier)
+        logger.info("finishing vim invocation: %r", identifier)
         self._vim_instances[identifier].done()
         del self._vim_instances[identifier]
 
@@ -177,7 +181,7 @@ class RemoteInterface(SavingInterface):
 
     def errormessage(self, source, message):
         source.error = message
-        log.msg("errormessage from %r: %r" % (source, message))
+        logger.error("errormessage from %r: %r", source, message)
 
     def messages(self):
         if self.root.todo:
@@ -245,15 +249,15 @@ class JSONProtocol(LineOnlyReceiver):
             self.update()
             self.commandline.listeners.append(self)
         except Exception:
-            log.err()
+            logger.exception()
 
     def connectionLost(self, reason):
         try:
             self.commandline.listeners.remove(self)
         except ValueError:
-            log.err()
+            logger.exception()
         if not self._is_vim_connection:
-            log.msg("connection lost: %r" % reason)
+            logger.info("connection lost: %r", reason)
 
     def sendmessage(self, message):
         self.sendLine(json.dumps(message))
@@ -268,13 +272,13 @@ class JSONProtocol(LineOnlyReceiver):
             })
             self.commandline.auto_save()
         except Exception:
-            log.err()
+            logger.exception()
             try:
                 self.sendmessage({
                     "prompt": ["** see console **", " ** update error **"],
                 })
             except Exception:
-                log.err()
+                logger.exception()
 
     @property
     def status(self):
@@ -308,19 +312,19 @@ class JSONProtocol(LineOnlyReceiver):
         try:
             document = json.loads(line)
         except ValueError:
-            log.err()
+            logger.exception()
             return
 
         for key, value in document.items():
             try:
                 handler = getattr(self, "message_%s" % key)
             except AttributeError:
-                log.msg("unrecognized message: %s = %s" % (key, value))
+                logger.info("unrecognized message: %s = %s", key, value)
                 continue
             try:
                 handler(value)
             except Exception:
-                log.err()
+                logger.exception()
 
     def message_input(self, text_input):
         pass  # don't care about input right now
@@ -329,7 +333,7 @@ class JSONProtocol(LineOnlyReceiver):
         try:
             self.commandline.command(self, command)
         except Exception as e:
-            log.err()
+            logger.exception()
             self.error = repr(e)
         else:
             self.update()
@@ -394,6 +398,30 @@ class Restarter(object):
             os.execv(sys.executable, [sys.executable] + self.args)
 
 
+def init_log(config):
+    rootlogger = logging.getLogger()
+
+    formatter = logging.Formatter('[%(asctime)s %(levelname)8s] %(name)s: '
+                                            '%(message)s')
+
+    rootlogger.setLevel(logging.DEBUG)
+    logfile = open(config.logfile, "a")
+    handlers = [
+        logging.StreamHandler(sys.stdout),
+        logging.StreamHandler(logfile)
+    ]
+    for handler in handlers:
+        handler.setFormatter(formatter)
+        rootlogger.addHandler(handler)
+
+    twisted_observer = twisted.python.log.PythonLoggingObserver()
+    twisted_observer.start()
+
+    logger.info("logfile: %r" % config.logfile)
+
+    return logfile
+
+
 def main(restarter, args):
     import pytest
     if pytest.main([]) != 0:
@@ -405,11 +433,8 @@ def main(restarter, args):
         config.logname += "_dev"
     config.logfile = "%s.%s" % (config.logname, config.log_ext)
 
-    log.startLogging(sys.stdout, setStdout=False)
-    logfile = open(config.logfile, "a")
+    logfile = init_log(config)
     restarter.to_flush.append(logfile)
-    log.startLogging(logfile, setStdout=False)
-    log.msg("logfile: %r" % config.logfile)
 
     ui = RemoteInterface(config, restarter, config.path, config.mainfile)
     ui.load()
