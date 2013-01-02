@@ -1,11 +1,12 @@
 from datetime import datetime, date, time, timedelta
-
-from twisted.python import log
+import logging
 
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
 from todo_tracker.nodes.misc import Archived
+
+logger = logging.getLogger(__name__)
 
 task_types = ("day", "sleep")
 
@@ -212,8 +213,8 @@ class Days(Node):
                     acceptability = child.acceptable()
                     if acceptability:
                         if not child.can_activate:
-                            log.msg(("WARNING: node was acceptable but could "
-                                "not activate: %r") % child)
+                            logger.warn("node was acceptable but"
+                                " could not activate: %r", child)
                             continue
                         acceptables.append((acceptability, child))
 
@@ -227,7 +228,8 @@ class Days(Node):
     def addchild(self, child, before=None, after=None):
         if child.node_type in task_types:
             if before is not None or after is not None:
-                log.msg("attempted to specify position of days-sorted node")
+                logger.warn("attempted to specify position of days-sorted "
+                        "node")
 
             before = None
             after = None
@@ -237,8 +239,8 @@ class Days(Node):
 
                 if (existing_child.node_type == child.node_type and
                         existing_child.date == child.date):
-                    log.msg("WARNING: duplicate nodes added: %r and %r"
-                            % (existing_child, child))
+                    logger.warn("duplicate nodes added: %r and %r",
+                            existing_child, child)
                 elif existing_child < child:
                     break
                 else:

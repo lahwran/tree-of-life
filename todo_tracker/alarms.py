@@ -1,10 +1,12 @@
 import weakref
 import datetime
+import logging
+import uuid
 
 from twisted.internet.defer import Deferred
 from twisted.internet import reactor
-from twisted.python import log
-import uuid
+
+logger = logging.getLogger(__name__)
 
 
 def lazyproperty(func):
@@ -106,8 +108,7 @@ class Alarm(object):
 
     def warn(self, message):
         nn = self.parent._next_node
-        import pprint
-        data = pprint.pformat({
+        data = {
             "ready_root": self.super_repr(self.ready_root),
             "root": self.super_repr(self.root),
             "tracker_root": self.super_repr(self.root.tracker.root),
@@ -116,8 +117,8 @@ class Alarm(object):
             "parent": self.parent,
             "parent_next_node": nn,
             "parent_rev_link": nn._prev_node if nn is not None else None
-        })
-        log.msg("WARNING: %s %s" % (message, data))
+        }
+        logger.warn("%s %r", message, data)
 
     def _callback(self, tracker):
         if not self.active:
@@ -186,6 +187,7 @@ class ProxyCache(object):
         self.root_ref = weakref.ref(root)
         self.tracker_ref = weakref.ref(tracker)
         self.timers = weakref.WeakSet()
+        self.init_time = datetime.datetime.now()
 
     @property
     def alive(self):
@@ -218,7 +220,7 @@ class ProxyCache(object):
             deferred = ref()
 
             if deferred is None:
-                log.msg("deferred fired, target didn't exist")
+                logger.warn("deferred fired, target didn't exist")
                 return
 
             deferred.callback(tracker)
@@ -228,6 +230,8 @@ class ProxyCache(object):
         self.timers.add(timer)
 
     def die(self):
+        logger.info("Freeing Alarm Proxy Cache initialized at %r",
+                self.init_time)
         for timer in list(self.timers):
             try:
                 timer.cancel()

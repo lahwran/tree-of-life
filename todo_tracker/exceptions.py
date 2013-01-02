@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ListIntegrityError(Exception):
@@ -26,7 +28,7 @@ class LoadError(Exception):
             result += self._message
             return result
         except Exception as e:
-            print e
+            logger.exception("Error formatting error")
             return self._message
 
 

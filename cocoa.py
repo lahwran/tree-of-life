@@ -31,10 +31,9 @@ def error(event):
 @command()
 def restart(event):
     if event.text:
-        print repr(event.text)
-        print repr(str(event.text))
+        logger.debug("restart request: %r - %s", event.text, event.text)
         args = shlex.split(str(event.text))
-        print repr(args)
+        logger.debug("restart request args: %r", args)
     else:
         args = None
     event.ui.restarter.restart(args)
@@ -249,13 +248,13 @@ class JSONProtocol(LineOnlyReceiver):
             self.update()
             self.commandline.listeners.append(self)
         except Exception:
-            logger.exception()
+            logger.exception("Error sending info on connection")
 
     def connectionLost(self, reason):
         try:
             self.commandline.listeners.remove(self)
         except ValueError:
-            logger.exception()
+            logger.exception("Error removing listener from listeners")
         if not self._is_vim_connection:
             logger.info("connection lost: %r", reason)
 
@@ -272,13 +271,13 @@ class JSONProtocol(LineOnlyReceiver):
             })
             self.commandline.auto_save()
         except Exception:
-            logger.exception()
+            logger.exception("Error updating")
             try:
                 self.sendmessage({
                     "prompt": ["** see console **", " ** update error **"],
                 })
             except Exception:
-                logger.exception()
+                logger.exception("Error sending update notification")
 
     @property
     def status(self):
@@ -312,7 +311,7 @@ class JSONProtocol(LineOnlyReceiver):
         try:
             document = json.loads(line)
         except ValueError:
-            logger.exception()
+            logger.exception("Error loading line")
             return
 
         for key, value in document.items():
@@ -324,7 +323,7 @@ class JSONProtocol(LineOnlyReceiver):
             try:
                 handler(value)
             except Exception:
-                logger.exception()
+                logger.exception("error running handler")
 
     def message_input(self, text_input):
         pass  # don't care about input right now
@@ -333,7 +332,7 @@ class JSONProtocol(LineOnlyReceiver):
         try:
             self.commandline.command(self, command)
         except Exception as e:
-            logger.exception()
+            logger.exception("Error running command")
             self.error = repr(e)
         else:
             self.update()
@@ -389,12 +388,12 @@ class Restarter(object):
 
         if self.should_restart:
             os.chdir(self.orig_cwd)
+            logger.debug("restarting - args: %r", self.args)
             sys.__stdout__.write("** restarting **\n")
             for f in self.to_flush:
                 f.flush()
             for f in self.to_flush:
                 os.fsync(f.fileno())
-            print self.args
             os.execv(sys.executable, [sys.executable] + self.args)
 
 
@@ -439,7 +438,7 @@ def main(restarter, args):
     ui = RemoteInterface(config, restarter, config.path, config.mainfile)
     ui.load()
     ui.config.setdefault("max_width", 500)
-    print ui.config
+    logger.info("ui config: %r", ui.config)
 
     factory = JSONFactory(ui)
     reactor.listenTCP(config.port, factory, interface=config.listen_iface)
@@ -455,6 +454,6 @@ def main(restarter, args):
         ui.full_save()
 
 if __name__ == "__main__":
-    print sys.argv
+    print "(pre-logging init note) sys.argv:", sys.argv
     restarter = Restarter()
     restarter.call(main, sys.argv[1:])

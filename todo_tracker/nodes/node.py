@@ -1,13 +1,14 @@
 import inspect
 import operator
-
-from twisted.python import log
+import logging
 
 from todo_tracker.ordereddict import OrderedDict
 from todo_tracker.exceptions import (ListIntegrityError, LoadError,
         CantStartNodeError)
 from todo_tracker.util import HandlerList
 from todo_tracker import file_storage
+
+logger = logging.getLogger(__name__)
 
 
 class _NodeCreatorTracker(HandlerList):
@@ -237,10 +238,8 @@ class Node(object):
 
         try:
             handler.set(self, value)
-        except:  # haw haw
-            print repr(self)
-            print option
-            print value
+        except:  # haw haw just adding info
+            logger.error("pre-exception note: %r, %r, %r", self, option, value)
             raise
 
     def _option_dict(self):
@@ -613,7 +612,7 @@ class TreeRootNode(Node):
     def activate(self, node):
         # jump to a particular node as active
         if not node.can_activate:
-            log.msg("Attempted to activate node: %r" % node)
+            logger.warn("Attempted to activate node: %r", node)
             return
 
         if self.active_node:

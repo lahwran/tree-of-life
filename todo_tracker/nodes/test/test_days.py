@@ -234,7 +234,6 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         result = tracker.serialize("str")
-        print result
         assert result == (
             "days\n"
             "    day: December 19, 2012 (Wednesday, 2 days ago)\n"

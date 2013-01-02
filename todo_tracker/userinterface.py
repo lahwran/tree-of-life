@@ -5,14 +5,15 @@ import subprocess
 from functools import partial
 from datetime import datetime, timedelta
 import time
-
-from twisted.python import log
+import logging
 
 from todo_tracker.file_storage import parse_line
 from todo_tracker.nodes.node import nodecreator
 from todo_tracker.tracker import Tracker
 from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile, HandlerList, Profile
+
+logger = logging.getLogger(__name__)
 
 
 def _makenode(string):
@@ -57,13 +58,13 @@ def command_sleep(event):
     current = None
     for parent in event.root.active_node.iter_parents():
         if parent.node_type == "sleep":
-            log.msg("WARNING: already sleeping!")
+            logger.warn("already sleeping!")
             return
         elif parent.node_type == "day":
             current = parent
             break
     if current is None:
-        log.msg("WARNING: not in a day!")
+        logger.warn("not in a day!")
     n_node = current.next_node
     if (n_node.node_type == "sleep" and
             n_node.is_acceptable()):
@@ -166,9 +167,9 @@ class CommandInterface(Tracker):
         tmp_backup = tempfile()
         exceptions = []
         # USER MESSAGE
-        print "tmp:", tmp
+        logger.info("starting vim - tmp: %s", tmp)
         # USER MESSAGE
-        print "tmp-backup:", tmp_backup
+        logger.info("starting vim - tmp-backup: %s", tmp_backup)
 
         with open(tmp, "w") as writer:
             self.serialize("file", writer)
@@ -180,7 +181,7 @@ class CommandInterface(Tracker):
                 os.unlink(tmp)
                 os.unlink(tmp_backup)
                 # USER MESSAGE
-                print "text same, not loading"
+                logger.info("text same, not loading")
                 return True
 
             try:
@@ -189,7 +190,7 @@ class CommandInterface(Tracker):
                         self.deserialize("file", reader)
             except Exception:
                 # USER MESSAGE NEEDED
-                log.err()
+                logger.exception("Failure loading")
                 formatted = traceback.format_exc()
                 tmp_exception = tempfile()
                 with open(tmp_exception, "w") as writer:
@@ -201,9 +202,9 @@ class CommandInterface(Tracker):
                 return False
             else:
                 # USER MESSAGE
-                print "loaded"
+                logger.info("loaded")
                 # LOGGING
-                print "new active: %r" % self.root.active_node
+                logger.info("new active: %r", self.root.active_node)
 
                 #os.unlink(tmp)
                 # TODO: unlink temp file?
@@ -220,7 +221,7 @@ class CommandInterface(Tracker):
         raise NotImplementedError
 
     def errormessage(self, source, message):
-        print message
+        logger.error(message)
 
     def display_lines(self, lines):
         pass

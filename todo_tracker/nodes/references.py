@@ -1,7 +1,10 @@
 from weakref import WeakKeyDictionary
+import logging
 
 from todo_tracker.nodes.node import Node, nodecreator, _NodeListRoot
 from todo_tracker.nodes.tasks import BaseTask
+
+logger = logging.getLogger(__name__)
 
 
 def _makeproxy(parent, proxied):
@@ -44,7 +47,7 @@ class _AutoReference(object):
         return result
 
     def __set__(self, instance, value):
-        print "setting %r.%s to %r" % (instance, self.name, value)
+        logger.debug("setting %r.%s to %r", instance, self.name, value)
         if not getattr(instance, self.deleted_name, False):
             if value is instance:
                 value = None
@@ -84,7 +87,8 @@ class _ReferenceNodeList(_NodeListRoot):
 
     @property
     def length(self):
-        print "warning: calculating length of referencenodelist is O(n) time"
+        logger.warn("warning: calculating length of referencenodelist is"
+            "O(n) time")
         result = 0
         for x in self:
             result += 1

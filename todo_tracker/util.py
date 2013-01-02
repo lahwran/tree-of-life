@@ -1,6 +1,9 @@
+import logging
 import os
 import tempfile as _tempfile
 import time
+
+logger = logging.getLogger(__name__)
 
 
 def tempfile():
@@ -38,7 +41,7 @@ class Profile(object):
 
     def __exit__(self, x, y, z):
         self.finished = time.time()
-        print "Profile %r finished in %r" % (self.name,
+        logger.debug("Profile %r finished in %r", self.name,
                 self.finished - self.started)
 
 template = """

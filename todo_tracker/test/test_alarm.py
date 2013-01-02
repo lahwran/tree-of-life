@@ -313,7 +313,6 @@ class TestSetAlarm(object):
         tracker.deserialize("str", "node: somenode")
 
         # to force an error should it not detect it via weakref
-        print vars(root_anchor)
         vars(tracker).clear()
         ref = weakref.ref(tracker)
         del tracker
