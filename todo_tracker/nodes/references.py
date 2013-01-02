@@ -180,7 +180,7 @@ class Reference(BaseTask):
         path = [("*: " + x.strip()) for x in newtext.split(">")]
         node = self.point_of_reference.find_node(path)
         if not isinstance(node, BaseTask):
-            print "oops", node
+            logger.error("can't reference non-task: %r", node)
 
         if self.target is not None:
             self.target.referred_to.remove(self)
@@ -210,7 +210,7 @@ class Reference(BaseTask):
             solidified_links += 1
         self.log("solidified_links", solidified_links)
         if not solidified_links:
-            print "WARNING: could not solidify node %r" % self
+            logger.warn("could not solidify node %r", self)
 
     def solidify(self):
         self.log()
@@ -285,8 +285,8 @@ class Reference(BaseTask):
         try:
             import inspect
             frames = inspect.stack()
-            print "%s.%s > " % (
-                    repr(self), frames[1][3]), " ".join(str(x) for x in args)
+            logger.debug("%s.%s > " % (
+                    repr(self), frames[1][3]), " ".join(str(x) for x in args))
         except:
             import traceback
             traceback.print_exc()

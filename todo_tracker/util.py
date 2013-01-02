@@ -51,11 +51,9 @@ def {0}(self):
 
 @{0}.setter
 def {0}(self, newvalue):
-    print
-    print
-    print
-    print
-    print "writing to {0}: %s" % newvalue
+    import logging
+    logger = logging.getLogger("_monitor.{0}")
+    logger.debug("writing: %s", newvalue)
     import traceback
     f = "".join(traceback.format_stack())
     print f
