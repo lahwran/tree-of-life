@@ -1,0 +1,46 @@
+1. pay stub
+    - date received
+    - company for
+    - amount stub total
+    - taxes stub total
+    - amount year total
+    - taxes year total
+    - pay period (date-date)
+    - hours worked
+    - pay rate per hour
+    - business location
+2. purchase
+    - date and time
+    - business location or identifier
+    - business type
+    - purchased items - name and price
+    - sales tax
+    - money used
+    - money type
+    - total price
+3. bank deposit
+    - amount
+    - date and time
+    - location identifier
+    - balance
+    - available balance
+4. withdrawal
+    - date and time
+    - location identifier
+    - amount
+    - remaining balance
+5. proxied purchase
+    - everything from purchase
+    - amount owed
+    - who
+    - identifier
+6. personal debt
+    - (for paying back proxied purchases)
+    - date and time
+    - tasky
+    - proxied purchase identifier
+    - amount paid
+7. personal gift
+    - date and time
+    - reason
+    - amount
