@@ -86,13 +86,17 @@ class Alarm(object):
 
         self.parent.alarms.add(self)
         if self.date < datetime.datetime.now():
+#            timer, deferred = self.root.tracker._set_alarm(
+#                    callback=self._callback,
+#                    delta=datetime.timedelta())
             self._callback(None)
+            return
         else:
             timer, deferred = self.root.tracker._set_alarm(
                     callback=self._callback,
                     date=self.date)
-            self.twisted_timer = timer
-            self.timer_deferred = deferred
+        self.twisted_timer = timer
+        self.timer_deferred = deferred
 
     def _go_live(self):
         self.ready_root = self.root
@@ -138,7 +142,7 @@ class NodeMixin(object):
     alarms = lazyproperty(set)
 
     def _insertion_hook(self):
-        if self.root is None:
+        if getattr(self.root, "_add_alarm", None) is None:
             return
 
         for alarm in list(self.alarms):
@@ -148,7 +152,8 @@ class NodeMixin(object):
     def alarm(self, *args, **kwargs):
         result = Alarm(self, *args, **kwargs)
         self.alarms.add(result)
-        if getattr(self, "root", None) is not None:
+        possible_root = getattr(self, "root", None)
+        if getattr(possible_root, "_add_alarm", None) is not None:
             result._node_ready(root=self.root)
             self.root._add_alarm(result)
         return result
