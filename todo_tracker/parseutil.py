@@ -120,9 +120,10 @@ class __Grammar(object):  # Funny name for bootstrapping
 
     @classmethod
     def wraprule(cls, name, optional=False):
-        def wrapper(string, *args):
+        def wrapper(string, *args, **kwargs):
+            _optional = kwargs.get("optional", optional)
             func = getattr(cls(string), name)
-            return func(*args, optional=optional)
+            return func(*args, optional=_optional)
         return wrapper
 
     @classmethod

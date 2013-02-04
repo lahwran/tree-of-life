@@ -12,6 +12,8 @@ from todo_tracker.nodes.node import nodecreator
 from todo_tracker.tracker import Tracker
 from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile, HandlerList, Profile
+from todo_tracker.parseutil import Grammar
+from todo_tracker import timefmt
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +29,24 @@ def _makenode(string):
 
 global_commands = HandlerList()
 command = global_commands.add
+
+
+class SleepCommandGrammar(Grammar):
+    grammar = """
+    ws = ' '+
+    sleep = 'sleep' ((ws 'until' ws time_grammar.time:time -> {'until': time})
+            | (ws 'for' ws time_grammar.timedelta:td -> {'amount': td})
+            | -> {})
+    """
+    bindings = {
+        "time_grammar": timefmt.TimeGrammar
+    }
+
+
+@command()
+def command_sleep(event):
+    days = event.root.days
+    days.sleep(**SleepCommandGrammar(event.text).sleep())
 
 
 @command()
@@ -54,27 +74,27 @@ def before(event):
 
 #@command("sleep")
 #@command("zzz")
-def command_sleep(event):
-    current = None
-    for parent in event.root.active_node.iter_parents():
-        if parent.node_type == "sleep":
-            logger.warn("already sleeping!")
-            return
-        elif parent.node_type == "day":
-            current = parent
-            break
-    if current is None:
-        logger.warn("not in a day!")
-    n_node = current.next_node
-    if (n_node.node_type == "sleep" and
-            n_node.is_acceptable()):
-        if not n_node.can_activate:
-            log.msg(("WARNING: %r is acceptable but not activateable, "
-                        "making new node") % n_node)
-        else:
-            # wait, what about arguments
-            event.root.activate(n_node)
-
+#def command_sleep(event):
+#    current = None
+#    for parent in event.root.active_node.iter_parents():
+#        if parent.node_type == "sleep":
+#            logger.warn("already sleeping!")
+#            return
+#        elif parent.node_type == "day":
+#            current = parent
+#            break
+#    if current is None:
+#        logger.warn("not in a day!")
+#    n_node = current.next_node
+#    if (n_node.node_type == "sleep" and
+#            n_node.is_acceptable()):
+#        if not n_node.can_activate:
+#            log.msg(("WARNING: %r is acceptable but not activateable, "
+#                        "making new node") % n_node)
+#        else:
+#            # wait, what about arguments
+#            event.root.activate(n_node)
+#
 
 @command()
 def createchild(event):
@@ -132,10 +152,6 @@ class Event(object):
 class CommandInterface(Tracker):
     max_format_depth = 2
     _default_command = "createauto"
-
-    def __init__(self):
-        super(CommandInterface, self).__init__()
-        self.config = {}
 
     def _command(self, source, command_name, text):
         try:
@@ -308,10 +324,10 @@ class SavingInterface(CommandInterface):
             return callback(reader)
 
     def load(self):
-        self._load_file(self.save_file, partial(self.deserialize, "file"))
         config = self._load_file(self.config_file, json.load)
         if config:
             self.config = config
+        self._load_file(self.save_file, partial(self.deserialize, "file"))
 
     def full_save(self):
         if not os.path.exists(self.save_dir):

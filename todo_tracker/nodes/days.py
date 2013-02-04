@@ -1,10 +1,12 @@
 from datetime import datetime, date, time, timedelta
 import logging
 
-from todo_tracker.nodes.node import Node, nodecreator
+from todo_tracker.nodes.node import Node, nodecreator, BooleanOption
 from todo_tracker import timefmt
 from todo_tracker.nodes.tasks import BaseTask
 from todo_tracker.nodes.misc import Archived
+from todo_tracker import alarms
+from todo_tracker import alarmclock
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +59,6 @@ class DateTask(BaseTask):
     chidren_of = ("days",)
     text_required = True
 
-    # creates a property you can (only)read from.
-    # called when you need to get the text for a day.
     @property
     def can_activate(self):
         return super(DateTask, self).can_activate and self.acceptable()
@@ -70,13 +70,8 @@ class DateTask(BaseTask):
         date_str += ' (%s, %s)' % (self.date.strftime('%A'), delta)
         return date_str
 
-    # take the existing property we just made and make a setter
-    # for it, and then replace it with the new one that has a setter
     @text.setter
     def text(self, new):
-        #"December 12, 2012" -> "December 12, 2012"
-        #"December 22, 2012 (Saturday)" -> "December 22, 2012"
-        #"December 22, 2012(Hawaiian)" -> "December 22, 2012"
         if "(" in new:
             new = new[:new.index('(')]
             new = new.strip()
@@ -109,9 +104,55 @@ class Day(DateTask):
             return 1
         return 3
 
+    def start(self):
+        DateTask.start(self)
+        if self.root.loading_in_progress:
+            self.load_finished = self._post_started
+        else:
+            self._post_started()
+
+    def _post_started(self):
+        if self.load_finished == self._post_started:
+            del vars(self)["load_finished"]
+        self.parent.prep_sleep()
+
+
+def pick_best(func, options, target):
+    results = []
+    for option in options:
+        result = func(option)
+        result = result - target
+        results.append((abs(result), option))
+
+    results = sorted(results, key=lambda x: x[0])
+    result, option = results[0]
+
+    return option
+
 
 @nodecreator("sleep")
-class Sleep(DateTask):
+class Sleep(DateTask, alarms.NodeMixin):
+    options = (
+        timefmt.TimeOption("until_time"),
+        timefmt.DatetimeOption("until"),
+        timefmt.TimedeltaOption("amount"),
+        BooleanOption("sleep_music_played")
+    )
+
+    def __init__(self, *a, **kw):
+        self.wake_alarm = self.alarm(self.wakeup_music)
+        self.sleep_music_alarm = self.alarm(self.sleep_music)
+        self.canceller = None
+        self.amount = None
+        self.until_time = None
+        self.until = None
+        self.sleep_music_played = False
+
+        DateTask.__init__(self, *a, **kw)
+
+    def load_finished(self):
+        assert self.config
+
     def __gt__(self, other):
         if other.node_type == "day":
             return self.date >= other.date
@@ -125,6 +166,123 @@ class Sleep(DateTask):
         if (datetime.now() - timedelta(hours=12)).date() == self.date:
             return 2
         return 0
+
+    def initialize(self, date, amount=None, until=None):
+        self.date = date
+        self.update(amount=amount, until=until)
+
+    def _combine_until(self, until):
+        now = datetime.now()
+
+        def evaluate(date):
+            dt = datetime.combine(date, until)
+            td = dt - now
+            if td < timedelta():
+                return timedelta(days=1000)
+            return td
+
+        best = pick_best(evaluate,
+                set([self.date,
+                    self.date + timedelta(days=1),
+                    self.date + timedelta(days=2)]),
+                timedelta(hours=8))
+        until = datetime.combine(best, until)
+        assert until > now
+
+        return until
+
+    def update(self, amount=None, until=None):
+        assert not self.active, "can't update an active sleep node"
+        # can't do both at once
+        assert amount is None or until is None, (
+                "can't set conflicting times for sleep node")
+        # if doing neither, don't erase previous
+        if amount is None and until is None:
+            return
+
+        if amount is not None:
+            self.amount = amount
+        else:
+            self.amount = None
+
+        if isinstance(until, time):
+            self.until_time = until
+            until = self._combine_until(until)
+        else:
+            self.until_time = None
+
+        if until is not None:
+            self.until = until
+        else:
+            self.until = None
+        logger.debug("setting %r until %r", self, self.until)
+
+    def _adjust_times(self):
+        if self.amount is not None:
+            self.until = datetime.now() + self.amount
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, active):
+        if active:
+            self._adjust_times()
+            if not self.until:
+                self.update(until=time(7, 0))
+
+            self.wake_alarm.date = self.until
+            self.sleep_music()
+
+            logger.debug("marking %r active until %r", self, self.until)
+        else:
+            self.wake_alarm.date = None
+            logger.debug("marking %r inactive", self)
+        self._active = active
+
+    def finish(self):
+        DateTask.finish(self)
+        if self.canceller:
+            self.canceller.cancel()
+        self.sleep_music_played = False
+
+    @property
+    def config(self):
+        config = self.root.tracker.config.setdefault("sleep", {})
+        config.setdefault("evening_music", [])
+        config.setdefault("wakeup_music", [])
+        return config
+
+    def sleep_music(self):
+        if self.sleep_music_played:
+            return
+        self.sleep_music_played = True
+
+        if self.canceller is not None:
+            self.canceller.cancel()
+
+        alarmclock.set_volume(1)
+        canceller = alarmclock._StopPlaying()
+        canceller.add_monitor(self)
+        canceller, deferred = alarmclock.play_list(
+                self.config["evening_music"])
+        self.canceller = canceller
+
+    def wakeup_music(self):
+        if self.canceller is not None:
+            self.canceller.cancel()
+
+        self.fader = alarmclock.VolumeFader(alarmclock.default_curve,
+                seconds=600)
+        canceller, deferred = play_list(self.config["wakeup_music"],
+                canceller=self.fader.canceller)
+        canceller.add_monitor(self)
+        self.canceller = canceller
+        deferred.addCallback(self.wakeup_complete)
+
+    def wakeup_complete(self, cancelled):
+        self.root.activate_next()
 
 
 @nodecreator("days")
@@ -143,14 +301,26 @@ class Days(Node):
         self.day_children = {}
         self.archive_date = (datetime.now() - timedelta(days=31)).date()
 
-    def active_day(self):
+    def active_child(self):
         for parent in self.root.active_node.iter_parents():
             if parent.parent is self:
                 return parent
         return None
 
-    def sleep(self, amount=None, until=None):
-        current = self.active_day()
+    def active_day(self):
+        child = self.active_child()
+        if child is not None and child.node_type != "day":
+            return None
+        return child
+
+    def active_sleep(self):
+        child = self.active_child()
+        if child is not None and child.node_type != "sleep":
+            return None
+        return child
+
+    def prep_sleep(self, amount=None, until=None):
+        current = self.active_child()
         if current.node_type == "sleep":
             raise Exception("already sleeping")
 
@@ -160,7 +330,8 @@ class Days(Node):
         warn_skip = []
         sleep_node = None
 
-        for node in current.iter_forward():
+        iterator = current.iter_forward()
+        for node in iterator:
             if node.node_type in task_types:
                 if node.date > sleep_day:
                     sleep_node = None
@@ -179,8 +350,13 @@ class Days(Node):
             sleep_node.update(amount=amount, until=until)
 
         for node in warn_skip:
-            sleep_node.createchild("comment", "WARNING: skipped %r" % node)
+            message = "WARNING: skipped %r" % node
+            if not sleep_node.find_node(["comment: %s" % message]):
+                sleep_node.createchild("comment", message)
 
+        return sleep_node
+
+    def sleep(self, amount=None, until=None):
         if not sleep_node.can_activate:
             raise Exception("Couldn't activate sleep node")
         prev_active = self.root.active_node
@@ -190,6 +366,11 @@ class Days(Node):
             node.finish()
             if node is current:
                 break
+
+    def wakeup(self):
+        sleep = self.active_sleep
+        if not sleep:
+            raise Exception("Already awake")
 
     @classmethod
     def make_skeleton(cls, root):

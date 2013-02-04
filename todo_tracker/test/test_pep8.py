@@ -23,6 +23,8 @@ ignore = [
     "E702",  # Multiple statements on one line (get over yourself, I know when
              #     to use this)
     "E121",  # stfu about continued comment on previous line in this file
+    "E201",  # whitespace after ( in function call - used for vertical time
+             # alignment
 ]
 
 try:

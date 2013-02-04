@@ -17,6 +17,7 @@ class Tracker(object):
             roottype=TreeRootNode):
         self.make_skeleton = skeleton
         self.nodecreator = nodecreator
+        self.config = {}
 
         self.roottype = TreeRootNode
 

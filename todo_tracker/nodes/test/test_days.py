@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 import pytest
 
@@ -8,7 +8,9 @@ from todo_tracker.nodes.misc import GenericActivate
 from todo_tracker.nodes import days
 
 
-def test_ordering():
+def test_ordering(setdt):
+    setdt(days, 2012, 12, 22, 12)
+
     day1 = Day("day", "December 22, 2012", None)
     sleep1 = Sleep("sleep", "December 22, 2012", None)
     day2 = Day("day", "December 23, 2012", None)
@@ -60,6 +62,7 @@ def test_acceptable_day(setdt):
 
 
 def test_acceptable_sleep(setdt):
+    setdt(days, 2012, 1, 1)
     sleep = Sleep("sleep", "December 22, 2012", None)
 
     values = {
@@ -192,7 +195,9 @@ class TestMakeSkeleton(object):
             "        @active\n"
         )
 
-    def test_no_acceptable_activate(self, setdt):
+    def test_no_acceptable_activate(self, setdt, monkeypatch):
+        monkeypatch.setattr(Day, "_post_started", lambda self: None)
+
         tracker = Tracker(skeleton=False)
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
@@ -200,7 +205,8 @@ class TestMakeSkeleton(object):
         from todo_tracker.nodes import tasks
         setdt(days, tasks, 2012, 12, 22, 12)
 
-        days_node.createchild("day", "December 19, 2012")
+        days_node.createchild("day", "December 19, 2012 (This should be "
+                "ignored)")
         days_node.createchild("day", "December 20, 2012")
         days_node.createchild("day", "December 21, 2012")
 
@@ -216,7 +222,9 @@ class TestMakeSkeleton(object):
             "        @active\n"
         )
 
-    def test_edge_cases(self, setdt):
+    def test_edge_cases(self, setdt, monkeypatch):
+        monkeypatch.setattr(Day, "_post_started", lambda self: None)
+
         tracker = Tracker(skeleton=False)
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
@@ -337,7 +345,8 @@ def test_archiving(setdt):
     ]
 
 
-def test_ui_serialize(setdt):
+def test_ui_serialize(setdt, monkeypatch):
+    monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
@@ -390,7 +399,8 @@ def test_ui_serialize_existing(setdt):
     }
 
 
-def test_ui_serialize_rollover(setdt):
+def test_ui_serialize_rollover(setdt, monkeypatch):
+    monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
@@ -422,6 +432,38 @@ def test_ui_serialize_rollover(setdt):
     }
 
 
+def test_ui_serialize_sleepnode(setdt, monkeypatch):
+    monkeypatch.setattr(Day, "_post_started", lambda self: None)
+    tracker = Tracker(skeleton=False)
+    days_node = Days("days", None, tracker.root)
+    tracker.root.addchild(days_node)
+
+    from todo_tracker.nodes import tasks
+    setdt(days, tasks, 2012, 12, 22, 12)
+
+    before = [
+        days_node.createchild("day", "December 19, 2012"),
+        days_node.createchild("day", "December 20, 2012"),
+        days_node.createchild("day", "December 21, 2012"),
+    ]
+    after = [
+        days_node.createchild("sleep", "December 21, 2012"),
+        days_node.createchild("day", "December 22, 2012"),
+        days_node.createchild("day", "December 23, 2012"),
+        days_node.createchild("day", "December 24, 2012"),
+        days_node.createchild("day", "December 25, 2012"),
+        days_node.createchild("day", "December 26, 2012"),
+    ]
+    tracker.root.activate(after[0])
+
+    assert days_node.ui_serialize() == {
+        "children": [node.ui_serialize() for node in after],
+        "hidden_children": [node.ui_serialize() for node in before],
+        "text": None,
+        "type": "days"
+    }
+
+
 def test_approx_delta():
     from datetime import date
     now = date(2012, 12, 26)
@@ -439,3 +481,100 @@ def test_approx_delta():
     assert approx_delta(now, date(2011, 12, 27)) == '12 months ago'
     assert approx_delta(now, date(2012, 12, 20)) == '6 days ago'
     assert approx_delta(now, date(2012, 12, 19)) == '1 week ago'
+
+
+class TestSleepNode(object):
+    def test_properly_initialized(self, setdt):
+        setdt(days, 2013, 1, 30, 23)
+        node = Sleep("sleep", "today", None)
+
+        assert node.wake_alarm.date is None
+        assert not node.wake_alarm.called
+        assert node.canceller is None
+        assert node.until_time is None
+        assert node.until is None
+        assert node.amount is None
+
+    @pytest.mark.parametrize(("until", "until_dt"), [
+        (time(22, 50), datetime(2013, 1, 31, 22, 50)),
+        (time(23,  1), datetime(2013, 1, 30, 23, 01)),
+        (time( 1,  0), datetime(2013, 1, 31,  1,  0)),
+        (time( 7,  0), datetime(2013, 1, 31,  7,  0)),
+        (time(12,  0), datetime(2013, 1, 31,  12, 0)),
+        (time(12,  0), datetime(2013, 1, 31,  12, 0)),
+    ])
+    def test_combine_until(self, setdt, until, until_dt):
+        setdt(days, 2013, 1, 30, 23)
+        node = Sleep("sleep", "today", None)
+
+        assert node._combine_until(until) == until_dt
+
+    @pytest.mark.parametrize('hour', [1, 13])
+    def test_day_creation(self, setdt, hour):
+        setdt(days, 2013, 1, 30, hour)
+        tracker = Tracker(skeleton=False)
+
+        tracker.deserialize("str",
+            "days\n"
+            "    day: today\n"
+            "        @active\n"
+        )
+
+        days_node = tracker.root.children.next_neighbor
+        node = days_node.find_node(['sleep: today'])
+        assert node
+        assert node.prev_neighbor.node_type == "day"
+
+    def test_update(self, setdt):
+        setdt(days, 2013, 1, 30, 23)
+
+        node = Sleep("sleep", "today", None)
+
+        def _assert(up=None):
+            if up:
+                node_value.update(up)
+            for name, value in node_value.items():
+                if value is None:
+                    assert getattr(node, name) is None
+                else:
+                    assert getattr(node, name) == value
+        node_value = {}
+
+        _assert({
+            "amount": None,
+            "until_time": None,
+            "until": None
+        })
+
+        node._adjust_times()
+        _assert()
+
+        newuntil = datetime(2013, 1, 31, 12)
+        node.update(until=newuntil)
+        _assert({"until": newuntil})
+
+        newuntil = time(7, 0)
+        node.update(until=newuntil)
+        _assert({
+            "until": datetime(2013, 1, 31, 7, 0),
+            "until_time": newuntil
+        })
+
+        node.update(amount=timedelta(hours=8))
+        _assert({
+            "until": None,
+            "until_time": None,
+            "amount": timedelta(hours=8)
+        })
+
+        node._adjust_times()
+        _assert({
+            "until": datetime(2013, 1, 31, 7, 0)
+        })
+
+    def test_has_manually_tested_alarms(self):
+        assert False, "please manually test alarms"
+
+    def test_make_day(self):
+        assert False, ("please make it make a new day when a "
+                "sleep node is active")

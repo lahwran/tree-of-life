@@ -299,10 +299,11 @@ class Node(object):
                 stack.append(iter(item.children))
 
     def iter_forward(self):
-        return _NodeListIter(self.children, init_node=self)
+        return _NodeListIter(self.parent.children, init_node=self)
 
     def iter_backward(self):
-        return _NodeListIter(self.children, init_node=self, reverse=True)
+        return _NodeListIter(self.parent.children, init_node=self,
+                reverse=True)
 
     @property
     def next_neighbor(self):

@@ -111,3 +111,13 @@ def timedelta_to_str(delta):
 class DatetimeOption(Option):
     incoming = staticmethod(str_to_datetime)
     outgoing = staticmethod(datetime_to_str)
+
+
+class TimedeltaOption(Option):
+    incoming = staticmethod(str_to_timedelta)
+    outgoing = staticmethod(timedelta_to_str)
+
+
+class TimeOption(Option):
+    incoming = staticmethod(str_to_time)
+    outgoing = staticmethod(time_to_str)

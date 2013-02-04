@@ -665,40 +665,9 @@ class TestRootNode(object):
         tracker.root.activate_next()
         assert tracker.root.active_node is node
 
-    @pytest.mark.xfail
-    def test_skeleton(self):
-        tracker = Tracker(
-                nodecreator=FakeNodeCreator(GenericActivate))
-        serialized = serialize_to_str(tracker.root)
-        assert serialized == (
-            "days\n"
-            "    day: today\n"
-            "        @active\n"
-            "todo bucket\n"
-            "fitness log\n"
-        )
-
-    @pytest.mark.xfail
-    def test_skeleton_load(self):
-        tracker = Tracker(
-                nodecreator=FakeNodeCreator(GenericActivate))
-        tracker.deserialize("str",
-            "days\n"
-            "    day: yesterday\n"
-            "        @active\n"
-        )
-
-        serialized = serialize_to_str(tracker.root)
-        assert serialized == (
-            "days\n"
-            "    day: yesterday\n"
-            "    day: today\n"
-            "        @active\n"
-            "todo bucket\n"
-            "fitness log\n"
-        )
-
-    def test_skeleton_load_integration(self):
+    def test_skeleton_load_integration(self, setdt):
+        from todo_tracker.nodes import days
+        setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
             "days\n"
@@ -710,13 +679,16 @@ class TestRootNode(object):
         tracker.root.active_node.started = None
         assert serialize_to_str(tracker.root) == (
             "days\n"
-            "    day: %s\n"
+            "    day: {0}\n"
             "        @active\n"
+            "    sleep: {0}\n"
             "todo bucket\n"
             "fitness log\n"
-        ) % today
+        ).format(today)
 
-    def test_skeleton_day_active(self):
+    def test_skeleton_day_active(self, setdt):
+        from todo_tracker.nodes import days
+        setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
             "days\n"
@@ -724,6 +696,7 @@ class TestRootNode(object):
             "        @started: September 23, 2012 11:00 AM\n"
             "        _genactive: something\n"
             "            @active\n"
+            "    sleep: today\n"
             "todo bucket\n"
             "fitness log"
         )
@@ -731,10 +704,11 @@ class TestRootNode(object):
         tracker.root.active_node.started = None
         assert serialize_to_str(tracker.root) == (
             "days\n"
-            "    day: %s\n"
+            "    day: {0}\n"
             "        @started: September 23, 2012 11:00:00 AM\n"
             "        _genactive: something\n"
             "            @active\n"
+            "    sleep: {0}\n"
             "todo bucket\n"
             "fitness log\n"
-        ) % today.text
+        ).format(today.text)
