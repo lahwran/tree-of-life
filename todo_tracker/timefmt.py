@@ -1,8 +1,8 @@
 import functools
 
 import datetime
-from ometa.runtime import ParseError
 from todo_tracker.parseutil import Grammar
+from ometa.runtime import ParseError
 
 
 from todo_tracker.nodes import Option
@@ -106,6 +106,48 @@ def timedelta_to_str(delta):
         result.append("%ds" % seconds)
     result_str = " ".join(result)
     return result_str
+
+week_length = 7
+month_length = 365.0 / 12.0
+year_length = 365.25
+
+
+def approx_delta(cur_date, other_date):
+    if other_date == cur_date:
+        return 'today'
+
+    delta = other_date - cur_date
+    days = abs(delta.days)
+    if delta.days == 1:
+        return 'tomorrow'
+    elif delta.days == -1:
+        return 'yesterday'
+    elif days < week_length:
+        value = days
+        unit = 'day'
+    elif days < month_length:
+        value = float(days) / week_length
+        unit = 'week'
+    elif days < year_length:
+        value = days / month_length
+        unit = 'month'
+    else:
+        value = days / year_length
+        unit = 'year'
+
+    value_float = value
+    value = int(value)
+
+    # plurals
+    if value > 1:
+        unit += 's'
+
+    if other_date < cur_date:
+        return '%d %s ago' % (value, unit)
+    elif value_float == value:
+        return '%d %s' % (value, unit)
+    else:
+        return '%d+ %s' % (value, unit)
 
 
 class DatetimeOption(Option):

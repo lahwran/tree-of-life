@@ -12,48 +12,6 @@ logger = logging.getLogger(__name__)
 
 task_types = ("day", "sleep")
 
-week_length = 7
-month_length = 365.0 / 12.0
-year_length = 365.25
-
-
-def approx_delta(cur_date, other_date):
-    if other_date == cur_date:
-        return 'today'
-
-    delta = other_date - cur_date
-    days = abs(delta.days)
-    if delta.days == 1:
-        return 'tomorrow'
-    elif delta.days == -1:
-        return 'yesterday'
-    elif days < week_length:
-        value = days
-        unit = 'day'
-    elif days < month_length:
-        value = float(days) / week_length
-        unit = 'week'
-    elif days < year_length:
-        value = days / month_length
-        unit = 'month'
-    else:
-        value = days / year_length
-        unit = 'year'
-
-    value_float = value
-    value = int(value)
-
-    # plurals
-    if value > 1:
-        unit += 's'
-
-    if other_date < cur_date:
-        return '%d %s ago' % (value, unit)
-    elif value_float == value:
-        return '%d %s' % (value, unit)
-    else:
-        return '%d+ %s' % (value, unit)
-
 
 class DateTask(BaseTask):
     chidren_of = ("days",)
@@ -66,7 +24,7 @@ class DateTask(BaseTask):
     @property
     def text(self):
         date_str = timefmt.date_to_str(self.date)
-        delta = approx_delta(datetime.now().date(), self.date)
+        delta = timefmt.approx_delta(datetime.now().date(), self.date)
         date_str += ' (%s, %s)' % (self.date.strftime('%A'), delta)
         return date_str
 
@@ -77,6 +35,21 @@ class DateTask(BaseTask):
             new = new.strip()
 
         self.date = timefmt.str_to_date(new)
+
+    def start(self):
+        DateTask.start(self)
+        if self.root.loading_in_progress:
+            self.load_finished = self._post_started
+        else:
+            self._post_started()
+
+    def _post_started(self):
+        if self.load_finished == self._post_started:
+            del vars(self)["load_finished"]
+        self.post_started()
+
+    def post_started(self):
+        pass
 
 
 @nodecreator("day")
@@ -104,17 +77,8 @@ class Day(DateTask):
             return 1
         return 3
 
-    def start(self):
-        DateTask.start(self)
-        if self.root.loading_in_progress:
-            self.load_finished = self._post_started
-        else:
-            self._post_started()
-
-    def _post_started(self):
-        if self.load_finished == self._post_started:
-            del vars(self)["load_finished"]
-        self.parent.prep_sleep()
+    def post_started(self):
+        self.parent.prep_sleep(sleep_day=self.date)
 
 
 def pick_best(func, options, target):
@@ -266,7 +230,8 @@ class Sleep(DateTask, alarms.NodeMixin):
         canceller = alarmclock._StopPlaying()
         canceller.add_monitor(self)
         canceller, deferred = alarmclock.play_list(
-                self.config["evening_music"])
+                self.config["evening_music"],
+                canceller=canceller)
         self.canceller = canceller
 
     def wakeup_music(self):
@@ -280,6 +245,9 @@ class Sleep(DateTask, alarms.NodeMixin):
         canceller.add_monitor(self)
         self.canceller = canceller
         deferred.addCallback(self.wakeup_complete)
+
+    def _stop_playing_trigger(self):
+        return self.root.tracker.root is not self.root
 
     def wakeup_complete(self, cancelled):
         self.root.activate_next()
@@ -319,14 +287,15 @@ class Days(Node):
             return None
         return child
 
-    def prep_sleep(self, amount=None, until=None):
+    def prep_sleep(self, amount=None, until=None, sleep_day=None):
         current = self.active_child()
         if current.node_type == "sleep":
             raise Exception("already sleeping")
 
         assert current.node_type == "day"
 
-        sleep_day = (datetime.now() - timedelta(hours=4)).date()
+        if sleep_day is None:
+            sleep_day = (datetime.now() - timedelta(hours=4)).date()
         warn_skip = []
         sleep_node = None
 

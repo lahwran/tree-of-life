@@ -3,6 +3,7 @@ import itertools
 import pytest
 
 from todo_tracker.nodes import GenericNode, GenericActivate
+from todo_tracker.nodes.node import TreeRootNode
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker import exceptions
@@ -140,3 +141,16 @@ class TestTracker(object):
             assert "Exception: test exception" in result
         else:  # pragma: no cover
             assert False
+
+    def test_roottype(self):
+        class SubRootNode(TreeRootNode):
+
+            target_variable = "present"
+
+        tracker = Tracker(skeleton=False, roottype=SubRootNode)
+        assert tracker.roottype is SubRootNode
+        assert type(tracker.root) is SubRootNode
+
+        tracker.deserialize("str", "")
+
+        assert type(tracker.root) is SubRootNode

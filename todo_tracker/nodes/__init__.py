@@ -6,3 +6,5 @@ from .misc import (Comment, GenericNode, GenericActivate, TodoItem,
 from .recordkeeping import FitnessLog, Weight, Calories, Waist, Workout
 from .references import Reference, DummyReference
 from .days import Day, Days
+
+import todo_tracker.nodes.testnodes

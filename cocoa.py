@@ -364,6 +364,8 @@ argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
 argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
+argparser.add_argument("--ignore-tests", action="store_true",
+        dest="ignore_tests")
 
 
 class Restarter(object):
@@ -422,11 +424,12 @@ def init_log(config):
 
 
 def main(restarter, args):
+    config = argparser.parse_args(args)
+
     import pytest
-    if pytest.main([]) != 0:
+    if pytest.main([]) != 0 and not config.ignore_tests:
         return
 
-    config = argparser.parse_args(args)
     if config.dev:
         config.path += "_dev"
         config.logname += "_dev"

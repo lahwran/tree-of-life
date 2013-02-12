@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 import pytest
 
 from todo_tracker.tracker import Tracker
-from todo_tracker.nodes.days import Day, Sleep, Days, approx_delta
+from todo_tracker.nodes.days import Day, Sleep, Days
 from todo_tracker.nodes.misc import GenericActivate
 from todo_tracker.nodes import days
 
@@ -464,25 +464,6 @@ def test_ui_serialize_sleepnode(setdt, monkeypatch):
     }
 
 
-def test_approx_delta():
-    from datetime import date
-    now = date(2012, 12, 26)
-    assert approx_delta(now, date(2012, 12, 31)) == '5 days'
-    assert approx_delta(now, date(2013, 12, 31)) == '1+ year'
-    assert approx_delta(now, date(2013, 1, 31)) == '1+ month'
-    assert approx_delta(now, date(2013, 4, 7)) == '3+ months'
-    assert approx_delta(now, date(2013, 3, 21)) == '2+ months'
-    assert approx_delta(now, date(2013, 1, 15)) == '2+ weeks'
-    assert approx_delta(now, date(2012, 12, 27)) == 'tomorrow'
-    assert approx_delta(now, date(2012, 12, 26)) == 'today'
-    assert approx_delta(now, date(2012, 12, 25)) == 'yesterday'
-    assert approx_delta(now, date(2011, 12, 25)) == '1 year ago'
-    assert approx_delta(now, date(2011, 12, 26)) == '1 year ago'
-    assert approx_delta(now, date(2011, 12, 27)) == '12 months ago'
-    assert approx_delta(now, date(2012, 12, 20)) == '6 days ago'
-    assert approx_delta(now, date(2012, 12, 19)) == '1 week ago'
-
-
 class TestSleepNode(object):
     def test_properly_initialized(self, setdt):
         setdt(days, 2013, 1, 30, 23)
@@ -572,9 +553,13 @@ class TestSleepNode(object):
             "until": datetime(2013, 1, 31, 7, 0)
         })
 
-    def test_has_manually_tested_alarms(self):
-        assert False, "please manually test alarms"
+    def test_activation_no_time(self):
+        tracker = Tracker(skeleton=False)
 
-    def test_make_day(self):
-        assert False, ("please make it make a new day when a "
-                "sleep node is active")
+        tracker.deserialize("str",
+            "days\n"
+            "    day: today\n"
+            "        @active\n"
+        )
+
+        tracker.root.activate_next()

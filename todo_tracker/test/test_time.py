@@ -98,3 +98,22 @@ class TestParsers(object):
         assert timefmt.TimeGrammar("00:00 pm").time() == datetime.time(12, 0)
         assert timefmt.TimeGrammar("01:00 pm").time() == datetime.time(13, 0)
         assert timefmt.TimeGrammar("13:00"   ).time() == datetime.time(13, 0)
+
+
+def test_approx_delta():
+    now = datetime.date(2012, 12, 26)
+    approx_delta = timefmt.approx_delta
+    assert approx_delta(now, datetime.date(2012, 12, 31)) == '5 days'
+    assert approx_delta(now, datetime.date(2013, 12, 31)) == '1+ year'
+    assert approx_delta(now, datetime.date(2013, 1, 31)) == '1+ month'
+    assert approx_delta(now, datetime.date(2013, 4, 7)) == '3+ months'
+    assert approx_delta(now, datetime.date(2013, 3, 21)) == '2+ months'
+    assert approx_delta(now, datetime.date(2013, 1, 15)) == '2+ weeks'
+    assert approx_delta(now, datetime.date(2012, 12, 27)) == 'tomorrow'
+    assert approx_delta(now, datetime.date(2012, 12, 26)) == 'today'
+    assert approx_delta(now, datetime.date(2012, 12, 25)) == 'yesterday'
+    assert approx_delta(now, datetime.date(2011, 12, 25)) == '1 year ago'
+    assert approx_delta(now, datetime.date(2011, 12, 26)) == '1 year ago'
+    assert approx_delta(now, datetime.date(2011, 12, 27)) == '12 months ago'
+    assert approx_delta(now, datetime.date(2012, 12, 20)) == '6 days ago'
+    assert approx_delta(now, datetime.date(2012, 12, 19)) == '1 week ago'

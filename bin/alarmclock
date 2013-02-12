@@ -6,5 +6,6 @@ try:
 except ImportError:
     sys.exc_clear()
 
+import todo_tracker.tracker # primary module entry point
 from todo_tracker import alarmclock
 alarmclock.main(*sys.argv[1:])

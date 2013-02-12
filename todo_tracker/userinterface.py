@@ -8,12 +8,13 @@ import time
 import logging
 
 from todo_tracker.file_storage import parse_line
-from todo_tracker.nodes.node import nodecreator
+from todo_tracker.nodes.node import nodecreator, TreeRootNode
 from todo_tracker.tracker import Tracker
 from todo_tracker.exceptions import InvalidInputError
 from todo_tracker.util import tempfile, HandlerList, Profile
 from todo_tracker.parseutil import Grammar
 from todo_tracker import timefmt
+from todo_tracker import alarms
 
 logger = logging.getLogger(__name__)
 
@@ -149,9 +150,17 @@ class Event(object):
         self.ui = ui
 
 
-class CommandInterface(Tracker):
+class MixedAlarmRoot(TreeRootNode, alarms.RootMixin):
+    pass
+
+
+class CommandInterface(Tracker, alarms.TrackerMixin):
     max_format_depth = 2
     _default_command = "createauto"
+
+    def __init__(self, *args, **kwargs):
+        kwargs["roottype"] = MixedAlarmRoot
+        Tracker.__init__(self, *args, **kwargs)
 
     def _command(self, source, command_name, text):
         try:

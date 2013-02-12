@@ -19,7 +19,7 @@ class Tracker(object):
         self.nodecreator = nodecreator
         self.config = {}
 
-        self.roottype = TreeRootNode
+        self.roottype = roottype
 
         self.root = self.roottype(self, self.nodecreator,
                 loading_in_progress=False)

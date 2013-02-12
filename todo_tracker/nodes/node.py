@@ -604,6 +604,10 @@ class TreeRootNode(Node):
         self.todo = None
         self.todo_review = None
 
+    def load_finished(self):
+        if getattr(self, "_alarm_hook", None) is not None:
+            self._alarm_hook()
+
     def make_skeleton(self):
         for node_class in set(self.nodecreator.values()):
             func = getattr(node_class, "make_skeleton", None)
