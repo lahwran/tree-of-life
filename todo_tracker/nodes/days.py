@@ -51,6 +51,19 @@ class DateTask(BaseTask):
     def post_started(self):
         pass
 
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+
+        prev = self.prev_neighbor
+        if getattr(prev, "date", None) is None:
+            result["prefix_delta"] = 0
+        else:
+            delta = self.date - prev.date
+            result["prefix_delta"] = delta.days * 4
+
+        return super(DateTask, self).ui_serialize(result)
+
 
 @nodecreator("day")
 class Day(DateTask):

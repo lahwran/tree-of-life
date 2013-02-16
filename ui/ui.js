@@ -125,7 +125,12 @@ function render_tree(tree) {
     if (tree.is_toplevel === true && tree.type != "days") {
         return "";
     }
+
     var rendered = $handlebars(".node-template", tree);
+    if (tree.type === "day") {
+        rendered.css("margin-top",
+                "" + tree.prefix_delta + "px !important");
+    }
     var children_bucket = rendered.find(".children");
     if (tree.children) {
         $.each(tree.children, function(index, item) {
@@ -147,7 +152,7 @@ message_handlers = {
         $(".tree").empty();
         $.each(tree_root, function(index, item) {
             $(".tree").append(render_tree(item));
-            if (item.type == "todo bucket" && item.children !== undefined) {
+            if (item.type == "todo bucket") {
                 $(".todo").empty();
                 $.each(item.children, function(index, item) {
                     $(".todo").append(render_tree(item));
