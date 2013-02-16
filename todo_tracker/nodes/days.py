@@ -37,7 +37,7 @@ class DateTask(BaseTask):
         self.date = timefmt.str_to_date(new)
 
     def start(self):
-        DateTask.start(self)
+        BaseTask.start(self)
         if self.root.loading_in_progress:
             self.load_finished = self._post_started
         else:
@@ -78,6 +78,7 @@ class Day(DateTask):
         return 3
 
     def post_started(self):
+        return
         self.parent.prep_sleep(sleep_day=self.date)
 
 
