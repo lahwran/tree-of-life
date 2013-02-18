@@ -91,7 +91,6 @@ class Day(DateTask):
         return 3
 
     def post_started(self):
-        return
         self.parent.prep_sleep(sleep_day=self.date)
 
 
@@ -118,8 +117,8 @@ class Sleep(DateTask, alarms.NodeMixin):
     )
 
     def __init__(self, *a, **kw):
-        self.wake_alarm = self.alarm(self.wakeup_music)
-        self.sleep_music_alarm = self.alarm(self.sleep_music)
+        self.wake_alarm = None  # self.alarm(self.wakeup_music)
+        self.sleep_music_alarm = None  # self.alarm(self.sleep_music)
         self.canceller = None
         self.amount = None
         self.until_time = None
@@ -128,8 +127,8 @@ class Sleep(DateTask, alarms.NodeMixin):
 
         DateTask.__init__(self, *a, **kw)
 
-    def load_finished(self):
-        assert self.config
+#    def load_finished(self):
+#        assert self.config
 
     def __gt__(self, other):
         if other.node_type == "day":
@@ -150,6 +149,7 @@ class Sleep(DateTask, alarms.NodeMixin):
         self.update(amount=amount, until=until)
 
     def _combine_until(self, until):
+        assert False, "sleep node is deactivated, please don't run me"
         now = datetime.now()
 
         def evaluate(date):
@@ -170,6 +170,9 @@ class Sleep(DateTask, alarms.NodeMixin):
         return until
 
     def update(self, amount=None, until=None):
+        logger.error("sleep node is deactivated, please don't run me: %s, %s",
+                amount, until)
+        return
         assert not self.active, "can't update an active sleep node"
         # can't do both at once
         assert amount is None or until is None, (
@@ -196,6 +199,7 @@ class Sleep(DateTask, alarms.NodeMixin):
         logger.debug("setting %r until %r", self, self.until)
 
     def _adjust_times(self):
+        assert False, "sleep node is deactivated, please don't run me"
         if self.amount is not None:
             self.until = datetime.now() + self.amount
 
@@ -205,7 +209,8 @@ class Sleep(DateTask, alarms.NodeMixin):
 
     @active.setter
     def active(self, active):
-        if active:
+        if 0:
+            assert False, "sleep node is deactivated, please don't run me"
             self._adjust_times()
             if not self.until:
                 self.update(until=time(7, 0))
@@ -214,25 +219,28 @@ class Sleep(DateTask, alarms.NodeMixin):
             self.sleep_music()
 
             logger.debug("marking %r active until %r", self, self.until)
-        else:
-            self.wake_alarm.date = None
-            logger.debug("marking %r inactive", self)
+        #else:
+        #    self.wake_alarm.date = None
+        #    logger.debug("marking %r inactive", self)
         self._active = active
 
     def finish(self):
         DateTask.finish(self)
         if self.canceller:
+            assert False, "sleep node is deactivated, please don't run me"
             self.canceller.cancel()
         self.sleep_music_played = False
 
     @property
     def config(self):
+        assert False, "sleep node is deactivated, please don't run me"
         config = self.root.tracker.config.setdefault("sleep", {})
         config.setdefault("evening_music", [])
         config.setdefault("wakeup_music", [])
         return config
 
     def sleep_music(self):
+        assert False, "sleep node is deactivated, please don't run me"
         if self.sleep_music_played:
             return
         self.sleep_music_played = True
@@ -249,6 +257,7 @@ class Sleep(DateTask, alarms.NodeMixin):
         self.canceller = canceller
 
     def wakeup_music(self):
+        assert False, "sleep node is deactivated, please don't run me"
         if self.canceller is not None:
             self.canceller.cancel()
 
@@ -261,9 +270,11 @@ class Sleep(DateTask, alarms.NodeMixin):
         deferred.addCallback(self.wakeup_complete)
 
     def _stop_playing_trigger(self):
+        assert False, "sleep node is deactivated, please don't run me"
         return self.root.tracker.root is not self.root
 
     def wakeup_complete(self, cancelled):
+        assert False, "sleep node is deactivated, please don't run me"
         self.root.activate_next()
 
 
@@ -431,7 +442,7 @@ class Days(Node):
         if result is None:
             result = {}
 
-        today = self.active_day()
+        today = self.active_child()
         past_days = []
         future_days = []
         current = past_days
