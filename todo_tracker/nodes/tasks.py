@@ -112,6 +112,23 @@ class BaseTask(Node):
         result["finished"] = bool(self.finished)
         return super(BaseTask, self).ui_serialize(result)
 
+    def search_tags(self):
+        tags = Node.search_tags(self)
+        if self.finished:
+            tags.add("finished")
+        else:
+            tags.add("unfinished")
+        if self.started:
+            tags.add("started")
+        else:
+            tags.add("unstarted")
+        if self.active:
+            tags.add("active")
+        else:
+            tags.add("inactive")
+
+        return tags
+
 
 @nodecreator("task")
 @nodecreator("project")

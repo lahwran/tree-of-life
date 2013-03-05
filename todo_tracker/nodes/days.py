@@ -64,6 +64,13 @@ class DateTask(BaseTask):
 
         return super(DateTask, self).ui_serialize(result)
 
+    def search_texts(self):
+        types, texts = BaseTask.search_texts(self)
+        texts.add(timefmt.approx_delta(datetime.now().date(), self.date))
+        texts.add(self.date.strftime('%A'))
+
+        return types, texts
+
 
 @nodecreator("day")
 class Day(DateTask):

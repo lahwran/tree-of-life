@@ -435,6 +435,12 @@ class Node(object):
         result["text"] = self.text
         return result
 
+    def search_texts(self):
+        return set([self.node_type]), set([self.text])
+
+    def search_tags(self):
+        return set()
+
     #-------------------------------------------------#
     #                      misc                       #
     #-------------------------------------------------#

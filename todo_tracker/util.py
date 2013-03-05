@@ -20,6 +20,8 @@ class HandlerList(object):
         setattr(self, self.name, {})
 
     def add(self, name=None):
+        assert getattr(name, "__call__", None) is None
+
         def _inner(func):
             _name = name
             if _name is None:
