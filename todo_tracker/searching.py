@@ -12,8 +12,8 @@ _TaggedPattern = namedtuple('TaggedPattern', 'pat, tags')
 
 
 class JoinedSearch(object):
-    def __init__(self, initial, following):
-        self.segments = [initial] + list(following)
+    def __init__(self, *segments):
+        self.segments = list(segments)
 
     def __call__(self, nodes):
         if getattr(nodes, "node_type", None) is not None:
@@ -24,6 +24,9 @@ class JoinedSearch(object):
 
         return nodes
 
+    def __repr__(self):
+        return "<query %r>" % self.segments
+
 pluralities = set(["many", "first", "last"])
 
 
@@ -32,7 +35,8 @@ def split_tags(orig_tags):
     plurality = None
     for tag in orig_tags:
         if tag in pluralities:
-            assert plurality is None
+            if not plurality is None:
+                assert False
             plurality = tag
         else:
             tags.add(tag)
@@ -67,18 +71,21 @@ class SearchGrammar(parseutil.Grammar):
     grammar = """
     ws = ' '+
     text = <(~separator ~tags_begin ~': ' anything)+>
+    node_text = <(~separator ~tags_begin anything)+>
+    node_text_star = ('*' node_text? -> '*') | ~'*' node_text
+    text_star = ('*' text? -> '*' ) | ~'*' text
 
     createrel = '+' | '-' | -> 'default'
-    node_base = ws? createrel:rel ('*' | ~'*' text):node
-                (~tags_begin ws? ':' ws ('*' | ~'*' text))?:text
+    node_base = ws? createrel:rel (text_star:node
+                (~tags_begin ws? ':' ws node_text_star)?:text
                 -> Node(rel, node, text)
-                | -> Node('default', '*', None)
+                | -> Node(rel, '*', None))
 
     tagged_node = node_base:pattern (tags | -> ()):tags -> pattern, tags
     matcher :sep = tagged_node:p -> make_segment(sep, p[0], p[1])
 
     tags_begin = ws? ':{'
-    tags_end = ws? '}'
+    tags_end = ws? '}' | ~~separator
     tags_sep = ws? ','
     tag_text = <(~tags_end ~tags_sep anything)+>
     tag_texts = ws? tag_text:tag1 (tags_sep ws? tag_text)*:tags
@@ -95,7 +102,7 @@ class SearchGrammar(parseutil.Grammar):
     query = (separator | -> 'children'):initial_sep
             matcher(initial_sep):initial
             (separator:sep matcher(sep))*:following
-            -> JoinedSearch(initial, following)
+            -> JoinedSearch(initial, *following)
 
     """
     bindings = {
@@ -109,21 +116,29 @@ query = SearchGrammar.wraprule("query")
 
 
 class Creator(object):
-    def __init__(self, querytext):
-        self.joinedsearch = query(querytext)
+    def __init__(self, querytext=None, joinedsearch=None):
+        if joinedsearch is not None:
+            self.joinedsearch = joinedsearch
+        else:
+            self.joinedsearch = query(querytext)
+        del joinedsearch
 
-        segment = joinedsearch.segments.pop()
-        assert segment.matcher is not None, (
+        segment = self.joinedsearch.segments.pop()
+        if not segment.matcher is not None:
+            assert False, (
                 "cannot create node without full node")
-        assert segment.matcher.is_rigid, "cannot create node without full node"
-        assert segment.separator != "parents", "cannot create parent node"
+        if not segment.matcher.is_rigid:
+            assert False, "cannot create node without full node"
+        if not segment.separator != "parents":
+            assert False, "cannot create parent node"
 
         rel = segment.matcher.create_relationship
         if rel == "default":
             new_tags = set(segment.tags)
-            new_tags.add(segment.plurality)
+
             if "before" in new_tags:
-                assert "after" not in tags
+                if "after" in new_tags:
+                    assert False
                 new_tags.remove("before")
                 self.is_before = True
             elif "after" in new_tags:
@@ -131,16 +146,23 @@ class Creator(object):
                 self.is_before = False
             else:
                 self.is_before = True
-                new_tags.add("unstarted")
+                if not new_tags:
+                    new_tags.add("unstarted")
+
+            if segment.plurality is not None:
+                new_tags.add(segment.plurality)
+            elif segment.separator == "prev_peer":
+                new_tags.add("last")
+            else:
+                new_tags.add("first")
+
         else:
-            assert not last.tags, "conflict between rel shortcut and tags"
-            assert segment.plurality is None, (
+            if segment.tags:
+                assert False, "conflict between rel shortcut and tags"
+            if segment.plurality is not None:
+                assert False, (
                     "conflict between rel shortcut and tags")
             is_last = (rel == "+")
-
-            if segment.separator == "prev_peer":
-                # invert order for prev_peer
-                is_last = not is_last
 
             if is_last:
                 new_tags = set(["last"])
@@ -149,22 +171,54 @@ class Creator(object):
                 new_tags = set(["first"])
                 self.is_before = True
 
+            if segment.separator == "prev_peer":
+                # invert order for prev_peer
+                self.is_before = not self.is_before
+
         self.node_type = segment.matcher.type
         self.text = segment.matcher.text
 
-        new_last = make_segment(last.separator, "*", new_tags)
-        self.joinedsearch.segments.append(new_last)
+        if segment.separator not in ("children", "next_peer", "prev_peer"):
+            assert False
+
+        new_last = make_segment(segment.separator,
+                ("default", "*", None), new_tags)
+        self.last_segment = new_last
 
     def __call__(self, nodes):
-        nodes = list(self.joinedsearch(nodes))
+        resulting_nodes = []
 
-        for node in nodes:
-            if self.is_before:
-                rel = {"before": node}
+        for parentnode in list(self.joinedsearch(nodes)):
+            nodes = list(self.last_segment([parentnode]))
+            if nodes:
+                for node in nodes:
+                    if self.is_before:
+                        rel = {"before": node}
+                    else:
+                        rel = {"after": node}
+
+                    # node.parent may not be parentnode, for next_peer and
+                    # prev_peer relationships
+                    new_node = node.parent.createchild(
+                            self.node_type, self.text,
+                            **rel)
+                    resulting_nodes.append(new_node)
+            elif self.last_segment.separator == "children":
+                new_node = parentnode.createchild(
+                        self.node_type, self.text)
+                resulting_nodes.append(new_node)
+            elif self.last_segment.separator == "prev_peer":
+                new_node = parentnode.parent.createchild(
+                        self.node_type, self.text,
+                        before=parentnode.parent.children.next_neighbor)
+                resulting_nodes.append(new_node)
             else:
-                rel = {"after": node}
+                new_node = parentnode.parent.createchild(
+                        self.node_type, self.text,
+                        after=parentnode.parent.children.prev_neighbor)
+                resulting_nodes.append(new_node)
 
-            node.parent.create_child(self.node_type, **rel)
+        return resulting_nodes
 
 
 @retrievers.add()
@@ -185,7 +239,6 @@ def retriever_flatten(nodes):
 def retriever_next_peer(nodes):
     for node in nodes:
         for peer in node.iter_forward():
-            assert peer is not node
             yield peer
 
 
@@ -193,7 +246,6 @@ def retriever_next_peer(nodes):
 def retriever_prev_peer(nodes):
     for node in nodes:
         for peer in node.iter_backward():
-            assert peer is not node
             yield peer
 
 
@@ -209,7 +261,8 @@ def retriever_parents(nodes):
 def tag_filter(nodes, tags):
     tags = set(tags)
     for node in nodes:
-        if tags <= set(node.search_tags()):
+        node_tags = set(node.search_tags())
+        if tags <= node_tags:
             yield node
 
 
@@ -220,8 +273,8 @@ class Matcher(object):
         self.create_relationship = rel
 
         self.is_rigid = self.type is not None and self.text is not None
-        if not self.is_rigid:
-            assert rel == "default"
+        if not self.is_rigid and rel != "default":
+            assert False
 
     def __call__(self, nodes):
         for node in nodes:
@@ -231,6 +284,10 @@ class Matcher(object):
             if self.text is not None and self.text not in texts:
                 continue
             yield node
+
+    def __repr__(self):
+        return "Matcher(%r, %r, rel=%r)" % (self.type, self.text,
+                self.create_relationship)
 
 
 class Segment(object):
@@ -253,9 +310,11 @@ class Segment(object):
             nodes = tag_filter(nodes, self.tags)
 
         if self.plurality == "last":
+            node = None
             for node in nodes:
                 pass
-            yield node
+            if node is not None:
+                yield node
         elif self.plurality == "first":
             for node in nodes:  # pragma: no branch
                 yield node
@@ -263,6 +322,13 @@ class Segment(object):
         else:
             for node in nodes:
                 yield node
+
+    def __repr__(self):
+        return "Segment(%r%s%s%s)" % (
+                self.separator,
+                ", m=" + repr(self.matcher) if self.matcher else "",
+                ", t=" + repr(self.tags) if self.tags else "",
+                ", p=" + repr(self.plurality) if self.plurality else "")
 
 
 if __name__ == "__main__":
@@ -278,7 +344,7 @@ if __name__ == "__main__":
         subprocess.call(["clear"])
         print "query:", querytext
         queryer = query(querytext)
-
+        print queryer
 
         for x in queryer(tracker.root):
             print " > ".join([str(node) for node in x.iter_parents()][::-1])

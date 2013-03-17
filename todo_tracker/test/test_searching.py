@@ -1,10 +1,13 @@
 import pytest
+import string
+from random import Random
 
 from todo_tracker import searching
 from todo_tracker.tracker import Tracker
 from todo_tracker.parseutil import ParseError
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker.nodes.misc import GenericActivate
+from todo_tracker.file_storage import serialize
 
 
 def test_tags_parsing():
@@ -193,3 +196,390 @@ def test_node_with_colon():
 
     query = searching.query("-> task: target: with colon")
     assert list(query(origin)) == [target]
+
+
+class TestCreate(object):
+    def test_create_node(self):
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+
+        creator = searching.Creator("task: target")
+        creator(origin)
+
+        assert serialize(origin) == [
+            "task: origin",
+            "    task: target"
+        ]
+
+    def test_create_node_existing(self):
+        tracker = Tracker(False)
+
+        nodes = []
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(origin.createchild("task", "untouched"))
+        nodes.append(origin.createchild("task", "untouched 2"))
+
+        creator = searching.Creator("task: target")
+        #import pytest; pytest.set_trace()
+        #import pudb; pudb.set_trace()
+        created = creator(origin)
+
+        results = list(origin.children)
+        assert (results[:3] + results[4:]) == nodes
+        assert results[3].node_type == "task"
+        assert results[3].text == "target"
+        assert created == [results[3]]
+
+    def test_existing_joinedsearch(self):
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+
+        selector = searching.query("task: target")
+
+        creator = searching.Creator(joinedsearch=selector)
+        creator(origin)
+
+        assert serialize(origin) == [
+            "task: origin",
+            "    task: target"
+        ]
+
+    def test_multi_create(self):
+        tracker = Tracker(False)
+
+        nodes = []
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(origin.createchild("task", "untouched"))
+        nodes.append(origin.createchild("task", "untouched 2"))
+
+        selector = searching.query("task: target :{many}")
+        #import pudb; pudb.set_trace()
+        creator = searching.Creator(joinedsearch=selector)
+        #import pytest; pytest.set_trace()
+        created = creator(origin)
+
+        results = list(origin.children)
+        assert (
+                results[:3] +
+                results[4:5] +
+                results[6:]) == nodes
+        assert results[3].node_type == "task"
+        assert results[3].text == "target"
+        assert results[5].node_type == "task"
+        assert results[5].text == "target"
+        assert created == [results[3], results[5]]
+
+    def test_after_create(self):
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+        origin.createchild("task", "1")
+        origin.createchild("task", "2")
+        origin.createchild("task", "3")
+        origin.createchild("task", "4")
+        origin.createchild("task", "5")
+
+        creator = searching.Creator("task: target :{first, after}")
+        creator(origin)
+
+        assert serialize(origin) == [
+            "task: origin",
+            "    task: 1",
+            "    task: target",
+            "    task: 2",
+            "    task: 3",
+            "    task: 4",
+            "    task: 5",
+        ]
+
+    def test_after_started(self):
+        tracker = Tracker(False)
+
+        nodes = []
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(origin.createchild("task", "untouched"))
+        nodes.append(origin.createchild("task", "untouched 2"))
+
+        creator = searching.Creator("task: target :{after, last, finished}")
+        #import pytest; pytest.set_trace()
+        created = creator(origin)
+
+        results = list(origin.children)
+        assert (results[:2] + results[3:]) == nodes
+        assert results[2].node_type == "task"
+        assert results[2].text == "target"
+        assert created == [results[2]]
+
+    def test_last(self):
+        creator = searching.Creator("+task: last")
+        assert not creator.is_before
+        assert creator.last_segment.tags == set()
+        assert creator.last_segment.plurality == "last"
+
+        tracker = Tracker(False)
+
+        nodes = []
+        origin = tracker.root.createchild("task", "origin")
+
+        nodes.append(origin.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(origin.createchild("task", "untouched"))
+        nodes.append(origin.createchild("task", "untouched 2"))
+
+        creator(origin)
+
+        results = list(origin.children)
+
+        assert results[-1].node_type == "task"
+        assert results[-1].text == "last"
+        assert results[:-1] == nodes
+
+    def test_early(self):
+        creator = searching.Creator("-task: first")
+        assert creator.is_before
+        assert creator.last_segment.tags == set()
+        assert creator.last_segment.plurality == "first"
+
+        tracker = Tracker(False)
+
+        nodes = []
+        origin = tracker.root.createchild("task", "origin")
+
+        nodes.append(origin.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(origin.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(origin.createchild("task", "untouched"))
+        nodes.append(origin.createchild("task", "untouched 2"))
+
+        creator(origin)
+
+        results = list(origin.children)
+
+        assert results[0].node_type == "task"
+        assert results[0].text == "first"
+        assert results[1:] == nodes
+
+    def test_early_reversed(self):
+        creator = searching.Creator("<- +task: first")
+        assert creator.is_before
+        assert creator.last_segment.tags == set()
+        assert creator.last_segment.plurality == "last"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+
+        creator(origin)
+
+        results = list(tracker.root.children)
+
+        assert results[0].node_type == "task"
+        assert results[0].text == "first"
+        assert results[1:] == nodes
+
+    def test_last_reversed(self):
+        creator = searching.Creator("<- -task: first")
+        assert not creator.is_before
+        assert creator.last_segment.tags == set()
+        assert creator.last_segment.plurality == "first"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+
+        creator(origin)
+
+        results = list(tracker.root.children)
+
+        assert results[-2].node_type == "task"
+        assert results[-2].text == "first"
+        assert results[:-2] + [origin] == nodes
+
+    def test_default_reversed(self):
+        creator = searching.Creator("<- task: mid")
+        assert creator.is_before
+        assert creator.last_segment.tags == set(["unstarted"])
+        assert creator.last_segment.plurality == "last"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+
+        creator(origin)
+
+        results = list(tracker.root.children)
+
+        assert results[3].node_type == "task"
+        assert results[3].text == "mid"
+        assert results[:3] + results[4:] == nodes
+
+    def test_before_explicit(self):
+        creator = searching.Creator("<- task: first :{before, last}")
+        assert creator.is_before
+        assert creator.last_segment.tags == set()
+        assert creator.last_segment.plurality == "last"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+
+        creator(origin)
+
+        results = list(tracker.root.children)
+
+        assert results[0].node_type == "task"
+        assert results[0].text == "first"
+        assert results[1:] == nodes
+
+    def test_other_tag(self):
+        creator = searching.Creator("<- task: target :{first, started}")
+        assert creator.is_before
+        assert creator.last_segment.tags == set(["started"])
+        assert creator.last_segment.plurality == "first"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+        created = creator(origin)
+
+        results = list(tracker.root.children)
+        assert results[2].node_type == "task"
+        assert results[2].text == "target"
+        assert created == [results[2]]
+        assert (results[:2] + results[3:]) == nodes
+
+    def test_empty_prev_peer(self):
+        tracker = Tracker(False)
+        origin = tracker.root.createchild("task", "origin")
+        creator = searching.Creator("<- task: derp")
+        creator(origin)
+        assert serialize(tracker.root, is_root=True) == [
+            "task: derp",
+            "task: origin",
+        ]
+
+    def test_empty_next_peer(self):
+        tracker = Tracker(False)
+        origin = tracker.root.createchild("task", "origin")
+        creator = searching.Creator("-> task: derp")
+        creator(origin)
+        assert serialize(tracker.root, is_root=True) == [
+            "task: origin",
+            "task: derp",
+        ]
+
+# crashers
+# :{first} < :{last} < :{last}
+# :{first} < :{last} ->
+# < :{last}
+# derp :{ derp
