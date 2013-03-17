@@ -139,3 +139,18 @@ class Workout(FitnessLogNode):
     value_format = "%dmin"
     value_regex = (r'([0-9]+)'
             r'(?:\s*(?:min|minutes))?')
+
+
+@nodecreator("tzchange")
+class TZChangeNode(Node):
+    text_required = True
+    preferred_parent = None
+    children_of = None
+
+    options = (
+        timefmt.DatetimeOption("origin_time"),
+    )
+
+    def __init__(self, *args, **kw):
+        self.origin_time = datetime.now()
+        Node.__init__(self, *args, **kw)
