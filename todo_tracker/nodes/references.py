@@ -129,7 +129,7 @@ class DummyReference(Node):
     def text(self, newvalue):
         if self.target is not None:
             del self.proxies[self.target]
-        self.target = self.parent.target.find_node([newvalue])
+        self.target = self.parent.target.find_one(newvalue)
         self.proxies[self.target] = self
 
 
@@ -177,8 +177,7 @@ class Reference(BaseTask):
 
     @text.setter
     def text(self, newtext):
-        path = [("*: " + x.strip()) for x in newtext.split(">")]
-        node = self.point_of_reference.find_node(path)
+        node = self.point_of_reference.find_one(newtext)
         if not isinstance(node, BaseTask):
             logger.error("can't reference non-task: %r", node)
 

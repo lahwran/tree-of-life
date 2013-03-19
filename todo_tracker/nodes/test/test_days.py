@@ -503,7 +503,7 @@ class TestSleepNode(object):
         )
 
         days_node = tracker.root.children.next_neighbor
-        node = days_node.find_node(['sleep: today'])
+        node = days_node.find_one('sleep: today')
         assert node
         assert node.prev_neighbor.node_type == "day"
 

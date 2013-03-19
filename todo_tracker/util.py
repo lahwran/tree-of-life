@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile as _tempfile
 import time
+import functools
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,22 @@ class Profile(object):
         self.finished = time.time()
         logger.debug("Profile %r finished in %r", self.name,
                 self.finished - self.started)
+
+
+def memoize(obj):
+    cache = {}
+
+    @functools.wraps(obj)
+    def wrapper(*a, **kw):
+        fs_kw = frozenset(kw.items())
+
+        try:
+            return cache[a, fs_kw]
+        except KeyError:
+            cache[a, fs_kw] = obj(*a, **kw)
+            return cache[a, fs_kw]
+    wrapper.cache = cache
+    return wrapper
 
 template = """
 @property

@@ -208,7 +208,7 @@ class RemoteInterface(SavingInterface):
 
     def top_messages(self):
         result = []
-        queue = self.root.find_node(["category: queue"])
+        queue = self.root.find_one("category: queue")
         if queue is not None:
             generate_listing(None, queue, result)
         return result[:30]

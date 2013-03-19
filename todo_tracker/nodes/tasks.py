@@ -100,6 +100,10 @@ class BaseTask(Node):
     def finish(self):
         self.finished = datetime.now()
 
+    def unfinish(self):
+        self.finished = None
+        return True
+
     @property
     def can_activate(self):
         return self.finished is None

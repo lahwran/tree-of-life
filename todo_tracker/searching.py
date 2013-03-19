@@ -3,7 +3,7 @@
 # almost all of them are *used as data* by other code, hence
 # why there are classes that look like they're used as functions.
 from todo_tracker import parseutil
-from todo_tracker.util import HandlerList
+from todo_tracker.util import HandlerList, memoize
 
 from collections import namedtuple
 
@@ -13,7 +13,7 @@ _TaggedPattern = namedtuple('TaggedPattern', 'pat, tags')
 
 class JoinedSearch(object):
     def __init__(self, *segments):
-        self.segments = list(segments)
+        self.segments = tuple(segments)
 
     def __call__(self, nodes):
         if getattr(nodes, "node_type", None) is not None:
@@ -112,15 +112,21 @@ class SearchGrammar(parseutil.Grammar):
         "make_segment": make_segment
     }
 
-query = SearchGrammar.wraprule("query")
+Query = memoize(SearchGrammar.wraprule("query"))
 
 
+@memoize
 class Creator(object):
-    def __init__(self, querytext=None, joinedsearch=None):
+    def __init__(self, querytext=None, joinedsearch=None, do_auto_add=False):
         if joinedsearch is not None:
             self.joinedsearch = joinedsearch
         else:
-            self.joinedsearch = query(querytext)
+            self.joinedsearch = SearchGrammar(querytext).query()
+
+        # dememoization hack
+        joinedsearch = JoinedSearch()
+        joinedsearch.segments = list(self.joinedsearch.segments)
+        self.joinedsearch = joinedsearch
         del joinedsearch
 
         segment = self.joinedsearch.segments.pop()
@@ -185,11 +191,37 @@ class Creator(object):
                 ("default", "*", None), new_tags)
         self.last_segment = new_last
 
+        # is this really the right place to put auto add?
+        # probably not, but where does it belong then?
+        self.do_auto_add = do_auto_add
+
     def __call__(self, nodes):
         resulting_nodes = []
+        evaluated_search = list(self.joinedsearch(nodes))
+        if not evaluated_search:
+            return
 
-        for parentnode in list(self.joinedsearch(nodes)):
+        _created_nodes = []
+
+        def _make_node(node):
+            if _created_nodes:
+                return _created_nodes.pop()
+            else:
+                return node.root.nodecreator.create(
+                        self.node_type, self.text, None, validate=False)
+
+        for parentnode in evaluated_search:
             nodes = list(self.last_segment([parentnode]))
+
+            if self.do_auto_add:
+                node = _make_node(evaluated_search[0])
+                if len(nodes) > 1:
+                    assert False
+                if node.auto_add(creator=parentnode, root=parentnode.root):
+                    continue
+                else:
+                    _created_nodes.append(node)
+
             if nodes:
                 for node in nodes:
                     if self.is_before:
@@ -199,22 +231,24 @@ class Creator(object):
 
                     # node.parent may not be parentnode, for next_peer and
                     # prev_peer relationships
-                    new_node = node.parent.createchild(
-                            self.node_type, self.text,
-                            **rel)
+                    new_node = _make_node(parentnode)
+                    node.parent.addchild(new_node, **rel)
+
                     resulting_nodes.append(new_node)
             elif self.last_segment.separator == "children":
-                new_node = parentnode.createchild(
-                        self.node_type, self.text)
+                new_node = _make_node(parentnode)
+                parentnode.addchild(new_node)
                 resulting_nodes.append(new_node)
+
             elif self.last_segment.separator == "prev_peer":
-                new_node = parentnode.parent.createchild(
-                        self.node_type, self.text,
+                new_node = _make_node(parentnode)
+                parentnode.parent.addchild(new_node,
                         before=parentnode.parent.children.next_neighbor)
                 resulting_nodes.append(new_node)
+
             else:
-                new_node = parentnode.parent.createchild(
-                        self.node_type, self.text,
+                new_node = _make_node(parentnode)
+                parentnode.parent.addchild(new_node,
                         after=parentnode.parent.children.prev_neighbor)
                 resulting_nodes.append(new_node)
 
@@ -261,7 +295,7 @@ def retriever_parents(nodes):
 def tag_filter(nodes, tags):
     tags = set(tags)
     for node in nodes:
-        node_tags = set(node.search_tags())
+        node_tags = set(node._search_tags())
         if tags <= node_tags:
             yield node
 
@@ -331,6 +365,32 @@ class Segment(object):
                 ", p=" + repr(self.plurality) if self.plurality else "")
 
 
+def first(iterator):
+    for node in iterator:
+        return node
+
+
+def record_iterator(iterator, thelist):
+    try:
+        for node in iterator:
+            thelist.append(node)
+            yield node
+    except TypeError:
+        thelist.append(iterator)
+        yield iterator
+
+
+def chain(*queries):
+    def run(nodes):
+        recorded = []
+        to_iterate = record_iterator(nodes, recorded)
+        for query in queries:
+            for node in query(to_iterate):
+                yield node
+            to_iterate = recorded
+    return run
+
+
 if __name__ == "__main__":
     todofile = "/Users/lahwran/.todo_tracker/life"
     from todo_tracker.tracker import Tracker
@@ -343,7 +403,7 @@ if __name__ == "__main__":
         import subprocess
         subprocess.call(["clear"])
         print "query:", querytext
-        queryer = query(querytext)
+        queryer = Query(querytext)
         print queryer
 
         for x in queryer(tracker.root):

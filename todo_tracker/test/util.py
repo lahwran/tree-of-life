@@ -1,9 +1,12 @@
 from todo_tracker import nodes
+from todo_tracker.nodes.node import _NodeCreatorTracker
+from collections import defaultdict
 
 
-class FakeNodeCreator(object):
+class FakeNodeCreator(_NodeCreatorTracker):
     def __init__(self, create=nodes.GenericNode):
-        self.create = create
+        _NodeCreatorTracker.__init__(self)
+        self.creators = defaultdict(lambda: create)
 
     def exists(self, node_type):
         return True

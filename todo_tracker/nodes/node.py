@@ -7,6 +7,7 @@ from todo_tracker.exceptions import (ListIntegrityError, LoadError,
         CantStartNodeError)
 from todo_tracker.util import HandlerList
 from todo_tracker import file_storage
+from todo_tracker import searching
 
 logger = logging.getLogger(__name__)
 
@@ -317,23 +318,20 @@ class Node(object):
             return None
         return self._prev_node
 
-    def find_node(self, path, offset=0):
-        if offset >= len(path):
-            return self
-        segment = path[offset]
+    def find(self, query):
+        query = searching.Query(query)
+        return query([self])
 
-        matcher = _NodeMatcher(self.root.nodecreator, segment, self, self.root)
-        for child in matcher.iter_results():
-            node = child.find_node(path, offset + 1)
-
-            if node is not None:
-                return node
-
-        return None
+    def find_one(self, query):
+        return searching.first(self.find(query))
 
     #-------------------------------------------------#
     #          adding and removing children           #
     #-------------------------------------------------#
+
+    def create(self, query):
+        creator = searching.Creator(query)
+        return creator([self])
 
     def addchild(self, child, before=None, after=None):
         if (self.allowed_children is not None and
@@ -412,7 +410,7 @@ class Node(object):
     def auto_add(self, creator, root):
         self.root = root
         if self.preferred_parent is not None:
-            parent = self.root.find_node(self.preferred_parent)
+            parent = self.root.find_one(self.preferred_parent)
             parent.addchild(self)
             return parent
         else:
@@ -441,9 +439,20 @@ class Node(object):
     def search_tags(self):
         return set()
 
+    def user_creation(self):
+        pass
+
     #-------------------------------------------------#
     #                      misc                       #
     #-------------------------------------------------#
+
+    def _search_tags(self):
+        tags = set(self.search_tags())
+        if self.can_activate:
+            tags.add("can_activate")
+        else:
+            tags.add("cannot_activate")
+        return tags
 
     def __str__(self):
         return file_storage.serialize(self, one_line=True)[0]
@@ -473,76 +482,6 @@ class Node(object):
 @nodecreator('-')
 def continue_text(node_type, text, parent):
     parent.continue_text(text)
-
-
-class _NodeMatcher(object):
-    def __init__(self, nodecreator, segment, node, root):
-        self.flatten = (segment == "**")
-
-        if not self.flatten:
-            self.find_parents = False
-            if segment.startswith("<"):
-                self.find_parents = True
-                segment = segment[1:]
-
-            from todo_tracker.file_storage import parse_line
-            indent, is_metadata, node_type, text = parse_line(segment)
-            assert not indent
-            assert not is_metadata
-
-            exists = nodecreator.exists(node_type)
-            if text is None and (exists or node_type == "*"):
-                # *
-                # days
-                text = "*"
-                # *: *
-                # days: *
-            elif text is None and not (exists or node_type == "*"):
-                # herp derp
-                # text with no decoration
-                text = node_type
-                node_type = "*"
-                # *: herp derp
-                # *: text with no decoration
-            elif text != "*" and node_type != "*" and exists:
-                # day: today
-                # reference: whatever>herp>derp
-                temp_node = nodecreator.create(node_type, text, node)
-                node_type = temp_node.node_type
-                text = temp_node.text
-                # day: <today's actual date>
-                # reference: whatever > herp > derp
-
-            self.node_type = node_type
-            self.text = text
-        self.node = node
-
-    def _filter(self, iterator):
-        for child in iterator:
-            if self.node_type != "*" and self.node_type != child.node_type:
-                continue
-            if self.text != "*" and self.text != child.text:
-                continue
-            yield child
-
-    def _flat_children(self, node):
-        for depth, child in node.iter_flat_children():
-            yield child
-
-    def iter_results(self):
-        if self.flatten:
-            return self._flat_children(self.node)
-        if self.node_type == "*" and self.text == "*":
-            return self.node.children
-        elif self.find_parents:
-            iterator = self._filter(self.node.iter_parents())
-            try:
-                result = [iterator.next()]
-            except StopIteration:
-                result = []
-            return iter(result)
-        else:
-            return self._filter(self.node.children)
 
 
 class Option(object):
@@ -620,11 +559,16 @@ class TreeRootNode(Node):
             if func:
                 func(self)
 
-    def activate(self, node):
+    def activate(self, node, force=False):
         # jump to a particular node as active
         if not node.can_activate:
-            logger.warn("Attempted to activate node: %r", node)
-            return
+            if force:
+                unfinish = getattr(node, "unfinish", None)
+            else:
+                unfinish = None
+            if unfinish is None or not unfinish():
+                logger.warn("Attempted to activate node: %r", node)
+                return
 
         if self.active_node:
             self.active_node.active = False
@@ -638,71 +582,71 @@ class TreeRootNode(Node):
                 if parent_node is node:
                     raise
 
-    def _skip_ignored(self, peergetter, node):
-        while node is not None:
-            if node.can_activate:
-                return node
-            node = peergetter(node)
-        return None
-
-    def _descend(self, peergetter, node):
-        while peergetter(node.children):
-            next_node = peergetter(node.children)
-            next_node = self._skip_ignored(peergetter, next_node)
-            if next_node:
-                node = next_node
-            else:
-                break
-        return node
-
-    def _navigate(self, peerattr):
-        #TODO: does not take skipping already-done ones into account
-        #TODO: it doesn't?
-        peergetter = operator.attrgetter(peerattr)
-
-        node = self.active_node
-
-        newnode = self._descend(peergetter, node)
-        if newnode is not node:
-            self.activate(newnode)
-            return
-
-        newnode = self._skip_ignored(peergetter, peergetter(node))
-        if newnode is not None:
-            self.activate(newnode)
-            node.finish()
-            return
-
-        newnode = self._skip_ignored(peergetter, node.parent)
-        if newnode:
-            self.activate(newnode)
-            node.finish()
-            return
-
-    def activate_next(self, *args, **keywords):
-        return self._navigate("next_neighbor", *args, **keywords)
-
-    def activate_prev(self, *args, **keywords):
-        return self._navigate("prev_neighbor", *args, **keywords)
-
-    def _create_related(self, node_type, text, relation, activate):
-        newnode = self.active_node.parent.createchild(node_type, text,
-                **{relation: self.active_node})
-        if activate:
-            self.activate(newnode)
-        return newnode
-
-    def create_before(self, node_type, text=None, activate=True):
-        return self._create_related(node_type, text, "before", activate)
-
-    def create_after(self, node_type, text=None, activate=True):
-        return self._create_related(node_type, text, "after", activate)
-
-    def create_child(self, node_type, text=None, activate=True):
-        newnode = self.active_node.createchild(node_type, text)
-        if activate:
-            self.activate(newnode)
-        return newnode
+#    def _skip_ignored(self, peergetter, node):
+#        while node is not None:
+#            if node.can_activate:
+#                return node
+#            node = peergetter(node)
+#        return None
+#
+#    def _descend(self, peergetter, node):
+#        while peergetter(node.children):
+#            next_node = peergetter(node.children)
+#            next_node = self._skip_ignored(peergetter, next_node)
+#            if next_node:
+#                node = next_node
+#            else:
+#                break
+#        return node
+#
+#    def _navigate(self, peerattr):
+#        #TODO: does not take skipping already-done ones into account
+#        #TODO: it doesn't?
+#        peergetter = operator.attrgetter(peerattr)
+#
+#        node = self.active_node
+#
+#        newnode = self._descend(peergetter, node)
+#        if newnode is not node:
+#            self.activate(newnode)
+#            return
+#
+#        newnode = self._skip_ignored(peergetter, peergetter(node))
+#        if newnode is not None:
+#            self.activate(newnode)
+#            node.finish()
+#            return
+#
+#        newnode = self._skip_ignored(peergetter, node.parent)
+#        if newnode:
+#            self.activate(newnode)
+#            node.finish()
+#            return
+#
+#    def activate_next(self, *args, **keywords):
+#        return self._navigate("next_neighbor", *args, **keywords)
+#
+#    def activate_prev(self, *args, **keywords):
+#        return self._navigate("prev_neighbor", *args, **keywords)
+#
+#    def _create_related(self, node_type, text, relation, activate):
+#        newnode = self.active_node.parent.createchild(node_type, text,
+#                **{relation: self.active_node})
+#        if activate:
+#            self.activate(newnode)
+#        return newnode
+#
+#    def create_before(self, node_type, text=None, activate=True):
+#        return self._create_related(node_type, text, "before", activate)
+#
+#    def create_after(self, node_type, text=None, activate=True):
+#        return self._create_related(node_type, text, "after", activate)
+#
+#    def create_child(self, node_type, text=None, activate=True):
+#        newnode = self.active_node.createchild(node_type, text)
+#        if activate:
+#            self.activate(newnode)
+#        return newnode
 
     def ui_serialize(self):
         result = super(TreeRootNode, self).ui_serialize()

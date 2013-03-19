@@ -6,6 +6,7 @@ from functools import partial
 from datetime import datetime, timedelta
 import time
 import logging
+import itertools
 
 from todo_tracker.file_storage import parse_line
 from todo_tracker.nodes.node import nodecreator, TreeRootNode
@@ -32,87 +33,7 @@ global_commands = HandlerList()
 command = global_commands.add
 
 
-class SleepCommandGrammar(Grammar):
-    grammar = """
-    ws = ' '+
-    sleep = 'sleep' ((ws 'until' ws time_grammar.time:time -> {'until': time})
-            | (ws 'for' ws time_grammar.timedelta:td -> {'amount': td})
-            | -> {})
-    """
-    bindings = {
-        "time_grammar": timefmt.TimeGrammar
-    }
-
-
-@command()
-def command_sleep(event):
-    days = event.root.days
-    days.sleep(**SleepCommandGrammar(event.text).sleep())
-
-
-@command()
-@command("finished")
-@command("next")
-def done(event):
-    event.root.activate_next()
-
-
-@command()
-@command("donext")
-@command(">")
-def after(event):
-    node_type, text = _makenode(event.text)
-    event.root.create_after(node_type, text, activate=False)
-
-
-@command()
-@command("dofirst")
-@command("<")
-def before(event):
-    node_type, text = _makenode(event.text)
-    event.root.create_before(node_type, text, activate=True)
-
-
-#@command("sleep")
-#@command("zzz")
-#def command_sleep(event):
-#    current = None
-#    for parent in event.root.active_node.iter_parents():
-#        if parent.node_type == "sleep":
-#            logger.warn("already sleeping!")
-#            return
-#        elif parent.node_type == "day":
-#            current = parent
-#            break
-#    if current is None:
-#        logger.warn("not in a day!")
-#    n_node = current.next_node
-#    if (n_node.node_type == "sleep" and
-#            n_node.is_acceptable()):
-#        if not n_node.can_activate:
-#            log.msg(("WARNING: %r is acceptable but not activateable, "
-#                        "making new node") % n_node)
-#        else:
-#            # wait, what about arguments
-#            event.root.activate(n_node)
-#
-
-@command()
-def createchild(event):
-    node_type, text = _makenode(event.text)
-    event.root.create_child(node_type, text, activate=True)
-
-
-@command()
-def createauto(event):
-    node_type, text = _makenode(event.text)
-    node = event.root.nodecreator.create(node_type, text, None, validate=False)
-    if node.auto_add(creator=event.root.active_node, root=event.root):
-        return
-    else:
-        event.root.active_node.addchild(node)
-
-    event.root.activate(node)
+import todo_tracker.navigation
 
 
 @command()
@@ -163,6 +84,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         Tracker.__init__(self, *args, **kwargs)
 
     def _command(self, source, command_name, text):
+        logger.info("command executed: %r, %r, %r", source, command_name, text)
         try:
             target = global_commands.handlers[command_name]
         except KeyError:
@@ -175,14 +97,10 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         if not line.strip():
             return
 
-        node_type, separator, text = line.partition(": ")
-        if node_type in nodecreator.creators:
+        command_name, center, command_text = line.partition(" ")
+        if command_name not in global_commands.handlers:
             command_text = line
             command_name = self._default_command
-        else:
-            command_name, center, command_text = line.partition(" ")
-            if not command_name:
-                return
 
         self._command(source, command_name, command_text)
 
@@ -260,7 +178,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
 
     def tree_context(self, max_lines=55):
         active = self.root.active_node
-        current = active.find_node(["<day"])
+        current = active.find_one("<day")
         days = current.parent
         root = self.root
 

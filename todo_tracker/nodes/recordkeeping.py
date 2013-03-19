@@ -17,7 +17,7 @@ class FitnessLog(Node):
 
     @classmethod
     def make_skeleton(cls, root):
-        root.fitness_log = root.find_node(["fitness log"])
+        root.fitness_log = root.find_one("fitness log")
         if not root.fitness_log:
             root.fitness_log = root.createchild("fitness log")
 

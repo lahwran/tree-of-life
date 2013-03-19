@@ -35,10 +35,10 @@ def test_search():
     peer = tracker.root.createchild("task", "peer")
     target2 = peer.createchild("task", "target2")
 
-    query1 = searching.query("task: target1")
+    query1 = searching.Query("task: target1")
     assert list(query1([origin])) == [target1]
 
-    query2 = searching.query("-> task: peer > task: target2")
+    query2 = searching.Query("-> task: peer > task: target2")
     assert list(query2([origin])) == [target2]
 
 
@@ -52,13 +52,13 @@ def test_pluralities():
     for i in range(10):
         targets.append(tracker.root.createchild("task", "target %d" % i))
 
-    query1 = searching.query("-> * :{first}")
+    query1 = searching.Query("-> * :{first}")
     assert list(query1([origin])) == [targets[0]]
 
-    query1 = searching.query("-> * :{last}")
+    query1 = searching.Query("-> * :{last}")
     assert list(query1([origin])) == [targets[-1]]
 
-    query1 = searching.query("-> * :{many}")
+    query1 = searching.Query("-> * :{many}")
     assert list(query1([origin])) == targets
 
 
@@ -88,11 +88,11 @@ def test_flatten():
     targets.append(nodes[-1])
     nodes.append(nodes[-2].createchild("task", "k"))
 
-    query1 = searching.query("**")
+    query1 = searching.Query("**")
 
     assert list(query1(origin)) == nodes
 
-    query2 = searching.query("** > task: target")
+    query2 = searching.Query("** > task: target")
     a = list(query2(origin))
     assert a == targets
 
@@ -111,13 +111,13 @@ def test_flat_text():
     target2 = origin.createchild("task", "target2")
     targets.append(target2)
 
-    query1 = searching.query("task")
+    query1 = searching.Query("task")
     assert list(query1(origin)) == targets
 
-    query2 = searching.query("target1")
+    query2 = searching.Query("target1")
     assert list(query2(origin)) == [target1]
 
-    query3 = searching.query("target2")
+    query3 = searching.Query("target2")
     assert list(query3(origin)) == [target2]
 
 
@@ -131,10 +131,10 @@ def test_prev_peer():
     target2 = tracker.root.createchild("task", "target2")
     origin = tracker.root.createchild("task", "origin")
 
-    query1 = searching.query("<- target1")
+    query1 = searching.Query("<- target1")
     assert list(query1(origin)) == [target1]
 
-    query2 = searching.query("<- target2")
+    query2 = searching.Query("<- target2")
     assert list(query2(origin)) == [target2]
 
 
@@ -156,7 +156,7 @@ def test_parents():
         parent4, parent5, parent6, tracker.root
     ]
 
-    query = searching.query("<")
+    query = searching.Query("<")
     assert list(query([origin1, origin2])) == expected
 
 
@@ -182,10 +182,10 @@ def test_tags_filtering():
     targets.append(origin2.createchild("task", "target node"))
     nontargets.append(origin2.createchild("task", "nontarget node"))
 
-    query1 = searching.query("task :{target}")
+    query1 = searching.Query("task :{target}")
     assert list(query1([origin1, origin2])) == targets
 
-    query1 = searching.query("task :{nontarget}")
+    query1 = searching.Query("task :{nontarget}")
     assert list(query1([origin1, origin2])) == nontargets
 
 
@@ -194,7 +194,7 @@ def test_node_with_colon():
     origin = tracker.root.createchild("task", 'origin')
     target = tracker.root.createchild("task", 'target: with colon')
 
-    query = searching.query("-> task: target: with colon")
+    query = searching.Query("-> task: target: with colon")
     assert list(query(origin)) == [target]
 
 
@@ -245,7 +245,7 @@ class TestCreate(object):
 
         origin = tracker.root.createchild("task", "origin")
 
-        selector = searching.query("task: target")
+        selector = searching.Query("task: target")
 
         creator = searching.Creator(joinedsearch=selector)
         creator(origin)
@@ -272,7 +272,7 @@ class TestCreate(object):
         nodes.append(origin.createchild("task", "untouched"))
         nodes.append(origin.createchild("task", "untouched 2"))
 
-        selector = searching.query("task: target :{many}")
+        selector = searching.Query("task: target :{many}")
         #import pudb; pudb.set_trace()
         creator = searching.Creator(joinedsearch=selector)
         #import pytest; pytest.set_trace()
