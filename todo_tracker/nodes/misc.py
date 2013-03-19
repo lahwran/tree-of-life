@@ -1,7 +1,10 @@
+import datetime
+
 from todo_tracker.nodes.node import Node, nodecreator
 from todo_tracker.nodes.tasks import BaseTask, ActiveMarker
 from todo_tracker.ordereddict import OrderedDict
 from todo_tracker.file_storage import parse_line
+from todo_tracker import timefmt
 
 
 #######################
@@ -136,6 +139,13 @@ class GenericActivate(GenericNode):
 @nodecreator("IGNORE")
 class Comment(Node):
     multiline = True
+
+    options = (
+        timefmt.DatetimeOption("time"),
+    )
+
+    def user_creation(self):
+        self.time = datetime.datetime.now()
 
 
 #######################
