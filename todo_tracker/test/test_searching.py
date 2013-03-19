@@ -235,10 +235,10 @@ class TestCreate(object):
         created = creator(origin)
 
         results = list(origin.children)
-        assert (results[:3] + results[4:]) == nodes
-        assert results[3].node_type == "task"
-        assert results[3].text == "target"
-        assert created == [results[3]]
+        assert (results[:2] + results[3:]) == nodes
+        assert results[2].node_type == "task"
+        assert results[2].text == "target"
+        assert created == [results[2]]
 
     def test_existing_joinedsearch(self):
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
@@ -279,15 +279,20 @@ class TestCreate(object):
         created = creator(origin)
 
         results = list(origin.children)
-        assert (
-                results[:3] +
-                results[4:5] +
-                results[6:]) == nodes
-        assert results[3].node_type == "task"
-        assert results[3].text == "target"
-        assert results[5].node_type == "task"
-        assert results[5].text == "target"
-        assert created == [results[3], results[5]]
+        assert [
+            results[0],
+            results[1],
+            results[3],
+            results[5],
+            results[7],
+        ] == nodes
+        assert results[2].node_type == "task"
+        assert results[2].text == "target"
+        assert results[4].node_type == "task"
+        assert results[4].text == "target"
+        assert results[6].node_type == "task"
+        assert results[6].text == "target"
+        assert created == [results[2], results[4], results[6]]
 
     def test_after_create(self):
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
@@ -465,9 +470,41 @@ class TestCreate(object):
 
     def test_default_reversed(self):
         creator = searching.Creator("<- task: mid")
-        assert creator.is_before
-        assert creator.last_segment.tags == set(["unstarted"])
-        assert creator.last_segment.plurality == "last"
+        assert not creator.is_before
+        assert creator.last_segment.tags == set(["can_activate"])
+        assert creator.last_segment.plurality == "first"
+
+        tracker = Tracker(False)
+
+        nodes = []
+
+        nodes.append(tracker.root.createchild("task", "finished"))
+        nodes[-1].start()
+        nodes[-1].finish()
+        nodes.append(tracker.root.createchild("task", "started"))
+        nodes[-1].start()
+        nodes.append(tracker.root.createchild("task", "untouched"))
+        nodes.append(tracker.root.createchild("task", "untouched 2"))
+        nodes.append(tracker.root.createchild("task", "finished 2"))
+        nodes[-1].start()
+        nodes[-1].finish()
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
+
+        creator(origin)
+
+        results = list(tracker.root.children)
+
+        assert results[-3].node_type == "task"
+        assert results[-3].text == "mid"
+        assert results[:-3] + results[-2:] == nodes
+
+    def test_reversed_no_match(self):
+        creator = searching.Creator("<- task: mid")
+        assert not creator.is_before
+        assert creator.last_segment.tags == set(["can_activate"])
+        assert creator.last_segment.plurality == "first"
 
         tracker = Tracker(False)
 
@@ -479,10 +516,6 @@ class TestCreate(object):
         nodes.append(tracker.root.createchild("task", "finished 2"))
         nodes[-1].start()
         nodes[-1].finish()
-        nodes.append(tracker.root.createchild("task", "started"))
-        nodes[-1].start()
-        nodes.append(tracker.root.createchild("task", "untouched"))
-        nodes.append(tracker.root.createchild("task", "untouched 2"))
 
         origin = tracker.root.createchild("task", "origin")
         nodes.append(origin)
@@ -491,9 +524,9 @@ class TestCreate(object):
 
         results = list(tracker.root.children)
 
-        assert results[3].node_type == "task"
-        assert results[3].text == "mid"
-        assert results[:3] + results[4:] == nodes
+        assert results[-2].node_type == "task"
+        assert results[-2].text == "mid"
+        assert results[:-2] + results[-1:] == nodes
 
     def test_before_explicit(self):
         creator = searching.Creator("<- task: first :{before, last}")
@@ -527,15 +560,18 @@ class TestCreate(object):
         assert results[0].text == "first"
         assert results[1:] == nodes
 
-    def test_other_tag(self):
-        creator = searching.Creator("<- task: target :{first, started}")
+    def test_after_match(self):
+        creator = searching.Creator("-> task: mid")
         assert creator.is_before
-        assert creator.last_segment.tags == set(["started"])
+        assert creator.last_segment.tags == set(["can_activate"])
         assert creator.last_segment.plurality == "first"
 
         tracker = Tracker(False)
 
         nodes = []
+
+        origin = tracker.root.createchild("task", "origin")
+        nodes.append(origin)
 
         nodes.append(tracker.root.createchild("task", "finished"))
         nodes[-1].start()
@@ -543,20 +579,23 @@ class TestCreate(object):
         nodes.append(tracker.root.createchild("task", "finished 2"))
         nodes[-1].start()
         nodes[-1].finish()
-        nodes.append(tracker.root.createchild("task", "started"))
+        nodes.append(tracker.root.createchild("task", "started 1"))
         nodes[-1].start()
         nodes.append(tracker.root.createchild("task", "untouched"))
-        nodes.append(tracker.root.createchild("task", "untouched 2"))
 
-        origin = tracker.root.createchild("task", "origin")
-        nodes.append(origin)
-        created = creator(origin)
+        creator(origin)
 
         results = list(tracker.root.children)
-        assert results[2].node_type == "task"
-        assert results[2].text == "target"
-        assert created == [results[2]]
-        assert (results[:2] + results[3:]) == nodes
+
+        assert results[-3].node_type == "task"
+        assert results[-3].text == "mid"
+        assert results[:-3] + results[-2:] == nodes
+
+    def test_other_tag(self):
+        creator = searching.Creator("<- task: target :{first, started}")
+        assert not creator.is_before
+        assert creator.last_segment.tags == set(["started"])
+        assert creator.last_segment.plurality == "first"
 
     def test_empty_prev_peer(self):
         tracker = Tracker(False)

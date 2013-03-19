@@ -151,14 +151,12 @@ class Creator(object):
                 new_tags.remove("after")
                 self.is_before = False
             else:
-                self.is_before = True
+                self.is_before = (segment.separator != "prev_peer")
                 if not new_tags:
-                    new_tags.add("unstarted")
+                    new_tags.add("can_activate")
 
             if segment.plurality is not None:
                 new_tags.add(segment.plurality)
-            elif segment.separator == "prev_peer":
-                new_tags.add("last")
             else:
                 new_tags.add("first")
 
@@ -243,7 +241,7 @@ class Creator(object):
             elif self.last_segment.separator == "prev_peer":
                 new_node = _make_node(parentnode)
                 parentnode.parent.addchild(new_node,
-                        before=parentnode.parent.children.next_neighbor)
+                        before=parentnode)
                 resulting_nodes.append(new_node)
 
             else:
