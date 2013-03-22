@@ -174,6 +174,9 @@ message_handlers = {
     },
     max_width: function(width) {
         tracker_api.setMaxWidth(width);
+    },
+    input: function(input) {
+        $(".command-box input").val(input);
     }
 }
 
@@ -197,10 +200,21 @@ ui_handlers = {
         }
         tracker_api.resize();
     },
-    command_typing: function(event) {
+    enter_handler: function(event) {
         if(event.which == 13) {
             message({command: $(".command-box input").val()});
             $(".command-box input").val("");
+        }
+    },
+    typing: function(event) {
+        if (event.which == 38) {
+            message({navigate: "up"});
+        } else if (event.which == 40) {
+            message({navigate: "down"});
+        } else if (event.which == 13) {
+            return;
+        } else {
+            message({input: $(".command-box input").val()});
         }
     },
     quit: function() {
@@ -212,7 +226,8 @@ ui_handlers = {
 // registration
 $(document).ready(function() {
     $(".toggle-bottom").click(ui_handlers.toggle_bottom);
-    $(".command-box input").keypress(ui_handlers.command_typing);
+    $(".command-box input").keypress(ui_handlers.enter_handler);
+    $(".command-box input").keydown(ui_handlers.typing);
     $(".quit").click(ui_handlers.quit);
 
     var d = new Date();

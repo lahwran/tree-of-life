@@ -239,6 +239,8 @@ class JSONProtocol(LineOnlyReceiver):
         self._error = ""
         self._errorclear = None
         self._is_vim_connection = False
+        self.command_history = [""]
+        self.command_index = 0
 
     def connectionMade(self):
         try:
@@ -326,9 +328,30 @@ class JSONProtocol(LineOnlyReceiver):
                 logger.exception("error running handler")
 
     def message_input(self, text_input):
-        pass  # don't care about input right now
+        self.command_history[self.command_index] = text_input
+
+    def message_navigate(self, direction):
+        shift = -1 if direction == "up" else 1
+
+        prev = self.command_index
+        self.command_index += shift
+
+        if self.command_index < 0:
+            self.command_index = 0
+        elif self.command_index >= len(self.command_history):
+            self.command_index = len(self.command_history) - 1
+
+        logger.info("navigate history: %s - %s", self.command_index,
+                self.command_history[self.command_index])
+        if prev == self.command_index:
+            return
+
+        self.sendmessage({"input": self.command_history[self.command_index]})
 
     def message_command(self, command):
+        self.command_history[self.command_index] = command
+        self.command_index += 1
+        self.command_history.append("")
         try:
             self.commandline.command(self, command)
         except Exception as e:
