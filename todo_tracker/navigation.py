@@ -14,8 +14,9 @@ def eventquery(eventorquery):
 @command("next")
 def done(event):
     root = getattr(event, "root", event)
+    if activate((searching.Query(":{can_activate}"), root)):
+        return
     finish((searching.chain(
-        searching.Query(":{can_activate}"),
         searching.Query("-> :{can_activate}"),
         searching.Query("< :{can_activate}")
     ), root))
@@ -47,7 +48,7 @@ def _activate(nodes, root, force=False):
         nodes = searching.tag_filter(nodes, set(["can_activate"]))
     node = searching.first(nodes)
     if node is None:
-        return  # ...?
+        return  # no notification...?
 
     active = root.active_node
     root.activate(node, force=force)
@@ -78,6 +79,7 @@ def finish(event):
         return
 
     prev_active.finish()
+    return prev_active
 
 
 @command("ca")
