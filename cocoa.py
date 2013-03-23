@@ -350,7 +350,7 @@ class JSONProtocol(LineOnlyReceiver):
 
     def message_command(self, command):
         self.command_history[self.command_index] = command
-        self.command_index += 1
+        self.command_index = len(self.command_history)
         self.command_history.append("")
         try:
             self.commandline.command(self, command)
