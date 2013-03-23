@@ -410,7 +410,7 @@ class Node(object):
     def auto_add(self, creator, root):
         self.root = root
         if self.preferred_parent is not None:
-            parent = self.root.find_one(self.preferred_parent)
+            parent = creator.find_one(self.preferred_parent)
             parent.addchild(self)
             return parent
         else:

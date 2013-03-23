@@ -157,7 +157,7 @@ class TodoItem(Node):
     children_of = ["todo bucket"]
     allowed_children = []
     multiline = True
-    preferred_parent = ["todo bucket"]
+    preferred_parent = "< :{last} > todo bucket"
 
 
 @nodecreator("todo bucket")
