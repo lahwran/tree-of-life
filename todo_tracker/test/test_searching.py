@@ -617,6 +617,73 @@ class TestCreate(object):
             "task: derp",
         ]
 
+    def test_default_first(self):
+        creator = searching.Creator("-> > task: target")
+
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+        tracker.root.createchild("task", "expected")
+        tracker.root.createchild("task", "ignore 1")
+        tracker.root.createchild("task", "ignore 2")
+        tracker.root.createchild("task", "ignore 3")
+
+        creator(origin)
+
+        assert serialize(tracker.root, is_root=True) == [
+            "task: origin",
+            "task: expected",
+            "    task: target",
+            "task: ignore 1",
+            "task: ignore 2",
+            "task: ignore 3",
+        ]
+
+    def test_last(self):
+        creator = searching.Creator("-> :{last} > task: target")
+
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+        tracker.root.createchild("task", "ignore 1")
+        tracker.root.createchild("task", "ignore 2")
+        tracker.root.createchild("task", "ignore 3")
+        tracker.root.createchild("task", "expected")
+
+        creator(origin)
+
+        assert serialize(tracker.root, is_root=True) == [
+            "task: origin",
+            "task: ignore 1",
+            "task: ignore 2",
+            "task: ignore 3",
+            "task: expected",
+            "    task: target",
+        ]
+
+    def test_many(self):
+        creator = searching.Creator("-> :{many} > task: target")
+
+        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+        origin = tracker.root.createchild("task", "origin")
+        tracker.root.createchild("task", "expected 1")
+        tracker.root.createchild("task", "expected 2")
+        tracker.root.createchild("task", "expected 3")
+
+        creator(origin)
+
+        assert serialize(tracker.root, is_root=True) == [
+            "task: origin",
+            "task: expected 1",
+            "    task: target",
+            "task: expected 2",
+            "    task: target",
+            "task: expected 3",
+            "    task: target",
+        ]
+
+
 # crashers
 # :{first} < :{last} < :{last}
 # :{first} < :{last} ->

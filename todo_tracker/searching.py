@@ -193,6 +193,11 @@ class Creator(object):
         # probably not, but where does it belong then?
         self.do_auto_add = do_auto_add
 
+        if len(self.joinedsearch.segments):
+            final = self.joinedsearch.segments[-1]
+            if final.plurality is None:
+                final.plurality = "first"
+
     def __call__(self, nodes):
         resulting_nodes = []
         evaluated_search = list(self.joinedsearch(nodes))
