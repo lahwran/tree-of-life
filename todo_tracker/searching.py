@@ -98,6 +98,7 @@ class SearchGrammar(parseutil.Grammar):
 
     separator = (ws? '->' -> "next_peer")
                 | (ws? '<-' -> "prev_peer")
+                | (ws? '<<' -> "root")
                 | (ws? ('>' ws?)? '**' (ws? '>')? -> "flatten")
                 | (ws? '>' -> "children")
                 | (ws? '<' -> "parents")
