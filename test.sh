@@ -1,10 +1,15 @@
 #!/bin/bash
-
 dir=$(dirname $0)
-. $dir/../bin/activate
-time `which py.test` --cov-config .coveragerc --cov-report html --cov todo_tracker --weakref "$@"
-res=$?
-deactivate
+
+if [ "$1" == "--pypy-only" ]; then
+    shift
+    res="0"
+else
+    . $dir/../bin/activate
+    time `which py.test` --cov-config .coveragerc --cov-report html --cov todo_tracker --weakref "$@"
+    res=$?
+    deactivate
+fi
 
 if [ "$res" = "0" ]
 then
