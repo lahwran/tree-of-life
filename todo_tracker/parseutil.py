@@ -1,6 +1,7 @@
 import ometa
 ometa.FAST = True
 import parsley
+from parsley import unwrapGrammar
 from ometa.grammar import OMeta
 from ometa.runtime import (ParseError, OMetaBase, EOFError, expected,
         InputStream)
@@ -60,8 +61,8 @@ number = <digit+>:ds -> int(ds)
 number_2dg = <digit{1,2}>:ds -> int(ds)
 """
 
-GrammarUtilities = OMeta.makeGrammar(utility_source, {},
-        name="GrammarBaseUtil", superclass=GrammarExtensions)
+GrammarUtilities = OMeta.makeGrammar(utility_source, "GrammarBaseUtil")\
+        .createParserClass(unwrapGrammar(GrammarExtensions), {})
 
 
 class _GrammarMetaclass(type):
@@ -78,8 +79,8 @@ class _GrammarMetaclass(type):
         bindings = dct.get("bindings", {})
         superclass = dct.get("superclass", GrammarUtilities)
 
-        grammar_class = OMeta.makeGrammar(source, bindings, name="_" + name,
-                    superclass=superclass)
+        grammar_class = OMeta.makeGrammar(source, "_" + name)\
+                .createParserClass(unwrapGrammar(superclass), bindings)
         dct["_grammarClass"] = grammar_class
 
         return type.__new__(cls, name, bases, dct)
