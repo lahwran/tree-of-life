@@ -15,17 +15,20 @@ class JoinedSearch(object):
     def __init__(self, *segments):
         self.segments = tuple(segments)
 
-    def __call__(self, nodes):
+    def __call__(self, nodes, counter=None):
         if getattr(nodes, "node_type", None) is not None:
             nodes = [nodes]
 
+        if counter is None:
+            counter = TickCounter()
+
         for segment in self.segments:
-            nodes = segment(nodes)
+            nodes = segment(nodes, counter=counter)
 
         return nodes
 
     def __repr__(self):
-        return "<query %r>" % self.segments
+        return "<query %r>" % (self.segments,)
 
 pluralities = set(["many", "first", "last"])
 
@@ -258,46 +261,88 @@ class Creator(object):
         return resulting_nodes
 
 
+class TickCounter(object):
+    "Mutable thing"
+    def __init__(self):
+        self.ticks = 0
+
+try:
+    import __pypy__
+    MAX_TICKS = 25000
+except ImportError:
+    MAX_TICKS = 10000
+
+
+def tick(counter):
+    try:
+        counter.ticks += 1
+    except AttributeError:
+        assert counter is None
+        return
+
+    if counter.ticks > MAX_TICKS:
+        raise TooManyMatchesError()
+
+
 @retrievers.add()
-def retriever_children(nodes):
+def retriever_children(nodes, counter=None):
     for node in nodes:
+        tick(counter)
         for child in node.children:
+            tick(counter)
             yield child
 
 
 @retrievers.add()
-def retriever_flatten(nodes):
+def retriever_flatten(nodes, counter=None):
     for node in nodes:
+        tick(counter)
         for depth, subnode in node.iter_flat_children():
+            tick(counter)
             yield subnode
 
 
 @retrievers.add()
-def retriever_next_peer(nodes):
+def retriever_next_peer(nodes, counter=None):
     for node in nodes:
+        tick(counter)
         for peer in node.iter_forward():
+            tick(counter)
             yield peer
 
 
 @retrievers.add()
-def retriever_prev_peer(nodes):
+def retriever_prev_peer(nodes, counter=None):
     for node in nodes:
+        tick(counter)
         for peer in node.iter_backward():
+            tick(counter)
             yield peer
 
 
 @retrievers.add()
-def retriever_parents(nodes):
+def retriever_parents(nodes, counter=None):
     for node in nodes:
+        tick(counter)
         for parent in node.iter_parents():
+            tick(counter)
             if parent is node:
                 continue
             yield parent
 
 
-def tag_filter(nodes, tags):
+@retrievers.add()
+def retriever_root(nodes, counter=None):
+    for node in nodes:
+        tick(counter)
+        yield node.root
+        return
+
+
+def tag_filter(nodes, tags, counter=None):
     tags = set(tags)
     for node in nodes:
+        tick(counter)
         node_tags = set(node._search_tags())
         if tags <= node_tags:
             yield node
@@ -313,8 +358,9 @@ class Matcher(object):
         if not self.is_rigid and rel != "default":
             assert False
 
-    def __call__(self, nodes):
+    def __call__(self, nodes, counter=None):
         for node in nodes:
+            tick(counter)
             node_types, texts = node.search_texts()
             if self.type is not None and self.type not in node_types:
                 continue
@@ -338,13 +384,13 @@ class Segment(object):
         self.tags = tags
         self.plurality = plurality
 
-    def __call__(self, nodes):
-        nodes = self.retriever(nodes)
+    def __call__(self, nodes, counter=None):
+        nodes = self.retriever(nodes, counter=counter)
         if self.matcher is not None:
-            nodes = self.matcher(nodes)
+            nodes = self.matcher(nodes, counter=counter)
 
         if self.tags:
-            nodes = tag_filter(nodes, self.tags)
+            nodes = tag_filter(nodes, self.tags, counter=counter)
 
         if self.plurality == "last":
             node = None
@@ -358,6 +404,7 @@ class Segment(object):
                 break
         else:
             for node in nodes:
+                tick(counter)
                 yield node
 
     def __repr__(self):
@@ -384,19 +431,37 @@ def record_iterator(iterator, thelist):
 
 
 def chain(*queries):
-    def run(nodes):
+    def run(nodes, counter=None):
         recorded = []
         to_iterate = record_iterator(nodes, recorded)
+        if counter is None:
+            counter = TickCounter()
         for query in queries:
-            for node in query(to_iterate):
+            for node in query(to_iterate, counter=counter):
                 yield node
             to_iterate = recorded
     return run
 
 
+class TooManyMatchesError(Exception):
+    pass
+
+
+def list_ignore_overflow(query):
+    results = []
+    try:
+        for item in query:
+            results.append(item)
+    except TooManyMatchesError:
+        pass
+
+    return results
+
+
 if __name__ == "__main__":
     todofile = "/Users/lahwran/.todo_tracker/life"
     from todo_tracker.tracker import Tracker
+    import time
     tracker = Tracker()
     with open(todofile, "r") as reader:
         tracker.deserialize("file", reader)
@@ -409,5 +474,9 @@ if __name__ == "__main__":
         queryer = Query(querytext)
         print queryer
 
-        for x in queryer(tracker.root):
+        inittime = time.time()
+        results = list(queryer(tracker.root))
+        finishtime = time.time()
+        for x in results[:1000]:
             print " > ".join([str(node) for node in x.iter_parents()][::-1])
+        print len(results), finishtime - inittime
