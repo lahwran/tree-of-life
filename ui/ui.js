@@ -63,6 +63,7 @@ function on_connected() {
     $(".content .status").empty();
     $(".content .todo").empty();
     $(".content .tree").empty();
+    message({ui_connected: true});
     ui_console.log("connected");
 }
 
@@ -171,12 +172,47 @@ message_handlers = {
     },
     display: function(display) {
         tracker_api.setPanelShown(display);
+        if (display) {
+            setTimeout(function() {
+                tracker_api.resize();
+            }, 1);
+        }
     },
     max_width: function(width) {
         tracker_api.setMaxWidth(width);
     },
     input: function(input) {
         $(".command-box input").val(input);
+    },
+    error: function(error) {
+        var error_count = parseInt($.trim($(".error-count").text()));
+
+        error_count += 1;
+        $(".error-count").text("" + error_count);
+        $(".error").text(error);
+        $(".error").show();
+
+        setTimeout(function() {
+            var error_count_2 = parseInt($.trim($(".error-count").text()));
+            if (error_count != error_count_2) {
+                return;
+            }
+            $(".error").hide();
+
+            tracker_api.resize();
+        }, 30000);
+        tracker_api.resize();
+    },
+    editor_running: function(editor_running) {
+        if (editor_running) {
+            $(".editor-running").show();
+            $(".tree").hide();
+            $(".todo").hide();
+        } else {
+            $(".editor-running").hide();
+            $(".tree").show();
+            $(".todo").show();
+        }
     }
 }
 
@@ -235,4 +271,13 @@ $(document).ready(function() {
     $(".loaded-at").text("" + n);
     tracker_api.resize();
     tracker_api.connect();
+
+
+    function autoresize() {
+        if (tracker_api.getPanelShown()) {
+            tracker_api.resize();
+        }
+        setTimeout(autoresize, 1000);
+    }
+    autoresize();
 });

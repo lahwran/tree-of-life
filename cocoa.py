@@ -61,6 +61,11 @@ def quit_popup(event):
     event.source.sendmessage({"should_quit": True})
 
 
+@command()
+def update(event):
+    event.source.update()
+
+
 def osascript(code):
     temp_code = tempfile()
     with open(temp_code, "w") as code_writer:
@@ -161,6 +166,8 @@ class RemoteInterface(SavingInterface):
         runner.run()
 
         self._vim_instances[runner.id] = runner
+        for listener in self.listeners:
+            listener.update_editor_running()
 
     def _vim_finished(self, identifier):
         if identifier not in self._vim_instances:
@@ -168,8 +175,9 @@ class RemoteInterface(SavingInterface):
                             identifier)
             return
         logger.info("finishing vim invocation: %r", identifier)
-        self._vim_instances[identifier].done()
+        instance = self._vim_instances[identifier]
         del self._vim_instances[identifier]
+        instance.done()
 
     def _show_iterm(self):
         osascript(
@@ -179,7 +187,7 @@ class RemoteInterface(SavingInterface):
         )
 
     def errormessage(self, source, message):
-        source.error = message
+        source.error(message)
         logger.error("errormessage from %r: %r", source, message)
 
     def messages(self):
@@ -236,40 +244,33 @@ class JSONProtocol(LineOnlyReceiver):
 
     def __init__(self, commandline):
         self.commandline = commandline
-        self._error = ""
-        self._errorclear = None
         self._is_vim_connection = False
         self.command_history = [""]
         self.command_index = 0
-
-    def connectionMade(self):
-        try:
-            self.sendmessage({
-                "max_width": self.commandline.config["max_width"]
-            })
-            self.update()
-            self.commandline.listeners.append(self)
-        except Exception:
-            logger.exception("Error sending info on connection")
+        self.update_timeout = None
 
     def connectionLost(self, reason):
-        try:
-            self.commandline.listeners.remove(self)
-        except ValueError:
-            logger.exception("Error removing listener from listeners")
         if not self._is_vim_connection:
+            try:
+                self.commandline.listeners.remove(self)
+            except ValueError:
+                logger.exception("Error removing listener from listeners")
             logger.info("connection lost: %r", reason)
 
     def sendmessage(self, message):
         self.sendLine(json.dumps(message))
 
     def update(self):
+        if self.update_timeout is not None and self.update_timeout.active():
+            self.update_timeout.cancel()
+        self.update_timeout = reactor.callLater(60, self.update)
+        self.update_editor_running()
+
         try:
             reversed_displaychain = self.commandline.displaychain()[::-1]
             self.sendmessage({
                 "prompt": [str(node) for node in reversed_displaychain],
                 "tree": self.commandline.root.ui_serialize(),
-                "status": self.status
             })
             self.commandline.auto_save()
         except Exception:
@@ -280,40 +281,22 @@ class JSONProtocol(LineOnlyReceiver):
                 })
             except Exception:
                 logger.exception("Error sending update notification")
+                self.error("exception")
 
-    @property
-    def status(self):
-        if self.error:
-            return self.error
-        if self.commandline._vim_instances:
-            return "vim running"
-        return ""
+    def update_editor_running(self):
+        self.sendmessage({
+            "editor_running": len(self.commandline._vim_instances)
+        })
 
-    @property
-    def error(self):
-        return self._error
-
-    @error.setter
     def error(self, new_error):
-        self._error = new_error
-        if self._errorclear is not None and self._errorclear.active():
-            self._errorclear.cancel()
-        self._errorclear = reactor.callLater(5.0, self._deerror)
-        self.update()
-
-    def _deerror(self):
-        self._error = ""
-        self.update()
-        if self._errorclear is not None:
-            if self._errorclear.active():
-                self._errorclear.cancel()
-            self._errorclear = None
+        self.sendmessage({"error": new_error})
 
     def lineReceived(self, line):
         try:
             document = json.loads(line)
         except ValueError:
             logger.exception("Error loading line")
+            self.error("exception")
             return
 
         for key, value in document.items():
@@ -321,11 +304,13 @@ class JSONProtocol(LineOnlyReceiver):
                 handler = getattr(self, "message_%s" % key)
             except AttributeError:
                 logger.info("unrecognized message: %s = %s", key, value)
+                self.error("exception")
                 continue
             try:
                 handler(value)
             except Exception:
                 logger.exception("error running handler")
+                self.error("exception")
 
     def message_input(self, text_input):
         self.command_history[self.command_index] = text_input
@@ -356,7 +341,13 @@ class JSONProtocol(LineOnlyReceiver):
             self.commandline.command(self, command)
         except Exception as e:
             logger.exception("Error running command")
-            self.error = repr(e)
+            stred = str(e)
+            name = type(e).__name__
+            if stred:
+                formatted = "%s: %s" % (name, stred)
+            else:
+                formatted = name
+            self.error(formatted)
         else:
             self.update()
 
@@ -367,6 +358,17 @@ class JSONProtocol(LineOnlyReceiver):
         self._is_vim_connection = True
         with Profile("vim finished"):
             self.commandline._vim_finished(identifier)
+
+    def message_ui_connected(self, ignoreme):
+        self._is_vim_connection = False
+        try:
+            self.sendmessage({
+                "max_width": self.commandline.config["max_width"]
+            })
+            self.update()
+            self.commandline.listeners.append(self)
+        except Exception:
+            logger.exception("Error sending info on connection")
 
 
 class JSONFactory(Factory):
