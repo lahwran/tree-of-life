@@ -27,7 +27,6 @@ function on_message_received(message) {
             func(value);
         }
     });
-    tracker_api.resize();
 }
 function on_status_changed(message) {
     ui_console.log("status_changed: ", message);
@@ -74,7 +73,6 @@ function get_height_adds() {
     var total_height = {value: 0};
     $(".height-add").each(function(item) {
         var height = $(this).outerHeight(true);
-        ui_console.log("item:", $(this).getPath(), "outerheight:", height);
         total_height.value += height;
     });
     return total_height.value;
@@ -83,8 +81,6 @@ function get_height_adds() {
 function set_heights(max_height) {
     var used = get_height_adds();
     assert(used <= max_height, "height-add elements taller than max height");
-    ui_console.log("max-height:", max_height);
-    ui_console.log("used height:", used);
 
     var height_remaining = $(".height-remaining");
     assert(height_remaining.length == 1, "wrong number of height-remaining elements");
@@ -92,13 +88,10 @@ function set_heights(max_height) {
 
     if (height_remaining.parents(".height-add").length) {
         used -= height_vestigial;
-        ui_console.log("used changed to", used, "because vestigial", height_vestigial);
     }
 
     var fat = height_vestigial - height_remaining.height();
-    ui_console.log("fat:", fat);
     var target_max = max_height - (used + fat);
-    ui_console.log("target_max:", target_max);
     assert(target_max > 0, "too much fat on height-remaining element");
     assert(target_max + used + fat == max_height, "calculation error");
     height_remaining.css("max-height", "" + target_max + "px");
@@ -148,6 +141,7 @@ message_handlers = {
     status: function(status) {
         ui_console.log("remote status:", status);
         $(".content .status").html(status);
+        tracker_api.resize();
     },
     tree: function(tree_root) {
         $(".tree").empty();
@@ -161,6 +155,7 @@ message_handlers = {
             }
         });
         ui_console.log("tree done");
+        tracker_api.resize();
     },
     prompt: function(prompt) {
         tracker_api.setMenuText(JSON.stringify(prompt));
@@ -176,6 +171,9 @@ message_handlers = {
             setTimeout(function() {
                 tracker_api.resize();
             }, 1);
+            setTimeout(function() {
+                tracker_api.resize();
+            }, 1000);
         }
     },
     max_width: function(width) {
@@ -213,6 +211,7 @@ message_handlers = {
             $(".tree").show();
             $(".todo").show();
         }
+        tracker_api.resize();
     }
 }
 
@@ -271,13 +270,4 @@ $(document).ready(function() {
     $(".loaded-at").text("" + n);
     tracker_api.resize();
     tracker_api.connect();
-
-
-    function autoresize() {
-        if (tracker_api.getPanelShown()) {
-            tracker_api.resize();
-        }
-        setTimeout(autoresize, 1000);
-    }
-    autoresize();
 });
