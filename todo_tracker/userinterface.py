@@ -282,12 +282,6 @@ class SavingInterface(CommandInterface):
         self._special_save(self.autosave_file, self.autosave_id,
                 self.autosave_minutes, "last_auto_save")
 
-        self.backup_save()
-
-    def backup_save(self):
-        self._special_save(self.backup_file, time.time(),
-                self.backup_minutes, "last_backup_save")
-
     def _special_save(self, name_format, time, freq, lastname):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
