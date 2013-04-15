@@ -7,7 +7,6 @@ from todo_tracker.exceptions import (ListIntegrityError, LoadError,
         CantStartNodeError)
 from todo_tracker.util import HandlerList
 from todo_tracker import file_storage
-from todo_tracker import searching
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +16,7 @@ class _NodeCreatorTracker(HandlerList):
     autodetect = False
 
     def create(self, node_type, text, parent, validate=True):
+        from todo_tracker.nodes import import_all
         try:
             creator = self.creators[node_type]
         except KeyError:
@@ -319,10 +319,12 @@ class Node(object):
         return self._prev_node
 
     def find(self, query):
+        from todo_tracker import searching
         query = searching.Query(query)
         return query([self])
 
     def find_one(self, query):
+        from todo_tracker import searching
         return searching.first(self.find(query))
 
     #-------------------------------------------------#
@@ -330,6 +332,7 @@ class Node(object):
     #-------------------------------------------------#
 
     def create(self, query):
+        from todo_tracker import searching
         creator = searching.Creator(query)
         return creator([self])
 

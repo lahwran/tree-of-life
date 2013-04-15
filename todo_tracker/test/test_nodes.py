@@ -3,10 +3,10 @@ from datetime import datetime
 import pytest
 
 from todo_tracker.tracker import Tracker, nodecreator
-from todo_tracker import nodes
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator
 from todo_tracker import navigation
+from todo_tracker.nodes import tasks
 
 
 class FakeDatetime(object):
@@ -18,11 +18,11 @@ class FakeDatetime(object):
 
 
 def test_registration():
-    assert nodecreator.creators["task"] == nodes.Task
+    assert nodecreator.creators["task"] == tasks.Task
 
 
 def test_task():
-    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(tasks.Task),
             skeleton=False)
 
     tracker.deserialize("str",
@@ -32,7 +32,7 @@ def test_task():
 
 
 def test_active_option():
-    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(tasks.Task),
             skeleton=False)
 
     tracker.deserialize("str",
@@ -47,7 +47,7 @@ def test_activate_deactivate(monkeypatch):
     from todo_tracker.nodes import tasks
     monkeypatch.setattr(tasks, "datetime",
             FakeDatetime(datetime(2012, 10, 24)))
-    tracker = Tracker(nodecreator=FakeNodeCreator(nodes.Task),
+    tracker = Tracker(nodecreator=FakeNodeCreator(tasks.Task),
             skeleton=False)
 
     tracker.deserialize("str",

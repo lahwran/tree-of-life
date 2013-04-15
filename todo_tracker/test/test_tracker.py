@@ -2,7 +2,7 @@ import itertools
 
 import pytest
 
-from todo_tracker.nodes import GenericNode, GenericActivate
+from todo_tracker.nodes.misc import GenericNode, GenericActivate
 from todo_tracker.nodes.node import TreeRootNode
 from todo_tracker.file_storage import serialize_to_str
 from todo_tracker.test.util import FakeNodeCreator

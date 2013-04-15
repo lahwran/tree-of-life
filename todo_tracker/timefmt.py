@@ -5,7 +5,7 @@ from todo_tracker.parseutil import Grammar
 from ometa.runtime import ParseError
 
 
-from todo_tracker.nodes import Option
+from todo_tracker.nodes.node import Option
 
 date_format = "%B %d, %Y"
 time_format = "%I:%M:%S %p"
