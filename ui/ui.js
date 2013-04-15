@@ -149,9 +149,11 @@ message_handlers = {
             $(".tree").append(render_tree(item));
             if (item.type == "todo bucket") {
                 $(".todo").empty();
-                $.each(item.children, function(index, item) {
-                    $(".todo").append(render_tree(item));
-                });
+                if (item.children) {
+                    $.each(item.children, function(index, item) {
+                        $(".todo").append(render_tree(item));
+                    });
+                }
             }
         });
         ui_console.log("tree done");
