@@ -449,7 +449,7 @@ def init_log(config):
 
 
 def main(restarter, args):
-    os.chdir(os.path.basename(__file__))
+    os.chdir(os.path.abspath(os.path.dirname(__file__)))
     config = argparser.parse_args(args)
 
     if not config.ignore_tests:
