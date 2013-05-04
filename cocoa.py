@@ -449,11 +449,13 @@ def init_log(config):
 
 
 def main(restarter, args):
+    os.chdir(os.path.basename(__file__))
     config = argparser.parse_args(args)
 
-    import pytest
-    if pytest.main([]) != 0 and not config.ignore_tests:
-        return
+    if not config.ignore_tests:
+        import pytest
+        if pytest.main([]) != 0:
+            return
 
     if config.dev:
         config.path += "_dev"
