@@ -170,6 +170,7 @@ ui_console = {
     _count: 0,
     _highlit: false,
     log: function() {
+        if (!ui_console.debug) { return; }
         try {
             ui_console._log_unsafe.apply(null, arguments);
         } catch (e) {

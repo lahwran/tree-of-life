@@ -7,17 +7,14 @@
 //////////////////////////
 // call-in handlers
 function on_panel_shown() {
-    ui_console.log("on_panel_shown");
     setTimeout(function(){
       $(".command-box input").focus();
-        ui_console.log("focused input box");
     }, 10);
 }
 function on_panel_hidden () {
     // nothing to do here for now
 }
 function on_attempting_reconnect () {
-    ui_console.log("attempting_reconnect");
 }
 function on_message_received(message) {
     var loaded = $.parseJSON(message);
@@ -29,7 +26,6 @@ function on_message_received(message) {
     });
 }
 function on_status_changed(message) {
-    ui_console.log("status_changed: ", message);
 }
 function on_calculate_width() {
     var width = min($(".size-container").width(), tracker_api.getScreenWidth()/2);
@@ -54,7 +50,6 @@ function on_calculate_height() {
 
 function on_disconnected() {
     // derp...
-    ui_console.log("disconnected");
 }
 
 function on_connected() {
@@ -63,7 +58,6 @@ function on_connected() {
     $(".content .todo").empty();
     $(".content .tree").empty();
     message({ui_connected: true});
-    ui_console.log("connected");
 }
 
 /////////////////////////
@@ -99,7 +93,6 @@ function set_heights(max_height) {
 
 handlers = {
     on_panel_hidden: function() {
-        ui_console.log("secondary panel hidden");
     }
 }
 
@@ -139,7 +132,6 @@ function render_tree(tree) {
 
 message_handlers = {
     status: function(status) {
-        ui_console.log("remote status:", status);
         $(".content .status").html(status);
         tracker_api.resize();
     },
@@ -156,7 +148,6 @@ message_handlers = {
                 }
             }
         });
-        ui_console.log("tree done");
         tracker_api.resize();
     },
     prompt: function(prompt) {
