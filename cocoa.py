@@ -483,7 +483,10 @@ def main(restarter, args):
     finally:
         ui.full_save()
 
-if __name__ == "__main__":
+def _main():
     print "(pre-logging init note) sys.argv:", sys.argv
     restarter = Restarter()
     restarter.call(main, sys.argv[1:])
+
+if __name__ == "__main__":
+    _main()
