@@ -7,294 +7,211 @@ from todo_tracker.nodes.tasks import BaseTask
 logger = logging.getLogger(__name__)
 
 
-def _makeproxy(parent, proxied):
-    return parent.root.nodecreator.create("work on", proxied.text, parent)
-
-
-class _AutoReference(object):
-    def __init__(self, name, target_name, is_nodelist):
+class ProxiedAttr(object):
+    """
+    Override the presence of an attribute on the proxy with a
+    retrieval of some sort
+    """
+    def __init__(self, name, is_node=False):
         self.name = name
-        self.target_name = target_name
-        self.is_nodelist = is_nodelist
+        self.is_node = is_node
 
-    def get_proxy(self, instance, target, value):
-        proxies = instance.proxies
-        try:
-            return proxies[value]
-        except KeyError:
-            if self.is_nodelist and value is target:
-                # never runs because it's always already proxied
-                proxy = instance
-            elif not self.is_nodelist and value is target.parent.children:
-                # again, never runs because already proxied
-                # should these be killed? they're still potential scenarios
-                proxy = instance.parent.children
-            else:
-                proxy = _makeproxy(instance.parent, value)
-            proxies[value] = proxy
-            return proxy
+    def __get__(self, instance, owning_class):
+        if instance._px_target is None:
+            return getattr(instance, self.name + "_default", None)
+        _my_name = self.name
+        _is_node = self.is_node
 
-    def __get__(self, instance, owner):
-        result = vars(instance).get(self.name, None)
-        if result is None and not getattr(instance, self.deleted_name, False):
-            result = target = instance.target
-            while True:
-                result = getattr(result, self.target_name)
-                if (isinstance(result, BaseTask) or
-                        isinstance(result, _NodeListRoot)):
-                    break
-            result = self.get_proxy(instance, target, result)
-        return result
+        proxy_root = instance._px_root
+        target_result = getattr(instance._px_target, self.name)
+        assert not proxy_root.is_owned(target_result)
+        if self.is_node:
+            return proxy_root.get_proxy(target_result)
+        return target_result
 
     def __set__(self, instance, value):
-        logger.debug("setting %r.%s to %r", instance, self.name, value)
-        if not getattr(instance, self.deleted_name, False):
-            if value is instance:
-                value = None
-        vars(instance)[self.name] = value
+        assert instance._px_target is not None
 
+        if self.is_node:
+            if instance._px_root.is_owned(value):
+                value = value._px_target
+        else:
+            assert not instance._px_root.is_owned(value)
+
+        setattr(instance._px_target, self.name, value)
+
+class ProxyNode(Node):
+    multiline = ProxiedAttr("multiline")
+    textless = ProxiedAttr("textless")
+    text_required = ProxiedAttr("text_required")
+    toplevel = ProxiedAttr("toplevel")
+    can_activate = ProxiedAttr("can_activate")
     @property
-    def deleted_name(self):
-        return "_" + self.name + "_deleted"
+    def options(self): raise AttributeError("proxied nodes do not have"
+                " direct access to the options list; use set_option "
+                "and option_values")
+    children_of = ProxiedAttr("children_of")
+    allowed_children = ProxiedAttr("allowed_children")
+    preferred_parent = ProxiedAttr("preferred_parent")
 
-    def __delete__(self, instance):
-        setattr(instance, self.deleted_name, True)
-
-
-class _ReferenceNodeList(_NodeListRoot):
-    is_reference = True
-    _next_node = _AutoReference("_real_next_node", "_next_node", True)
-    _prev_node = _AutoReference("_real_prev_node", "_prev_node", True)
-    is_solid = True
-    next_is_solid = True
-    prev_is_solid = True
-
-    def __init__(self, parent):
-        self.parent = parent
-        super(_ReferenceNodeList, self).__init__()
-
-    @property
-    def target(self):
-        return self.parent.target.children
-
-    @property
-    def proxies(self):
-        return self.parent.proxies
-
+    parent = ProxiedAttr("parent", is_node=True)
     @property
     def root(self):
-        return self.parent.root
+        return self._px_root.root
+    _next_node = ProxiedAttr("_next_node", is_node=True)
+    _prev_node = ProxiedAttr("_prev_node", is_node=True)
+    children = ProxiedAttr("children", is_node=True)
 
-    @property
+    setoption = ProxiedAttr("setoption")
+    option_values = ProxiedAttr("option_values")
+
+    _nonproxied = (
+        "_px_target",
+        "_px_root",
+        "children",
+        "referred_to",
+
+        "iter_parents",
+        "iter_flat_children",
+        "iter_forward",
+        "iter_backward",
+        "next_neighbor",
+        "prev_neighbor",
+        "find",
+        "find_one",
+        "create",
+        "createchild",
+        "removechild",
+        "detach",
+        
+        "make_skeleton",
+        "load_finished",
+        "auto_add",
+        "_do_repr"
+    )
+
+    def __init__(self, proxy_root, target):
+        self._px_target = target
+        self._px_root = proxy_root
+        self.referred_to = set()
+
+    def addchild(self, child, before=None, after=None):
+        assert not self._px_root.is_owned(child)
+
+        before = self._px_root.unwrap(before)
+        after = self._px_root.unwrap(after)
+
+        if child.parent is not None: 
+            assert child.parent is self
+            child.parent = None
+
+        result = self._px_target.addchild(child, before=before, after=after)
+        return self._px_root.get_proxy(result)
+
+    def children_export(self):
+        return []
+
+    def __str__(self):
+        return "<proxy>: " + Node.__str__(self)
+
+    def __getattr__(self, name):
+        """
+        Fallback in case there isn't a ProxiedAttr
+        Most attributes will be retrieved this way; for instance,
+        node type and text.
+        """
+        return getattr(self._px_target, name)
+
+    def __setattr__(self, name, value):
+        if name in ProxyNode._nonproxied:
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._px_target, name, value)
+
+    # this adds all class-level defined thingies to the list of non-proxied
+    # values
+    _nonproxied += tuple(locals().keys())
+    _nonproxied = set(_nonproxied)
+
+class ReferenceNodeList(_NodeListRoot):
+    _next_node = ProxiedAttr("_next_node", is_node=True)
+    _prev_node = ProxiedAttr("_prev_node", is_node=True)
+
+    def __init__(self, proxy_root, target, is_root=False):
+        self._next_node_default = self
+        self._prev_node_default = self
+
+        self._px_root = proxy_root
+        self._px_is_root = is_root
+        assert target is not None or is_root
+        self._px_target = target
+
     def length(self):
-        logger.warn("warning: calculating length of referencenodelist is"
-            "O(n) time")
-        result = 0
-        for x in self:
-            result += 1
-        return result
+        if self.target is None:
+            return 0
+        return self.target.length()
 
-    @length.setter
-    def length(self, newvalue):
-        pass
-
-    def __repr__(self):
-        return "%r.children" % getattr(self, "parent", None)
+    def insert(self, child, before=None, after=None):
+        before = self._px_root.unwrap(before)
+        after = self._px_root.unwrap(after)
+        
+        
 
 
 @nodecreator("reference")
-class DummyReference(Node):
-    is_reference = True
-    _next_node = _AutoReference("_real_next_node", "_next_node", False)
-    _prev_node = _AutoReference("_real_prev_node", "_prev_node", False)
-    children_of = ("work on",)
-
-    def __init__(self, node_type, text, parent):
-        self.target = None
-        self.proxies = parent.proxies
-
-        super(Reference, self).__init__(node_type, text, parent)
-
-    def _init_children(self):
-        self.children = _ReferenceNodeList(self)
-        self._real_next_node = None
-        self._real_prev_node = None
-
-    @property
-    def text(self):
-        textbody = (": " + self.target.text if self.target.text else "")
-        return self.target.node_type + textbody
-
-    @text.setter
-    def text(self, newvalue):
-        if self.target is not None:
-            del self.proxies[self.target]
-        self.target = self.parent.target.find_one(newvalue)
-        self.proxies[self.target] = self
-
-
-@nodecreator("work on")
 class Reference(BaseTask):
-    is_reference = True
-    _next_node = _AutoReference("_real_next_node", "_next_node", False)
-    _prev_node = _AutoReference("_real_prev_node", "_prev_node", False)
-    allowed_children = ("work on", "reference")
 
-    def __init__(self, node_type, text, parent):
-        if parent.node_type != "work on":
-            del self._next_node
-            del self._prev_node
-        self.target = None
-        if parent.node_type == "work on":
-            self.proxies = parent.proxies
-        else:
-            # there is no more waffles! I have them all!
-            self.proxies = WeakKeyDictionary()
+    def __init__(self, *args):
+        self.proxies = WeakKeyDictionary()
+        self._px_root = self
+        self._px_target_real = None
+        BaseTask.__init__(self, *args)
 
-        super(Reference, self).__init__(node_type, text, parent)
+    @property
+    def _px_target(self):
+        return self._px_target_real
+
+    @_px_target.setter
+    def _px_target(self, newvalue):
+        self._px_target_real = newvalue
+        self.children = self.get_proxy(newvalue.children)
 
     def _init_children(self):
-        self.children = _ReferenceNodeList(self)
-        self._real_next_node = None
-        self._real_prev_node = None
+        self.children = ReferenceNodeList(self, None, is_root=True)
+        self._next_node = None
+        self._prev_node = None
 
-    @property
-    def point_of_reference(self):
-        if self.parent.node_type == "work on":
-            return self.parent.target
-        return self.root
+    def load_finished(self):
+        self._px_target = self.find_one(self.text)
+        assert self._px_target is not None
 
-    @property
-    def text(self):
-        if self.target is None:
+    def is_owned(self, node):
+        return getattr(node, "_px_root", None) is self
+
+    def get_proxy(self, target):
+        if target is None:
             return None
-        nodes = []
-        for node in self.target.iter_parents():  # pragma: no branch
-            if node is self.point_of_reference:
-                break
-            nodes.append(node)
-        return " > ".join(node.text for node in reversed(nodes))
+        try:
+            return self.proxies[target]
+        except KeyError:
+            is_nodelist = hasattr(target, "insert") and hasattr(target, "remove")
+            is_node = hasattr(target, "node_type") and hasattr(target, "text")
 
-    @text.setter
-    def text(self, newtext):
-        node = self.point_of_reference.find_one(newtext)
-        if not isinstance(node, BaseTask):
-            logger.error("can't reference non-task: %r", node)
+            assert is_nodelist != is_node  # != is boolean XOR
 
-        if self.target is not None:
-            self.target.referred_to.remove(self)
-            del self.proxies[self.target]
-            del self.proxies[self.target.children]
-        self.target = node
-        self.target.referred_to.add(self)
-        self.proxies[self.target] = self
-        self.proxies[self.target.children] = self.children
+            if is_nodelist and not is_node:
+                newnode = ReferenceNodeList(self, target)
+            elif is_node and not is_nodelist:
+                newnode = ProxyNode(self, target)
 
-    def _solidify_link(self, before, after):
-        self.log(before, "<~ ~>", after)
-        self.log(after._prev_node, "<~ ~>", before._next_node)
-        before._next_node = after
-        after._prev_node = before
-        self.log(before, "<--->", after)
-        self.log(after._prev_node, "<--->", before._next_node)
+            self.proxies[target] = newnode
+            return newnode
 
-    def _do_solidify(self):
-        self.log()
-        solidified_links = 0
-        if getattr(self._prev_node, "prev_is_solid", True):
-            self._solidify_link(self._prev_node, self)
-            solidified_links += 1
-        if getattr(self._next_node, "next_is_solid", True):
-            self._solidify_link(self, self._next_node)
-            solidified_links += 1
-        self.log("solidified_links", solidified_links)
-        if not solidified_links:
-            logger.warn("could not solidify node %r", self)
-
-    def solidify(self):
-        self.log()
-        for parent in self.iter_parents():
-            try:
-                solidify = parent._do_solidify
-            except AttributeError:
-                return
-            solidify()
-
-    @property
-    def prev_is_solid(self):
-        self.log()
-        return self._real_prev_node is not None
-
-    @property
-    def next_is_solid(self):
-        self.log()
-        return self._real_next_node is not None
-
-    @property
-    def is_solid(self):
-        self.log()
-        options = [(name, item, show) for name, item, show
-                in self.option_values() if show]
-        return self.prev_is_solid or self.next_is_solid or len(options)
-
-    def addchild(self, child, before=None, after=None):
-        self.log()
-        if child.node_type in self.allowed_children:
-            return super(Reference, self).addchild(child,
-                    before=before, after=after)
-        else:
-            try:
-                if before:
-                    before = before.target
-                if after:
-                    after = after.target
-            except AttributeError:
-                raise DealWithNonProxyError
-            child.parent = self.target
-            self.target.addchild(child, before=before, after=after)
-            try:  # pragma: no branch
-                proxy = self.proxies[child]
-            except KeyError:
-                proxy = _makeproxy(self, child)
-            return proxy
+    def unwrap(self, node):
+        if not self.is_owned(node):
+            return
+        assert node._px_target is not None
+        return node._px_target
 
     def children_export(self):
-        self.log()
-        results = []
-        for child in self.children:
-            try:
-                solid = child.is_solid
-            except AttributeError:
-                solid = True
-            if solid:
-                results.append(child)
-        return results
-
-    @property
-    def active(self):
-        return self._active
-
-    @active.setter
-    def active(self, newvalue):
-        self._active = newvalue
-        self.log(newvalue)
-
-    def log(self, *args):
-        return
-        try:
-            import inspect
-            frames = inspect.stack()
-            logger.debug("%s.%s > " % (
-                    repr(self), frames[1][3]), " ".join(str(x) for x in args))
-        except:
-            import traceback
-            traceback.print_exc()
-
-    def __repr__(self):
-        return "(%r: %r)" % (
-                getattr(self, "node_type", "[work on]"),
-                getattr(self, "text", None))
-
-    def finish(self, *args):
-        super(Reference, self).finish(*args)
-        self.node_type = "worked on"
+        return []

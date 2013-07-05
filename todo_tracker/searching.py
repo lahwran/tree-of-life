@@ -419,6 +419,7 @@ class Segment(object):
 def first(iterator):
     for node in iterator:
         return node
+    return None
 
 
 def record_iterator(iterator, thelist):

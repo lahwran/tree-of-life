@@ -73,6 +73,9 @@ class _NodeListIter(object):
         else:
             return self._next()
 
+    def __repr__(self):
+        return "NodeListIter(%r)" % (self.node,)
+
 
 class _NodeListRoot(object):
     def __init__(self):
@@ -163,11 +166,11 @@ class Node(object):
 
         self.root = None
         self.node_type = node_type
-        self.parent = parent  # bootstrap text
+        self.parent = parent  # bootstrap parent for use in text hook
         self.text = text
 
         self.__initing = False
-        self.parent = parent  # re-run the assignment hooks!
+        self.parent = parent  # re-run the parent assignment hooks!
 
         if self.textless and text is not None:
             raise LoadError("%r node cannot have text" % self)
@@ -264,6 +267,7 @@ class Node(object):
 
             for option in options:
                 result[option.name] = option
+        self._option_dict_cache = result
         return result
 
     def option_values(self):
@@ -401,14 +405,24 @@ class Node(object):
         return list(self.children)
 
     def start(self):
+        """
+        Called to start the node
+        (todo: isn't this a task-specific thing?)
+        """
         if not self.can_activate:
             raise CantStartNodeError("can't start node %r" % self)
 
     def finish(self):
-        pass
+        """
+        Called when the node is finished
+        (todo: isn't this a task-specific thing?)
+        """
 
     def load_finished(self):
-        pass
+        """
+        Called when the  system is ready for the node to do
+        things to the tree
+        """
 
     def auto_add(self, creator, root):
         self.root = root
@@ -420,6 +434,9 @@ class Node(object):
             return None
 
     def ui_serialize(self, result=None):
+        """
+        Called to create a json version of the node, for the ui
+        """
         if result is None:
             result = {}
 
@@ -437,13 +454,22 @@ class Node(object):
         return result
 
     def search_texts(self):
+        """
+        Called to determine what texts the node will match
+        """
         return set([self.node_type]), set([self.text])
 
     def search_tags(self):
+        """
+        called to determine what tags the node will match
+        """
         return set()
 
     def user_creation(self):
-        pass
+        """
+        called when the node is created by user interaction
+        (not called on deserialize)
+        """
 
     #-------------------------------------------------#
     #                      misc                       #
