@@ -483,6 +483,7 @@ def main(restarter, args):
     finally:
         ui.full_save()
 
+
 def _main():
     print "(pre-logging init note) sys.argv:", sys.argv
     restarter = Restarter()

@@ -40,24 +40,102 @@ class ProxiedAttr(object):
 
         setattr(instance._px_target, self.name, value)
 
+
 class ProxyNode(Node):
+    """
+           multiline: attr
+            textless: attr
+       text_required: attr
+            toplevel: attr
+        can_activate: attr
+         children_of: attr
+    allowed_children: attr
+    preferred_parent: attr
+
+             options: AttributeError
+        _option_dict: AttributeError !
+
+            __init__: internal
+      _init_children: unused
+            children: node
+          _next_node: node
+          _prev_node: node
+
+           __initing: auto
+                root: attr
+           node_type: auto
+              parent: node
+                text: auto
+
+           _validate: attr
+       continue_text: attr
+
+           setoption: attr
+       option-values: attr
+
+        iter_parents: inherit/indirect
+  iter_flat_children: inherit/indirect
+        iter_forward: inherit/indirect
+       iter_backward: inherit/indirect
+       next_neighbor: inherit/indirect
+       prev_neighbor: inherit/indirect
+                find: inherit/indirect
+            find_one: inherit/indirect
+              create: inherit/indirect
+
+            addchild: func/indirect
+         createchild: inherit/indirect
+         removechild: inherit/indirect
+              detach: inherit/indirect
+                copy: func/indirect
+
+       make_skeleton: inherit/indirect
+     children_export: func/stub
+
+               start: attr
+              finish: attr
+
+       load_finished: inherit/stub
+            auto_add: func/stub
+        ui_serialize: attr
+        search_texts: attr
+         search_tags: attr
+       user_creation: attr
+        _search_tags: AttributeError
+             __str__: func/indirect
+            _do_repr: func/indirect
+            __repr__: inherit/indirect
+
+
+            -------------------
+
+              active: nonproxied
+
+
+
+    """
     multiline = ProxiedAttr("multiline")
     textless = ProxiedAttr("textless")
     text_required = ProxiedAttr("text_required")
     toplevel = ProxiedAttr("toplevel")
     can_activate = ProxiedAttr("can_activate")
+
     @property
-    def options(self): raise AttributeError("proxied nodes do not have"
+    def options(self):
+        raise AttributeError("proxied nodes do not have"
                 " direct access to the options list; use set_option "
                 "and option_values")
+
     children_of = ProxiedAttr("children_of")
     allowed_children = ProxiedAttr("allowed_children")
     preferred_parent = ProxiedAttr("preferred_parent")
 
     parent = ProxiedAttr("parent", is_node=True)
+
     @property
     def root(self):
         return self._px_root.root
+
     _next_node = ProxiedAttr("_next_node", is_node=True)
     _prev_node = ProxiedAttr("_prev_node", is_node=True)
     children = ProxiedAttr("children", is_node=True)
@@ -65,7 +143,20 @@ class ProxyNode(Node):
     setoption = ProxiedAttr("setoption")
     option_values = ProxiedAttr("option_values")
 
+    validate = ProxiedAttr("validate")
+    continue_text = ProxiedAttr("continue_text")
+
+    start = ProxiedAttr("start")
+    finish = ProxiedAttr("finish")
+
+    ui_serialize = ProxiedAttr("ui_serialize")
+    search_texts = ProxiedAttr("search_texts")
+    search_tags = ProxiedAttr("search_tags")
+    user_creation = ProxiedAttr("user_creation")
+
     _nonproxied = (
+        "active",
+
         "_px_target",
         "_px_root",
         "children",
@@ -83,7 +174,7 @@ class ProxyNode(Node):
         "createchild",
         "removechild",
         "detach",
-        
+
         "make_skeleton",
         "load_finished",
         "auto_add",
@@ -96,17 +187,25 @@ class ProxyNode(Node):
         self.referred_to = set()
 
     def addchild(self, child, before=None, after=None):
-        assert not self._px_root.is_owned(child)
-
         before = self._px_root.unwrap(before)
         after = self._px_root.unwrap(after)
+        child = self._px_root.unwrap(child)
 
-        if child.parent is not None: 
-            assert child.parent is self
+        if child.parent is not None:
+            assert self._px_root.unwrap(child.parent) is self._px_target, \
+                    str((child, child.parent, self._px_target))
             child.parent = None
+
 
         result = self._px_target.addchild(child, before=before, after=after)
         return self._px_root.get_proxy(result)
+
+    def copy(self, parent=None, children=True, options=True):
+        if parent is None:
+            parent = self.parent
+
+        parent = self._px_root.unwrap(parent)
+        return self._px_target.copy(parent, children, options)
 
     def children_export(self):
         return []
@@ -133,6 +232,7 @@ class ProxyNode(Node):
     _nonproxied += tuple(locals().keys())
     _nonproxied = set(_nonproxied)
 
+
 class ReferenceNodeList(_NodeListRoot):
     _next_node = ProxiedAttr("_next_node", is_node=True)
     _prev_node = ProxiedAttr("_prev_node", is_node=True)
@@ -146,16 +246,23 @@ class ReferenceNodeList(_NodeListRoot):
         assert target is not None or is_root
         self._px_target = target
 
+    @property
     def length(self):
         if self.target is None:
             return 0
-        return self.target.length()
+        return self.target.length
 
     def insert(self, child, before=None, after=None):
         before = self._px_root.unwrap(before)
         after = self._px_root.unwrap(after)
-        
-        
+        child = self._px_root.unwrap(child)
+
+        self._px_target.insert(child, before=before, after=after)
+
+    def remove(self, child):
+        child = self._px_root.unwrap(child)
+
+        self._px_target.remove(child)
 
 
 @nodecreator("reference")
@@ -165,6 +272,8 @@ class Reference(BaseTask):
         self.proxies = WeakKeyDictionary()
         self._px_root = self
         self._px_target_real = None
+        self._px_didstart = False
+        self._px_dostart = False
         BaseTask.__init__(self, *args)
 
     @property
@@ -173,6 +282,7 @@ class Reference(BaseTask):
 
     @_px_target.setter
     def _px_target(self, newvalue):
+        assert bool(newvalue) != bool(self.finished)
         self._px_target_real = newvalue
         self.children = self.get_proxy(newvalue.children)
 
@@ -182,8 +292,11 @@ class Reference(BaseTask):
         self._prev_node = None
 
     def load_finished(self):
-        self._px_target = self.find_one(self.text)
-        assert self._px_target is not None
+        if not self.finished:
+            self._px_target = self.find_one(self.text)
+
+        if self._px_dostart:
+            self._px_start()
 
     def is_owned(self, node):
         return getattr(node, "_px_root", None) is self
@@ -191,10 +304,13 @@ class Reference(BaseTask):
     def get_proxy(self, target):
         if target is None:
             return None
+        if target is self._px_target:
+            return self
         try:
             return self.proxies[target]
         except KeyError:
-            is_nodelist = hasattr(target, "insert") and hasattr(target, "remove")
+            is_nodelist = hasattr(target, "insert") and hasattr(target,
+                    "remove")
             is_node = hasattr(target, "node_type") and hasattr(target, "text")
 
             assert is_nodelist != is_node  # != is boolean XOR
@@ -209,9 +325,34 @@ class Reference(BaseTask):
 
     def unwrap(self, node):
         if not self.is_owned(node):
-            return
+            return node
         assert node._px_target is not None
         return node._px_target
 
     def children_export(self):
         return []
+
+    def start(self):
+        if self._px_target is not None:
+            self._px_start()
+        else:
+            self._px_dostart = True
+
+    def _px_start(self):
+        BaseTask.start(self)
+        if not self._px_target.started:
+            self._px_target.start()
+            self._px_didstart = True
+        self._px_dostart = False
+
+    def finish(self):
+        BaseTask.finish(self)
+        self._px_target_real = None
+        self.children = ReferenceNodeList(self, None, is_root=True)
+        self.proxies = None
+
+    def unfinish(self):
+        BaseTask.unfinish(self)
+        self.proxies = WeakKeyDictionary()
+        self._px_dostart = False
+        self.load_finished()

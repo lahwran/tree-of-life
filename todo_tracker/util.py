@@ -89,7 +89,6 @@ def _monitor(name):
     exec(render, f.f_globals, f.f_locals)
 
 
-
 def hasattr_(obj, name):
     sentinel = object()
     return getattr(obj, name, sentinel) is not sentinel
