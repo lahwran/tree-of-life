@@ -139,7 +139,7 @@ class TestNode(object):
         assert list(parent1.children) == [child]
         assert child.parent is parent1
 
-        child.detach()
+        child = child.detach()
         assert child.parent is None
         assert list(parent1.children) == []
 
@@ -149,8 +149,19 @@ class TestNode(object):
         assert child.parent is parent2
 
     def test_detach_noop(self):
+        tracker = self.tracker()
+
         node = Node("node", None, None)
-        node.detach()
+        node = node.detach()
+        assert not node.parent
+        assert not node.root
+
+        parent2 = Node("parent2", None, tracker.root)
+        parent2.addchild(node)
+
+        assert list(parent2.children) == [node]
+        assert node.root is tracker.root
+        assert node.parent is parent2
 
     def test_copy_new_tracker(self):
         tracker1 = self.tracker()

@@ -192,10 +192,8 @@ class ProxyNode(Node):
         child = self._px_root.unwrap(child)
 
         if child.parent is not None:
-            assert self._px_root.unwrap(child.parent) is self._px_target, \
-                    str((child, child.parent, self._px_target))
+            assert self._px_root.unwrap(child.parent) is self._px_target
             child.parent = None
-
 
         result = self._px_target.addchild(child, before=before, after=after)
         return self._px_root.get_proxy(result)
@@ -206,6 +204,9 @@ class ProxyNode(Node):
 
         parent = self._px_root.unwrap(parent)
         return self._px_target.copy(parent, children, options)
+
+    def detach(self):
+        return self._px_target.detach()
 
     def children_export(self):
         return []
@@ -315,9 +316,9 @@ class Reference(BaseTask):
 
             assert is_nodelist != is_node  # != is boolean XOR
 
-            if is_nodelist and not is_node:
+            if is_nodelist:
                 newnode = ReferenceNodeList(self, target)
-            elif is_node and not is_nodelist:
+            else:
                 newnode = ProxyNode(self, target)
 
             self.proxies[target] = newnode
@@ -356,3 +357,4 @@ class Reference(BaseTask):
         self.proxies = WeakKeyDictionary()
         self._px_dostart = False
         self.load_finished()
+        return True

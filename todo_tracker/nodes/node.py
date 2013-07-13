@@ -376,6 +376,7 @@ class Node(object):
     def detach(self):
         if self.parent:
             self.parent.removechild(self)
+        return self
 
     def copy(self, parent=None, children=True, options=True):
         if parent is None:

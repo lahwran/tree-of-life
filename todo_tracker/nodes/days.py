@@ -441,7 +441,7 @@ class Days(Node):
             if child.node_type == "day" and child.date < self.archive_date:
                 prev_node = child.prev_neighbor
                 next_node = child.next_neighbor
-                child.detach()
+                child = child.detach()
                 self.addchild(Archived.fromnode(child, parent=self),
                         before=next_node, after=prev_node)
 

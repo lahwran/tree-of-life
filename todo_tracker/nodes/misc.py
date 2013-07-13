@@ -54,8 +54,8 @@ class Archived(GenericNode):
         prev_node = self.prev_neighbor
         next_node = self.next_neighbor
         parent = self.parent
-        self.detach()
-        parent.addchild(self.fromnode(self, parent=parent),
+        detached = self.detach()
+        parent.addchild(self.fromnode(detached, parent=parent),
                 before=next_node, after=prev_node)
 
 
@@ -89,8 +89,8 @@ class Unarchiver(GenericNode):
         prev_node = self.prev_neighbor
         next_node = self.next_neighbor
         parent = self.parent
-        self.detach()
-        parent.addchild(self.unarchive(self, parent=parent),
+        detached = self.detach()
+        parent.addchild(self.unarchive(detached, parent=parent),
                 after=prev_node, before=next_node)
 
 
