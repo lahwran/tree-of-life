@@ -4,7 +4,7 @@ from todo_tracker import navigation
 
 
 def test_createauto_todo_integration():
-    tracker = Tracker(None)
+    tracker = Tracker(skeleton=False)
     days = tracker.root.createchild("days")
     day = days.createchild("day", "today")
     tracker.root.activate(day)

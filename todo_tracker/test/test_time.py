@@ -33,6 +33,11 @@ def test_time_string():
     assert timefmt.time_to_str(datetime.time(10)) == "10:00:00 AM"
 
 
+def test_timedelta_to_str():
+    x = datetime.timedelta(days=2, hours=2, minutes=2, seconds=2)
+    assert timefmt.str_to_timedelta(timefmt.timedelta_to_str(x)) == x
+
+
 class TestParsers(object):
     def test_months(self):
         with pytest.raises(ParseError):

@@ -11,7 +11,7 @@ class FakeNodeCreator(_NodeCreatorTracker):
         self.creators = defaultdict(lambda: create)
 
     def exists(self, node_type):
-        return True
+        return True  # pragma: no cover
 
     def values(self):
-        return [self.create]
+        return [self.create]  # pragma: no cover

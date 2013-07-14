@@ -79,10 +79,9 @@ class FileParser(object):
         return parse_file(self.reader, self.error_context)
 
 
-def parse_file(reader, error_context=None):
+def parse_file(reader, error_context):
     for index, line in enumerate(reader):
-        if error_context:
-            error_context.line = index
+        error_context.line = index
         if not line:
             continue
         yield parse_line(line)

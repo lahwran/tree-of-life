@@ -10,11 +10,6 @@ import string
 import sys
 
 
-def unique_name(name):
-    unique = "".join([random.choice(string.letters) for e in range(30)])
-    return "%s_%s" % (name, unique)
-
-
 class GrammarExtensions(OMetaBase):
     def __init__(self, input, *args, **kwargs):
         if not kwargs.get("stream", False) and not kwargs.get("tree", False):
@@ -39,8 +34,8 @@ class GrammarExtensions(OMetaBase):
 
     def _match_or_none(self, rulename, *args):
         def success():
-            apply_result, err = self.apply(rulename, args)
-            self.considerError(lastError, None)
+            apply_result, err = self.apply(rulename, *args)
+            self.considerError(err, None)
             return apply_result, self.currentError
 
         def failure():

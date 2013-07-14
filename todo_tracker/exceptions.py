@@ -6,10 +6,14 @@ class ListIntegrityError(Exception):
     pass
 
 
+class ErrorContext(object):
+    def __init__(self):
+        self.line = None
+
+
 class LoadError(Exception):
     def __init__(self, message):
         self._message = message
-        self.error_context = None
 
     @property
     def message(self):

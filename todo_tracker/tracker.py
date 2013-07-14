@@ -2,14 +2,9 @@ import traceback
 
 from twisted.internet.defer import Deferred
 
-from todo_tracker.exceptions import LoadError
+from todo_tracker.exceptions import LoadError, ErrorContext
 from todo_tracker.nodes.node import TreeRootNode, nodecreator
 from todo_tracker.file_storage import loaders, serializers
-
-
-class ErrorContext(object):
-    def __init__(self):
-        self.line = None
 
 
 class Tracker(object):
@@ -86,6 +81,3 @@ class Tracker(object):
     def serialize(self, format, *args, **keywords):
         serializer = serializers.handlers[format]
         return serializer(self.root, *args, **keywords)
-
-    def start_editor(self):
-        raise NotImplementedError

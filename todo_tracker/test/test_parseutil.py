@@ -18,3 +18,6 @@ def test_grammar():
 
     assert MyGrammar("herp derp").source(1000) == 1110
     assert MyGrammar("herk derk").source(1000, optional=True) is None
+    assert MyGrammar("herp derp").source(1000, optional=True) == 1110
+
+    MyGrammar.printSource()
