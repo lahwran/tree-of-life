@@ -93,4 +93,6 @@ def hasattr_(obj, name):
     sentinel = object()
     return getattr(obj, name, sentinel) is not sentinel
 
+hasattr_.is_good_hasattr = True
+
 __builtin__.hasattr = hasattr_

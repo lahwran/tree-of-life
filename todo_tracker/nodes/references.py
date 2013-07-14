@@ -31,12 +31,11 @@ class ProxiedAttr(object):
 
     def __set__(self, instance, value):
         assert instance._px_target is not None
+        assert self.is_node, ("Only node ProxiedAttrs can be written to; "
+                "others should wrap inherited methods and class attrs")
 
-        if self.is_node:
-            if instance._px_root.is_owned(value):
-                value = value._px_target
-        else:
-            assert not instance._px_root.is_owned(value)
+        if instance._px_root.is_owned(value):
+            value = value._px_target
 
         setattr(instance._px_target, self.name, value)
 
@@ -122,9 +121,7 @@ class ProxyNode(Node):
 
     @property
     def options(self):
-        raise AttributeError("proxied nodes do not have"
-                " direct access to the options list; use set_option "
-                "and option_values")
+        raise AttributeError
 
     children_of = ProxiedAttr("children_of")
     allowed_children = ProxiedAttr("allowed_children")
@@ -220,6 +217,10 @@ class ProxyNode(Node):
         Most attributes will be retrieved this way; for instance,
         node type and text.
         """
+        if name == "options":
+            raise AttributeError("proxied nodes do not have"
+                " direct access to the options list; use set_option "
+                "and option_values")
         return getattr(self._px_target, name)
 
     def __setattr__(self, name, value):
@@ -249,9 +250,9 @@ class ReferenceNodeList(_NodeListRoot):
 
     @property
     def length(self):
-        if self.target is None:
+        if self._px_target is None:
             return 0
-        return self.target.length
+        return self._px_target.length
 
     def insert(self, child, before=None, after=None):
         before = self._px_root.unwrap(before)
@@ -283,7 +284,7 @@ class Reference(BaseTask):
 
     @_px_target.setter
     def _px_target(self, newvalue):
-        assert bool(newvalue) != bool(self.finished)
+        assert not self.finished or newvalue is None
         self._px_target_real = newvalue
         self.children = self.get_proxy(newvalue.children)
 
@@ -294,7 +295,9 @@ class Reference(BaseTask):
 
     def load_finished(self):
         if not self.finished:
-            self._px_target = self.find_one(self.text)
+            _px_target = self.find_one(self.text)
+            assert _px_target is not None
+            self._px_target = _px_target
 
         if self._px_dostart:
             self._px_start()

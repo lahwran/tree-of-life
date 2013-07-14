@@ -1,6 +1,15 @@
 from todo_tracker.tracker import Tracker, nodecreator
 from todo_tracker import navigation
 from todo_tracker import searching
+from todo_tracker.nodes import references
+
+import pytest
+
+
+@pytest.fixture
+def tracker():
+    tracker = Tracker(skeleton=False)
+    return tracker
 
 
 def _dump(nodes, getiterator=lambda x: x.children, depth=0):
@@ -11,8 +20,7 @@ def _dump(nodes, getiterator=lambda x: x.children, depth=0):
     return result
 
 
-def test_reference():
-    tracker = Tracker(skeleton=False)
+def test_reference(tracker):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -20,6 +28,8 @@ def test_reference():
         "    comment: derp\n"
         "reference: <- target\n"
     )
+
+    assert len(tracker.root.find_one("reference").children) == 2
 
     assert _dump(tracker.root.find("reference")) == [
         "reference: <- target",
@@ -29,8 +39,7 @@ def test_reference():
     ]
 
 
-def test_nested_reference():
-    tracker = Tracker(skeleton=False)
+def test_nested_reference(tracker):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -56,8 +65,7 @@ def test_nested_reference():
     assert x == y
 
 
-def test_nested_createchild():
-    tracker = Tracker(skeleton=False)
+def test_nested_createchild(tracker):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -102,8 +110,7 @@ def test_nested_createchild():
     ]
 
 
-def test_createchild():
-    tracker = Tracker(skeleton=False)
+def test_createchild(tracker):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -129,8 +136,7 @@ def test_createchild():
     ]
 
 
-def test_parent():
-    tracker = Tracker(skeleton=False)
+def test_parent(tracker):
     tracker.deserialize("str",
         "task: target 1\n"
         "    task: target 2\n"
@@ -146,15 +152,15 @@ def test_parent():
 
 
 class TestProxynode(object):
-    def test_activate(self):
-        tracker = Tracker(skeleton=False)
+    def test_activate(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
+            "reference: <-\n"
             "days\n"
             "    day: today\n"
-            "        reference: << > target 1\n"
+            "        reference: << > reference\n"
             "            @active\n"
         )
 
@@ -176,7 +182,7 @@ class TestProxynode(object):
         assert root.active_node is root.find_one(
                 "days > day")
 
-        reference = tracker.root.find_one("** > reference")
+        reference = tracker.root.find_one("days > day > reference")
         target_3 = tracker.root.find_one("** > target 3")
         target_2 = tracker.root.find_one("** > target 2")
         target_1 = tracker.root.find_one("target 1")
@@ -190,8 +196,7 @@ class TestProxynode(object):
         assert not target_1.finished
         assert reference.finished > target_2.finished
 
-    def test_reposition(self):
-        tracker = Tracker(skeleton=False)
+    def test_reposition(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -222,20 +227,21 @@ class TestProxynode(object):
             "        <proxy>: task: target 3",
         ]
 
-    def test_reposition_2(self):
-        tracker = Tracker(skeleton=False)
+    def test_reposition_2(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
             "    task: target 4\n"
-            "reference: <- target 1\n"
+            "reference: <-\n"
+            "reference: <-\n"
         )
 
         target_3 = tracker.root.find_one("task > task > target 3")
         target_4 = tracker.root.find_one("task > target 4")
 
-        proxy_3 = tracker.root.find_one("reference > task > target 3")
+        proxy_3 = tracker.root.find_one("reference -> "
+                "reference > task > target 3")
 
         detached = proxy_3.detach()
         detached.parent = target_4
@@ -248,14 +254,17 @@ class TestProxynode(object):
             "    task: target 2",
             "    task: target 4",
             "        task: target 3",
-            "reference: <- target 1",
+            "reference: <-",
+            "    <proxy>: task: target 2",
+            "    <proxy>: task: target 4",
+            "        <proxy>: task: target 3",
+            "reference: <-",
             "    <proxy>: task: target 2",
             "    <proxy>: task: target 4",
             "        <proxy>: task: target 3",
         ]
 
-    def test_reposition_3(self):
-        tracker = Tracker(skeleton=False)
+    def test_reposition_3(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -283,8 +292,7 @@ class TestProxynode(object):
             "        <proxy>: task: target 2",
         ]
 
-    def test_copy_1(self):
-        tracker = Tracker(skeleton=False)
+    def test_copy_1(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -299,7 +307,8 @@ class TestProxynode(object):
         proxy_3 = tracker.root.find_one("reference > task > target 3")
         proxy_4 = tracker.root.find_one("reference > target 4")
 
-        target_3_new = proxy_3.copy(parent=proxy_4)
+        target_3_new = proxy_3.copy()
+        target_3_new.parent = proxy_4
 
         proxy_4.addchild(target_3_new)
 
@@ -316,8 +325,7 @@ class TestProxynode(object):
             "        <proxy>: task: target 3",
         ]
 
-    def test_copy_2(self):
-        tracker = Tracker(skeleton=False)
+    def test_copy_2(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -349,8 +357,7 @@ class TestProxynode(object):
             "        <proxy>: task: target 3",
         ]
 
-    def test_creation(self):
-        tracker = Tracker(skeleton=False)
+    def test_creation(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -370,10 +377,120 @@ class TestProxynode(object):
             "        <proxy>: task: test"
         ]
 
+    def test_whacky_reposition_setparent(self, tracker):
+        tracker.deserialize("str",
+            "task: to reference\n"
+            "    task: dummy\n"
+            "        task: move me\n"
+            "    task: parent\n"
+            "reference: <- to reference\n"
+        )
+
+        proxy = tracker.root.find_one("reference > task > move me")
+        parent = tracker.root.find_one("reference > task: parent")
+        move_me = proxy._px_target
+
+        move_me.detach()
+
+        # this is to make sure assigning to parent doesn't blow things up
+        proxy.parent = parent
+        assert proxy.parent is parent
+
+        parent.addchild(proxy)
+
+        assert _dump(tracker.root.children) == [
+            "task: to reference",
+            "    task: dummy",
+            "    task: parent",
+            "        task: move me",
+            "reference: <- to reference",
+            "    <proxy>: task: dummy",
+            "    <proxy>: task: parent",
+            "        <proxy>: task: move me",
+        ]
+
+    def test_whacky_reposition_noneparent(self, tracker):
+        tracker.deserialize("str",
+            "task: to reference\n"
+            "    task: dummy\n"
+            "        task: move me\n"
+            "    task: parent\n"
+            "reference: <- to reference\n"
+        )
+
+        proxy = tracker.root.find_one("reference > task > move me")
+        parent = tracker.root.find_one("reference > task: parent")
+        move_me = proxy._px_target
+
+        move_me.detach()
+
+        # this is to make sure assigning to parent doesn't blow things up
+        proxy.parent = None
+        assert proxy.parent is None
+
+        parent.addchild(proxy)
+
+        assert _dump(tracker.root.children) == [
+            "task: to reference",
+            "    task: dummy",
+            "    task: parent",
+            "        task: move me",
+            "reference: <- to reference",
+            "    <proxy>: task: dummy",
+            "    <proxy>: task: parent",
+            "        <proxy>: task: move me",
+        ]
+
+    def test_set_text(self, tracker):
+        tracker.deserialize("str",
+            "task: to reference\n"
+            "    task: to rename\n"
+            "reference: <-"
+        )
+
+        to_rename = tracker.root.find_one('reference > to rename')
+        to_rename.text = "renamed"
+
+        assert _dump(tracker.root.children) == [
+            "task: to reference",
+            "    task: renamed",
+            "reference: <-",
+            "    <proxy>: task: renamed"
+        ]
+
+    def test_export(self, tracker):
+        tracker.deserialize("str",
+            "task: to reference\n"
+            "    task: parent\n"
+            "        task: child 1\n"
+            "        task: child 2\n"
+            "        task: child 3\n"
+            "reference: <-"
+        )
+
+        from todo_tracker.file_storage import serialize
+
+        assert serialize(tracker.root.find_one("reference > parent")) == [
+            "task: parent"
+        ]
+
+    def test_no_options(self, tracker):
+        tracker.deserialize("str",
+            "task: to reference\n"
+            "    task: target\n"
+            "reference: <-"
+        )
+
+        target = tracker.root.find_one("reference > target")
+
+        with pytest.raises(AttributeError) as excinfo:
+            target.options
+
+        assert "do not have" in excinfo.value.message
+
 
 class TestRefnode(object):
-    def test_creation(self):
-        tracker = Tracker(skeleton=False)
+    def test_creation(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "reference: <-"
@@ -390,9 +507,7 @@ class TestRefnode(object):
             "    <proxy>: task: test"
         ]
 
-    def test_unfinish(self):
-        tracker = Tracker(skeleton=False)
-
+    def test_unfinish(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -432,9 +547,7 @@ class TestRefnode(object):
             "    <proxy>: task: target 2"
         ]
 
-    def test_unfinish_notinitialized(self):
-        tracker = Tracker(skeleton=False)
-
+    def test_unfinish_notinitialized(self, tracker):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
@@ -465,11 +578,22 @@ class TestRefnode(object):
             "    <proxy>: task: target 2"
         ]
 
-    def test_removechild(self):
-        pass
+    def test_initial_state(self, tracker):
+        ref = references.Reference("reference", "<-")
 
-    def test_export(self):
-        tracker = Tracker(skeleton=False)
+        assert ref._px_target is None
+        assert ref.children.length == 0
+
+        tracker.deserialize("str",
+            "task: target\n"
+            "    task: child\n"
+        )
+
+        tracker.root.addchild(ref)
+
+        assert ref._px_target is tracker.root.find_one("task")
+
+    def test_export(self, tracker):
         tree = (
             "task: target\n"
             "    task: somechild\n"
@@ -480,10 +604,22 @@ class TestRefnode(object):
         tracker.deserialize("str", tree)
 
         assert tracker.serialize("str") == tree
-# test each attribute in Node
-# test flattened iteration
-# test arbitrary attr proxying
-# test interacting with doubly nested references
+
+    def test_removechild(self, tracker):
+        tracker.deserialize("str",
+            "task: referenced\n"
+            "    task: toremove\n"
+            "reference: <-\n"
+        )
+        reference = tracker.root.find_one("reference")
+
+        toremove = reference.find_one("task")
+        reference.removechild(toremove)
+        assert _dump(tracker.root.children) == [
+            "task: referenced",
+            "reference: <-"
+        ]
+
 # test displaying as active
 # search contexts or search quoting are required to make references useful
-# test finished loading
+# test finished-loading creation of reference

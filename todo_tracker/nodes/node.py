@@ -159,7 +159,7 @@ class Node(object):
     #                 initialization                  #
     #-------------------------------------------------#
 
-    def __init__(self, node_type, text, parent):
+    def __init__(self, node_type, text, parent=None):
         self._init_children()
 
         self.__initing = True  # hack for assignment hooks
@@ -188,7 +188,7 @@ class Node(object):
     @parent.setter
     def parent(self, newparent):
         self._parent = newparent
-        if newparent is not None:
+        if newparent is not None and self.root is not newparent.root:
             self.root = newparent.root
 
     @property
@@ -345,10 +345,7 @@ class Node(object):
                 child.node_type not in self.allowed_children):
             raise LoadError("node %s cannot be child of %r" %
                     (child._do_repr(parent=False), self))
-        if child.parent is None:
-            child.parent = self
-            child._validate()
-        if child.parent is not self:
+        if child.parent is not self and child.parent is not None:
             raise LoadError("node %r does not expect to be a child of %r" %
                     (child, self))
         if before and before.parent is not self:
@@ -358,6 +355,10 @@ class Node(object):
             raise LoadError("node %r cannot be after node %r as child of %r" %
                     (child, after, self))
         self.children.insert(child, before, after)
+
+        if child.parent is None:
+            child.parent = self
+            child._validate()
 
         ihook = getattr(child, "_insertion_hook", None)
         if ihook is not None:
