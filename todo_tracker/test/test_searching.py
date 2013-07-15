@@ -674,7 +674,7 @@ class TestCreate(object):
         ]
         assert repr(creator)
 
-    def test_last(self):
+    def test_last_2(self):
         creator = searching.Creator("-> :{last} > task: target")
 
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
