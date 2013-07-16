@@ -7,34 +7,53 @@ def eventquery(eventorquery):
         return searching.Query(eventorquery.text), eventorquery.root
     else:
         query, root = eventorquery
+        if isinstance(query, basestring):
+            query = searching.Query(query)
         return query, root
+
+
+def queryevent(func):
+    import functools
+
+    @functools.wraps(func)
+    def wrapper(firstarg, *args, **kwargs):
+        args = (firstarg,) + args
+        if hasattr(args[0], "command_name"):
+            prefix = eventquery(args[0])
+            args = args[1:]
+        else:
+            prefix = eventquery(args[:2])
+            args = args[2:]
+
+        return func(*(prefix + args), **kwargs)
+    return wrapper
 
 
 @command()
 @command("next")
 def done(event):
     root = getattr(event, "root", event)
-    if activate((searching.Query(":{can_activate}"), root)):
+    if activate(":{can_activate}", root):
         return
-    finish((searching.chain(
+    finish(searching.chain(
         searching.Query("-> :{can_activate}"),
         searching.Query("< :{can_activate}")
-    ), root))
+    ), root)
 
 
 @command()
-def createauto(event):
-    query, root = eventquery(event)
+@queryevent
+def createauto(query, root):
     if getattr(query.segments[-1].matcher, "is_rigid", False):
-        return createactivate((query, root), auto=True)
+        return createactivate(query, root, auto=True)
     else:
-        return activate((query, root))
+        return activate(query, root)
 
 
 @command()
 @command("c")
-def create(event, auto=False):
-    query, root = eventquery(event)
+@queryevent
+def create(query, root, auto=False):
     creator = searching.Creator(joinedsearch=query,
             do_auto_add=auto)
     nodes = creator(root.active_node)
@@ -57,24 +76,24 @@ def _activate(nodes, root, force=False):
 
 @command()
 @command("a")
-def activate(event, force=False):
-    query, root = eventquery(event)
-
+@queryevent
+def activate(query, root, force=False):
     nodes = query(root.active_node)
     return _activate(nodes, root, force=force)
 
 
 @command()
 @command("fa")
-def forceactivate(event):
-    return activate(event, force=True)
+@queryevent
+def forceactivate(query, root):
+    return activate(query, root, force=True)
 
 
 @command()
 @command("f")
-def finish(event):
-    query, root = eventquery(event)
-    prev_active = activate((query, root))
+@queryevent
+def finish(query, root):
+    prev_active = activate(query, root)
     if prev_active is None:
         return
 
@@ -83,15 +102,16 @@ def finish(event):
 
 
 @command("ca")
-def createactivate(event, auto=False):
-    query, root = eventquery(event)
-    nodes = create(event, auto=auto)
+@queryevent
+def createactivate(query, root, auto=False):
+    nodes = create(query, root, auto=auto)
     return _activate(nodes, root)
 
 
 @command("cf")
-def createfinish(event):
-    prev_active = createactivate(event)
+@queryevent
+def createfinish(query, root):
+    prev_active = createactivate(query, root)
     if prev_active is None:
         return
 

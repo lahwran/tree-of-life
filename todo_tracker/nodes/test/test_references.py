@@ -517,7 +517,7 @@ class TestRefnode(object):
             "        reference: << >\n"
         )
 
-        navigation.done(tracker)
+        navigation.done(tracker.root)
         refnode = tracker.root.find_one("** > reference")
         assert refnode.active
         assert tracker.root.active_node is refnode
@@ -527,8 +527,7 @@ class TestRefnode(object):
             "reference: << >",
             "    <proxy>: task: target 2"
         ]
-        q = searching.Query("<")
-        navigation.finish((q, tracker.root))
+        navigation.finish("<", tracker.root)
         assert refnode.finished
         assert _dump([refnode]) == [
             "reference: << >"
@@ -536,8 +535,7 @@ class TestRefnode(object):
         assert not refnode.active
         assert tracker.root.active_node.node_type == "day"
 
-        navigation.forceactivate((
-            searching.Query(">"), tracker.root))
+        navigation.forceactivate(">", tracker.root)
         assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
@@ -567,8 +565,8 @@ class TestRefnode(object):
         assert not refnode.active
         assert tracker.root.active_node.node_type == "day"
 
-        navigation.forceactivate((
-            searching.Query(">"), tracker.root))
+        navigation.forceactivate(
+            searching.Query(">"), tracker.root)
         assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
