@@ -424,11 +424,36 @@ class Restarter(object):
             os.execv(sys.executable, [sys.executable] + self.args)
 
 
+def init_sentry():
+    try:
+        sentryurl = open("sentryurl", "r").read().strip()
+    except IOError:
+        return
+
+    from raven import Client
+    from raven.handlers.logging import SentryHandler
+    from raven.conf import setup_logging
+
+    # Manually specify a client
+    client = Client(
+        dsn=sentryurl,
+        list_max_length=256,
+        string_max_length=2 ** 16,
+        auto_log_stacks=True,
+    )
+    handler = SentryHandler(client)
+    handler.setLevel(logging.WARNING)
+
+    setup_logging(handler)
+
+
 def init_log(config):
     rootlogger = logging.getLogger()
 
     formatter = logging.Formatter('[%(asctime)s %(levelname)8s] %(name)s: '
                                             '%(message)s')
+
+    init_sentry()
 
     rootlogger.setLevel(logging.DEBUG)
     logfile = open(config.logfile, "a")

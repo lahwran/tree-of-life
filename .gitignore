@@ -7,5 +7,7 @@ __pycache__/
 junk/
 .cache/
 *,cover
+sentryurl
+incidents
 
 pudb_stringifier.py
