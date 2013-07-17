@@ -488,23 +488,68 @@ class Node(object):
     def __str__(self):
         return file_storage.serialize(self, one_line=True)[0]
 
-    def _do_repr(self, parent=True):
-        if parent:
+    def _format_repr_error(self, errors, name):
+        import traceback
+        result = "EXCEPTION IN REPR: %s\n" % name
+        if errors is not None:
+            errors.append(result + traceback.format_exc())
+        return "[! " + name + " !]"
+
+    def _format_repr_errors(self, errors):
+        if not errors:
+            return ""
+        result = ""
+        for error in errors:
+            result += "\n\n"
+            result += error
+        return result
+
+    def _do_repr(self, parent=True, exceptions=False):
+        if exceptions:
+            errors = []
+        else:
+            errors = None
+        do_parent = parent
+        del parent
+
+        try:
+            node_type = getattr(self, "node_type", None)
+        except Exception as e:
+            node_type = self._format_repr_error(
+                    errors, "node_type")
+        try:
+            text = getattr(self, "text", None)
+        except Exception as e:
+            text = self._format_repr_error(
+                    errors, "text")
+
+        if do_parent:
             parent_repr = "None"
-            if getattr(self, "parent", None):
-                parent_repr = str(self.parent)
+            try:
+                parent = getattr(self, "parent", None)
+            except Exception as e:
+                parent = None
+                parent_repr = self._format_repr_error(
+                        errors, "self.parent")
+            if parent is not None:
+                try:
+                    parent_repr = str(parent)
+                except Exception as e:
+                    parent_repr = self._format_repr_error(
+                            errors, "str(parent)")
+
             return "<%s (%s) %r: %r>" % (
                     type(self).__name__,
                     parent_repr,
-                    getattr(self, "node_type", None),
-                    getattr(self, "text", None)
-            )
+                    node_type,
+                    text
+            ) + self._format_repr_errors(errors)
         else:
             return "<%s %r: %r>" % (
                     type(self).__name__,
-                    getattr(self, "node_type", None),
-                    getattr(self, "text", None)
-            )
+                    node_type,
+                    text
+            ) + self._format_repr_errors(errors)
 
     def __repr__(self):
         return self._do_repr()

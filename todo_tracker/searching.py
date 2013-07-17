@@ -239,23 +239,23 @@ class Creator(object):
                     # node.parent may not be parentnode, for next_peer and
                     # prev_peer relationships
                     new_node = _make_node(parentnode)
-                    node.parent.addchild(new_node, **rel)
+                    new_node = node.parent.addchild(new_node, **rel)
 
                     resulting_nodes.append(new_node)
             elif self.last_segment.separator == "children":
                 new_node = _make_node(parentnode)
-                parentnode.addchild(new_node)
+                new_node = parentnode.addchild(new_node)
                 resulting_nodes.append(new_node)
 
             elif self.last_segment.separator == "prev_peer":
                 new_node = _make_node(parentnode)
-                parentnode.parent.addchild(new_node,
+                new_node = parentnode.parent.addchild(new_node,
                         before=parentnode)
                 resulting_nodes.append(new_node)
 
             else:
                 new_node = _make_node(parentnode)
-                parentnode.parent.addchild(new_node,
+                new_node = parentnode.parent.addchild(new_node,
                         after=parentnode.parent.children.prev_neighbor)
                 resulting_nodes.append(new_node)
 

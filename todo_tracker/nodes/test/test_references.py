@@ -618,6 +618,151 @@ class TestRefnode(object):
             "reference: <-"
         ]
 
+
+def test_child_loop(tracker):
+    tracker.deserialize("str",
+        "task: a\n"
+        "    task: b\n"
+        "        task: e\n"
+        "        task: f\n"
+        "        task: g\n"
+        "    task: c\n"
+        "    task: d\n"
+        "reference: <-"
+    )
+
+    a = tracker.root.find_one("reference")
+    b = a.find_one("b")
+    c = a.find_one("c")
+    d = a.find_one("d")
+    e = a.find_one("b > e")
+    f = a.find_one("b > f")
+    g = a.find_one("b > g")
+
+    assert a.children._next_node is b
+    assert a.children is b._prev_node
+    assert c is b._next_node
+    assert c._prev_node is b
+    assert c._next_node is d
+    assert c is d._prev_node
+    assert a.children is d._next_node
+    assert a.children._prev_node is d
+
+    assert b.children._next_node is e
+    assert b.children is e._prev_node
+    assert f is e._next_node
+    assert f._prev_node is e
+    assert f._next_node is g
+    assert f is g._prev_node
+    assert b.children is g._next_node
+    assert b.children._prev_node is g
+
+
+class TestSearchCreateIntegration(object):
+    def test_proxied_create(self, tracker):
+        tracker.deserialize("str",
+            "task: target\n"
+            "reference: <-"
+        )
+        creator = searching.Creator("reference > task: test")
+        nodes = creator(tracker.root)
+        assert len(nodes) == 1
+        node = nodes[0]
+        proxy = tracker.root.find_one("reference > test")
+        assert node is proxy
+
+    def test_mini_child_loop(self, tracker):
+        tracker.deserialize("str",
+            "task: target\n"
+            "reference: <-"
+        )
+        creator = searching.Creator("reference > task: test")
+        nodes = creator(tracker.root)
+        assert len(nodes) == 1
+
+        proxy_task = tracker.root.find_one("reference > test")
+        target_task = tracker.root.find_one("target > test")
+        reference = tracker.root.find_one("reference")
+        target = tracker.root.find_one("target")
+
+        unwrap = reference.unwrap
+        wrap = reference.get_proxy
+
+        assert unwrap(reference) is target
+        assert wrap(target) is reference
+        assert unwrap(proxy_task) is target_task
+        assert wrap(target_task) is proxy_task
+
+        assert target_task._next_node is target.children
+        assert target_task._prev_node is target.children
+        assert proxy_task._next_node is reference.children
+        assert proxy_task._prev_node is reference.children
+
+        assert target_task.parent is target
+        assert proxy_task.parent is reference
+
+
+def test_simple_interaction(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "days\n"
+        "    day: today\n"
+        "        @started\n"
+        "        reference: << > target\n"
+        "            @active\n"
+    )
+
+    navigation.createauto("task: test", tracker)
+
+    active_node = tracker.root.active_node
+    proxy = tracker.root.find_one("days > today > reference > test")
+    target = tracker.root.find_one("target > test")
+    assert active_node is proxy
+    assert proxy is not target
+    assert proxy._px_target is target
+    assert proxy._px_root.get_proxy(target) is proxy
+
+    navigation.createfinish("-> task: test 2", tracker)
+
+    target = tracker.root.find_one("target")
+    assert target.started
+    first_child = target.children.next_neighbor
+    assert first_child.started
+    assert first_child.finished
+    second_child = first_child.next_neighbor
+    assert second_child.started
+    assert not second_child.finished
+
+    proxy_active = tracker.root.find_one("days > day > reference > test 2")
+    assert proxy_active is tracker.root.active_node
+
+
+def test_another_interaction(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "days\n"
+        "    day: today\n"
+        "        @started\n"
+        "        reference: << > target\n"
+        "            @active\n"
+    )
+
+    navigation.createauto("task: test 1", tracker)
+    navigation.createfinish("< > +task: test 2", tracker)
+
+    target = tracker.root.find_one("target")
+
+    assert target.started
+    first_child = target.children.next_neighbor
+    assert first_child.started
+    assert first_child.finished
+    second_child = first_child.next_neighbor
+    assert second_child.started
+    assert not second_child.finished
+
+    proxy_active = tracker.root.find_one("days > day > reference > test 2")
+    assert proxy_active is tracker.root.active_node
+
 # test displaying as active
 # search contexts or search quoting are required to make references useful
 # test finished-loading creation of reference

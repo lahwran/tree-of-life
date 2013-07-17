@@ -138,7 +138,18 @@ class ProxyNode(Node):
     children = ProxiedAttr("children", is_node=True)
 
     setoption = ProxiedAttr("setoption")
-    option_values = ProxiedAttr("option_values")
+    # option_values = ProxiedAttr("option_values")
+
+    def option_values(self):
+        # TODO: cheap hack
+        result = self._px_target.option_values()
+        realresult = []
+        realresult.append(("active", None, self.root.active_node is self))
+        for key, value, show in result:
+            if key == "active":
+                continue
+            realresult.append((key, value, show))
+        return realresult
 
     validate = ProxiedAttr("validate")
     continue_text = ProxiedAttr("continue_text")
@@ -277,6 +288,18 @@ class Reference(BaseTask):
         self._px_didstart = False
         self._px_dostart = False
         BaseTask.__init__(self, *args)
+
+    def addchild(self, child, before=None, after=None):
+        before = self._px_root.unwrap(before)
+        after = self._px_root.unwrap(after)
+        child = self._px_root.unwrap(child)
+
+        if child.parent is not None:
+            assert self._px_root.unwrap(child.parent) is self._px_target
+            child.parent = None
+
+        result = self._px_target.addchild(child, before=before, after=after)
+        return self._px_root.get_proxy(result)
 
     @property
     def _px_target(self):
