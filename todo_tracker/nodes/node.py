@@ -240,11 +240,7 @@ class Node(object):
         except KeyError:
             raise LoadError("node %r has no such option %r" % (self, option))
 
-        try:
-            handler.set(self, value)
-        except:  # haw haw just adding info
-            logger.error("pre-exception note: %r, %r, %r", self, option, value)
-            raise
+        handler.set(self, value)
 
     def _option_dict(self):
         try:

@@ -177,8 +177,6 @@ class Sleep(DateTask, alarms.NodeMixin):
         return until
 
     def update(self, amount=None, until=None):
-        logger.error("sleep node is deactivated, please don't run me: %s, %s",
-                amount, until)
         return
         assert not self.active, "can't update an active sleep node"
         # can't do both at once
