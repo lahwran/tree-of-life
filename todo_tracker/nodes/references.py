@@ -42,73 +42,73 @@ class ProxiedAttr(object):
 
 class ProxyNode(Node):
     """
-           multiline: attr
-            textless: attr
-       text_required: attr
-            toplevel: attr
-        can_activate: attr
-         children_of: attr
-    allowed_children: attr
-    preferred_parent: attr
+               multiline: attr
+                textless: attr
+           text_required: attr
+                toplevel: attr
+            can_activate: attr
+             children_of: attr
+        allowed_children: attr
+        preferred_parent: attr
 
-             options: AttributeError
-        _option_dict: AttributeError !
+                 options: AttributeError
+            _option_dict: AttributeError !
 
-            __init__: internal
-      _init_children: unused
-            children: node
-          _next_node: node
-          _prev_node: node
+                __init__: internal
+          _init_children: unused
+                children: node
+              _next_node: node
+              _prev_node: node
 
-           __initing: auto
-                root: attr
-           node_type: auto
-              parent: node
-                text: auto
+               __initing: auto
+                    root: attr
+               node_type: auto
+                  parent: node
+                    text: auto
 
-           _validate: attr
-       continue_text: attr
+               _validate: attr
+           continue_text: attr
 
-           setoption: attr
-       option-values: attr
+               setoption: attr
+           option-values: attr
 
-        iter_parents: inherit/indirect
-  iter_flat_children: inherit/indirect
-        iter_forward: inherit/indirect
-       iter_backward: inherit/indirect
-       next_neighbor: inherit/indirect
-       prev_neighbor: inherit/indirect
-                find: inherit/indirect
-            find_one: inherit/indirect
-              create: inherit/indirect
+            iter_parents: inherit/indirect
+      iter_flat_children: inherit/indirect
+            iter_forward: inherit/indirect
+           iter_backward: inherit/indirect
+           next_neighbor: inherit/indirect
+           prev_neighbor: inherit/indirect
+                    find: inherit/indirect
+                find_one: inherit/indirect
+                  create: inherit/indirect
 
-            addchild: func/indirect
-         createchild: inherit/indirect
-         removechild: inherit/indirect
-              detach: inherit/indirect
-                copy: func/indirect
+                addchild: func/indirect
+             createchild: inherit/indirect
+             removechild: inherit/indirect
+                  detach: inherit/indirect
+                    copy: func/indirect
 
-       make_skeleton: inherit/indirect
-     children_export: func/stub
+           make_skeleton: inherit/indirect
+         children_export: func/stub
 
-               start: attr
-              finish: attr
+                   start: attr
+                  finish: attr
 
-       load_finished: inherit/stub
-            auto_add: func/stub
-        ui_serialize: attr
-        search_texts: attr
-         search_tags: attr
-       user_creation: attr
-        _search_tags: AttributeError
-             __str__: func/indirect
-            _do_repr: func/indirect
-            __repr__: inherit/indirect
+           load_finished: inherit/stub
+                auto_add: func/stub
+            ui_serialize: attr
+            search_texts: attr
+             search_tags: attr
+           user_creation: attr
+            _search_tags: AttributeError
+                 __str__: func/indirect
+                _do_repr: func/indirect
+                __repr__: inherit/indirect
 
 
-            -------------------
+                -------------------
 
-              active: nonproxied
+                  active: nonproxied
 
 
 
