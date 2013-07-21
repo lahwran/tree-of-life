@@ -12,19 +12,22 @@ class ProxiedAttr(object):
     Override the presence of an attribute on the proxy with a
     retrieval of some sort
     """
-    def __init__(self, name, is_node=False):
+    def __init__(self, name, is_node=False, disable=None):
         self.name = name
         self.is_node = is_node
+        self.disable = disable
 
     def __get__(self, instance, owning_class):
-        if instance._px_target is None:
+        if instance._px_target is None or (
+                self.disable and getattr(instance, self.disable, False)):
             return getattr(instance, self.name + "_default", None)
         _my_name = self.name
         _is_node = self.is_node
 
         proxy_root = instance._px_root
         target_result = getattr(instance._px_target, self.name)
-        assert not proxy_root.is_owned(target_result)
+        assert not proxy_root.is_owned(target_result) or \
+                proxy_root is target_result
         if self.is_node:
             return proxy_root.get_proxy(target_result)
         return target_result
@@ -135,7 +138,7 @@ class ProxyNode(Node):
 
     _next_node = ProxiedAttr("_next_node", is_node=True)
     _prev_node = ProxiedAttr("_prev_node", is_node=True)
-    children = ProxiedAttr("children", is_node=True)
+    children = ProxiedAttr("children", is_node=True, disable="_px_nochildren")
 
     setoption = ProxiedAttr("setoption")
     # option_values = ProxiedAttr("option_values")
@@ -157,16 +160,17 @@ class ProxyNode(Node):
     start = ProxiedAttr("start")
     finish = ProxiedAttr("finish")
 
-    ui_serialize = ProxiedAttr("ui_serialize")
     search_texts = ProxiedAttr("search_texts")
     search_tags = ProxiedAttr("search_tags")
     user_creation = ProxiedAttr("user_creation")
 
     _nonproxied = (
         "active",
+        "children_default",
 
         "_px_target",
         "_px_root",
+        "_px_nochildren",
         "children",
         "referred_to",
 
@@ -190,6 +194,10 @@ class ProxyNode(Node):
     )
 
     def __init__(self, proxy_root, target):
+        if target is proxy_root:
+            self._px_nochildren = True
+            self.children_default = ReferenceNodeList(proxy_root, None)
+            object.__setattr__(self, "text", "<recursing>")
         self._px_target = target
         self._px_root = proxy_root
         self.referred_to = set()
@@ -219,8 +227,22 @@ class ProxyNode(Node):
     def children_export(self):
         return []
 
-    def __str__(self):
-        return "<proxy>: " + Node.__str__(self)
+    def ui_serialize(self, result=None):
+        if result is None:
+            result = {}
+
+        result = self._px_target.ui_serialize(result)
+
+        if getattr(self, "active", False):
+            result["active"] = True
+        if "options" in result:
+            del result["options"]
+
+        return Node.ui_serialize(self, result)
+
+        #self._px_target.ui_serialize()
+
+        #return result
 
     def __getattr__(self, name):
         """
@@ -250,13 +272,11 @@ class ReferenceNodeList(_NodeListRoot):
     _next_node = ProxiedAttr("_next_node", is_node=True)
     _prev_node = ProxiedAttr("_prev_node", is_node=True)
 
-    def __init__(self, proxy_root, target, is_root=False):
+    def __init__(self, proxy_root, target):
         self._next_node_default = self
         self._prev_node_default = self
 
         self._px_root = proxy_root
-        self._px_is_root = is_root
-        assert target is not None or is_root
         self._px_target = target
 
     @property
@@ -312,7 +332,7 @@ class Reference(BaseTask):
         self.children = self.get_proxy(newvalue.children)
 
     def _init_children(self):
-        self.children = ReferenceNodeList(self, None, is_root=True)
+        self.children = ReferenceNodeList(self, None)
         self._next_node = None
         self._prev_node = None
 
@@ -375,7 +395,7 @@ class Reference(BaseTask):
     def finish(self):
         BaseTask.finish(self)
         self._px_target_real = None
-        self.children = ReferenceNodeList(self, None, is_root=True)
+        self.children = ReferenceNodeList(self, None)
         self.proxies = None
 
     def unfinish(self):
@@ -384,3 +404,9 @@ class Reference(BaseTask):
         self._px_dostart = False
         self.load_finished()
         return True
+
+    def __str__(self):
+        if self._px_target is None:
+            return Node.__str__(self)
+        result = "%s: %s" % (self.node_type, self._px_target.text)
+        return result.partition("\n")[0]

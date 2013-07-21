@@ -482,7 +482,11 @@ class Node(object):
         return tags
 
     def __str__(self):
-        return file_storage.serialize(self, one_line=True)[0]
+        if self.text:
+            result = "%s: %s" % (self.node_type, self.text)
+        else:
+            result = self.node_type
+        return result.partition("\n")[0]
 
     def _format_repr_error(self, errors, name):
         import traceback

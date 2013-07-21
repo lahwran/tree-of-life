@@ -12,10 +12,13 @@ def tracker():
     return tracker
 
 
-def _dump(nodes, getiterator=lambda x: x.children, depth=0):
+def _dump(nodes, getiterator=lambda x: x.children, depth=0, proxyinfo=True):
     result = []
     for node in nodes:
-        result.append(" " * depth * 4 + str(node))
+        strnode = "%s: %s" % (node.node_type, node.text)
+        if proxyinfo and isinstance(node, references.ProxyNode):
+            strnode = "proxy: " + strnode
+        result.append(" " * depth * 4 + strnode)
         result.extend(_dump(getiterator(node), getiterator, depth + 1))
     return result
 
@@ -33,9 +36,9 @@ def test_reference(tracker):
 
     assert _dump(tracker.root.find("reference")) == [
         "reference: <- target",
-        "    <proxy>: task: somechild",
-        "        <proxy>: task: somechild",
-        "    <proxy>: comment: derp"
+        "    proxy: task: somechild",
+        "        proxy: task: somechild",
+        "    proxy: comment: derp"
     ]
 
 
@@ -55,12 +58,12 @@ def test_nested_reference(tracker):
     x = _dump(tracker.root.find("reference"))
     y = [
         "reference: <- task",
-        "    <proxy>: task: do some work",
-        "        <proxy>: reference: << > target",
-        "            <proxy>: task: somechild",
-        "                <proxy>: task: somechild",
-        "            <proxy>: comment: derp",
-        "    <proxy>: task: do some other work"
+        "    proxy: task: do some work",
+        "        proxy: reference: << > target",
+        "            proxy: task: somechild",
+        "                proxy: task: somechild",
+        "            proxy: comment: derp",
+        "    proxy: task: do some other work"
     ]
     assert x == y
 
@@ -94,19 +97,19 @@ def test_nested_createchild(tracker):
         "task: some other thingy",
         "    task: do some work",
         "        reference: << > target",
-        "            <proxy>: task: somechild",
-        "                <proxy>: task: somechild",
-        "                <proxy>: task: test",
-        "            <proxy>: comment: derp",
+        "            proxy: task: somechild",
+        "                proxy: task: somechild",
+        "                proxy: task: test",
+        "            proxy: comment: derp",
         "    task: do some other work",
         "reference: <- task",
-        "    <proxy>: task: do some work",
-        "        <proxy>: reference: << > target",
-        "            <proxy>: task: somechild",
-        "                <proxy>: task: somechild",
-        "                <proxy>: task: test",
-        "            <proxy>: comment: derp",
-        "    <proxy>: task: do some other work"
+        "    proxy: task: do some work",
+        "        proxy: reference: << > target",
+        "            proxy: task: somechild",
+        "                proxy: task: somechild",
+        "                proxy: task: test",
+        "            proxy: comment: derp",
+        "    proxy: task: do some other work"
     ]
 
 
@@ -129,10 +132,10 @@ def test_createchild(tracker):
         "        task: test",
         "    comment: derp",
         "reference: <- target",
-        "    <proxy>: task: somechild",
-        "        <proxy>: task: somechild",
-        "        <proxy>: task: test",
-        "    <proxy>: comment: derp",
+        "    proxy: task: somechild",
+        "        proxy: task: somechild",
+        "        proxy: task: test",
+        "    proxy: comment: derp",
     ]
 
 
@@ -222,9 +225,9 @@ class TestProxynode(object):
             "    task: target 4",
             "        task: target 3",
             "reference: <- target 1",
-            "    <proxy>: task: target 2",
-            "    <proxy>: task: target 4",
-            "        <proxy>: task: target 3",
+            "    proxy: task: target 2",
+            "    proxy: task: target 4",
+            "        proxy: task: target 3",
         ]
 
     def test_reposition_2(self, tracker):
@@ -255,13 +258,13 @@ class TestProxynode(object):
             "    task: target 4",
             "        task: target 3",
             "reference: <-",
-            "    <proxy>: task: target 2",
-            "    <proxy>: task: target 4",
-            "        <proxy>: task: target 3",
+            "    proxy: task: target 2",
+            "    proxy: task: target 4",
+            "        proxy: task: target 3",
             "reference: <-",
-            "    <proxy>: task: target 2",
-            "    <proxy>: task: target 4",
-            "        <proxy>: task: target 3",
+            "    proxy: task: target 2",
+            "    proxy: task: target 4",
+            "        proxy: task: target 3",
         ]
 
     def test_reposition_3(self, tracker):
@@ -288,8 +291,8 @@ class TestProxynode(object):
             "    task: target 3",
             "        task: target 2",
             "reference: <- target 1",
-            "    <proxy>: task: target 3",
-            "        <proxy>: task: target 2",
+            "    proxy: task: target 3",
+            "        proxy: task: target 2",
         ]
 
     def test_copy_1(self, tracker):
@@ -319,10 +322,10 @@ class TestProxynode(object):
             "    task: target 4",
             "        task: target 3",
             "reference: <- target 1",
-            "    <proxy>: task: target 2",
-            "        <proxy>: task: target 3",
-            "    <proxy>: task: target 4",
-            "        <proxy>: task: target 3",
+            "    proxy: task: target 2",
+            "        proxy: task: target 3",
+            "    proxy: task: target 4",
+            "        proxy: task: target 3",
         ]
 
     def test_copy_2(self, tracker):
@@ -351,10 +354,10 @@ class TestProxynode(object):
             "    task: target 4",
             "        task: target 3",
             "reference: <- target 1",
-            "    <proxy>: task: target 2",
-            "        <proxy>: task: target 3",
-            "    <proxy>: task: target 4",
-            "        <proxy>: task: target 3",
+            "    proxy: task: target 2",
+            "        proxy: task: target 3",
+            "    proxy: task: target 4",
+            "        proxy: task: target 3",
         ]
 
     def test_creation(self, tracker):
@@ -373,8 +376,8 @@ class TestProxynode(object):
             "    task: target 2",
             "        task: test",
             "reference: <-",
-            "    <proxy>: task: target 2",
-            "        <proxy>: task: test"
+            "    proxy: task: target 2",
+            "        proxy: task: test"
         ]
 
     def test_whacky_reposition_setparent(self, tracker):
@@ -404,9 +407,9 @@ class TestProxynode(object):
             "    task: parent",
             "        task: move me",
             "reference: <- to reference",
-            "    <proxy>: task: dummy",
-            "    <proxy>: task: parent",
-            "        <proxy>: task: move me",
+            "    proxy: task: dummy",
+            "    proxy: task: parent",
+            "        proxy: task: move me",
         ]
 
     def test_whacky_reposition_noneparent(self, tracker):
@@ -436,9 +439,9 @@ class TestProxynode(object):
             "    task: parent",
             "        task: move me",
             "reference: <- to reference",
-            "    <proxy>: task: dummy",
-            "    <proxy>: task: parent",
-            "        <proxy>: task: move me",
+            "    proxy: task: dummy",
+            "    proxy: task: parent",
+            "        proxy: task: move me",
         ]
 
     def test_set_text(self, tracker):
@@ -455,7 +458,7 @@ class TestProxynode(object):
             "task: to reference",
             "    task: renamed",
             "reference: <-",
-            "    <proxy>: task: renamed"
+            "    proxy: task: renamed"
         ]
 
     def test_export(self, tracker):
@@ -504,7 +507,7 @@ class TestRefnode(object):
             "task: target 1",
             "    task: test",
             "reference: <-",
-            "    <proxy>: task: test"
+            "    proxy: task: test"
         ]
 
     def test_unfinish(self, tracker):
@@ -525,7 +528,7 @@ class TestRefnode(object):
         assert not refnode.finished
         assert _dump([refnode]) == [
             "reference: << >",
-            "    <proxy>: task: target 2"
+            "    proxy: task: target 2"
         ]
         navigation.finish("<", tracker.root)
         assert refnode.finished
@@ -542,7 +545,7 @@ class TestRefnode(object):
         assert not refnode.finished
         assert _dump([refnode]) == [
             "reference: << >",
-            "    <proxy>: task: target 2"
+            "    proxy: task: target 2"
         ]
 
     def test_unfinish_notinitialized(self, tracker):
@@ -573,7 +576,7 @@ class TestRefnode(object):
         assert not refnode.finished
         assert _dump([refnode]) == [
             "reference: << >",
-            "    <proxy>: task: target 2"
+            "    proxy: task: target 2"
         ]
 
     def test_initial_state(self, tracker):
@@ -763,6 +766,110 @@ def test_another_interaction(tracker):
     proxy_active = tracker.root.find_one("days > day > reference > test 2")
     assert proxy_active is tracker.root.active_node
 
+
+def test_str(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "    comment: to test against\n"
+        "reference: <-\n"
+    )
+
+    proxy = tracker.root.find_one("reference > comment")
+    proxy_target = proxy._px_target
+    assert str(proxy) == str(proxy_target)
+
+    ref = tracker.root.find_one("reference")
+    assert str(ref) == "reference: target"
+
+    ref2 = references.Reference("reference", "<- task: target")
+    assert str(ref2) == "reference: <- task: target"
+
+    tracker.root.addchild(ref2)
+    assert str(ref2) == "reference: target"
+
+
+def test_active(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "    task: to activate\n"
+        "days\n"
+        "    day: today\n"
+        "        @started\n"
+        "        reference: << > target\n"
+        "            @active\n"
+    )
+
+    to_activate = tracker.root.find_one("days > day > reference > to activate")
+    target = to_activate._px_target
+
+    tracker.root.activate(to_activate)
+    assert tracker.root.active_node is to_activate
+    assert to_activate.active
+    assert not target.active
+    options = to_activate.option_values()
+    assert ("active", None, True) in options
+    options = target.option_values()
+    assert ("active", None, True) not in options
+
+    ui_dict = to_activate.ui_serialize()
+    options = [frozenset(x.items()) for x in ui_dict["options"]]
+    assert set((("type", "active"), ("text", None))) in options
+    assert ui_dict["active"]
+
+
+def test_recursion(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "    task: something\n"
+        "        reference: < target\n"
+    )
+
+    assert _dump(tracker.root.children) == [
+        "task: target",
+        "    task: something",
+        "        reference: < target",
+        "            proxy: task: something",
+        "                proxy: reference: <recursing>",
+    ]
+
+
+def test_ui_serialize(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "    task: child\n"
+        "reference: <-\n"
+    )
+
+    child = tracker.root.find_one("reference > child")
+    ui_info = child.ui_serialize({
+        "input": True
+    })
+    assert ui_info["input"]
+    assert "options" not in ui_info
+    assert not ui_info.get("active", False)
+    assert not ui_info.get("finished", False)
+
+
+def test_ui_serialize_finished(tracker):
+    tracker.deserialize("str",
+        "task: target\n"
+        "    task: child\n"
+        "        @started\n"
+        "        @finished\n"
+        "reference: <-\n"
+    )
+
+    child = tracker.root.find_one("reference > child")
+    ui_info = child.ui_serialize({
+        "input": True
+    })
+    assert ui_info["input"]
+    assert 'options' in ui_info
+    assert ui_info["options"][0]["type"] == "finished"
+    assert not ui_info.get("active", False)
+    assert ui_info.get("finished", False)
+
+# test hanging onto ui_serialize stuff, like finished
 # test displaying as active
 # search contexts or search quoting are required to make references useful
 # test finished-loading creation of reference
