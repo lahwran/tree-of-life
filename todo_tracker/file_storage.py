@@ -102,9 +102,6 @@ def serialize(tree, is_root=False, one_line=False):
         else:
             lines.append(tree.node_type)
 
-    if one_line:
-        return lines
-
     for name, value, show in tree.option_values():
         if not show:
             continue
