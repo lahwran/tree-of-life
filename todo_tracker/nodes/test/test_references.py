@@ -869,6 +869,41 @@ def test_ui_serialize_finished(tracker):
     assert not ui_info.get("active", False)
     assert ui_info.get("finished", False)
 
+
+def test_no_query_finished(tracker, monkeypatch):
+    monkeypatch.setattr(references.Reference, "find_one", None)
+    tracker.deserialize("str",
+        "reference: <-\n"
+        "    @started\n"
+        "    @finished"
+    )
+
+
+def test_reference_finished(tracker):
+    tracker.deserialize("str",
+        "task: finished node\n"
+        "    @started: June 1, 2013 1:00 am\n"
+        "    @finished: June 1, 2013 2:00 am\n"
+        "reference: <-"
+    )
+
+    reference = tracker.root.find_one("reference")
+    assert not reference.started
+    assert reference.finished
+
+
+def test_reference_started(tracker):
+    tracker.deserialize("str",
+        "task: finished node\n"
+        "reference: <-\n"
+        "    @started: June 1, 2013 1:00 am\n"
+    )
+
+    reference = tracker.root.find_one("reference")
+    target = reference._px_target
+    assert reference.started == target.started
+    assert not reference._px_didstart
+
 # test hanging onto ui_serialize stuff, like finished
 # test displaying as active
 # search contexts or search quoting are required to make references useful

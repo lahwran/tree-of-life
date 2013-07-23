@@ -3,6 +3,7 @@ import logging
 
 from todo_tracker.nodes.node import Node, nodecreator, _NodeListRoot
 from todo_tracker.nodes.tasks import BaseTask
+from todo_tracker.util import setter
 
 logger = logging.getLogger(__name__)
 
@@ -285,12 +286,8 @@ class ReferenceNodeList(_NodeListRoot):
             return 0
         return self._px_target.length
 
-    def insert(self, child, before=None, after=None):
-        before = self._px_root.unwrap(before)
-        after = self._px_root.unwrap(after)
-        child = self._px_root.unwrap(child)
-
-        self._px_target.insert(child, before=before, after=after)
+    def insert(self, child, before=None, after=None):  # pragma: no cover
+        raise Exception("this should never be called")
 
     def remove(self, child):
         child = self._px_root.unwrap(child)
@@ -304,7 +301,7 @@ class Reference(BaseTask):
     def __init__(self, *args):
         self.proxies = WeakKeyDictionary()
         self._px_root = self
-        self._px_target_real = None
+        self._real_px_target = None
         self._px_didstart = False
         self._px_dostart = False
         BaseTask.__init__(self, *args)
@@ -321,15 +318,16 @@ class Reference(BaseTask):
         result = self._px_target.addchild(child, before=before, after=after)
         return self._px_root.get_proxy(result)
 
-    @property
-    def _px_target(self):
-        return self._px_target_real
-
-    @_px_target.setter
+    @setter
     def _px_target(self, newvalue):
         assert not self.finished or newvalue is None
-        self._px_target_real = newvalue
+        self._real_px_target = newvalue
+        self.finished = getattr(newvalue, "finished", self.finished)
         self.children = self.get_proxy(newvalue.children)
+
+    @setter
+    def started(self, value):
+        self._realstarted = value
 
     def _init_children(self):
         self.children = ReferenceNodeList(self, None)
@@ -344,6 +342,11 @@ class Reference(BaseTask):
 
         if self._px_dostart:
             self._px_start()
+        if self.started and not getattr(self._px_target, "started", False):
+            try:
+                self._px_target.started = self.started
+            except AttributeError:
+                pass
 
     def is_owned(self, node):
         return getattr(node, "_px_root", None) is self
@@ -394,7 +397,7 @@ class Reference(BaseTask):
 
     def finish(self):
         BaseTask.finish(self)
-        self._px_target_real = None
+        self._real_px_target = None
         self.children = ReferenceNodeList(self, None)
         self.proxies = None
 
@@ -410,3 +413,8 @@ class Reference(BaseTask):
             return Node.__str__(self)
         result = "%s: %s" % (self.node_type, self._px_target.text)
         return result.partition("\n")[0]
+
+
+class Depends(Reference):
+    def finish(self):
+        self._px_

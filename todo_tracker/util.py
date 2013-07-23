@@ -81,6 +81,16 @@ def {0}(self, newvalue):
 """
 
 
+def setter(func):
+    name = func.__name__
+
+    @functools.wraps(func)
+    def get(self):
+        return getattr(self, "_real" + name)
+
+    return property(get, func)
+
+
 def _monitor(name):
     import inspect
     frames = inspect.stack()
