@@ -100,6 +100,9 @@ def _monitor(name):
 
 
 def hasattr_(obj, name):
+    """
+    Injected hasattr that only catches AttributeError
+    """
     sentinel = object()
     return getattr(obj, name, sentinel) is not sentinel
 
