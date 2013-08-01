@@ -71,10 +71,15 @@ def make_segment(separator, pattern, tags):
 
 
 class SearchGrammar(parseutil.Grammar):
-    grammar = """
+    grammar = r"""
     ws = ' '+
     text = <(~separator ~tags_begin ~': ' anything)+>
-    node_text = <(~separator ~tags_begin anything)+>
+    quote = ('"' | "'")
+    endquote :q = quote:q2 ?(q == q2)
+    node_text = ((ws? quote:q
+                    (('\\' ('\\' | quote):z -> z) | ~endquote(q) anything)+:r
+                    endquote(q) ws? -> ''.join(r))
+                | <(~separator ~tags_begin anything)+>)
     node_text_star = ('*' node_text? -> '*') | ~'*' node_text
     text_star = ('*' text? -> '*' ) | ~'*' text
 
@@ -449,15 +454,16 @@ class TooManyMatchesError(Exception):
     pass
 
 
-def list_ignore_overflow(query):
-    results = []
+def ignore_overflow(query):
     try:
-        for item in query:
-            results.append(item)
+        for x in query:
+            yield x
     except TooManyMatchesError:
-        pass
+        return
 
-    return results
+
+def list_ignore_overflow(query):
+    return list(ignore_overflow(query))
 
 
 if __name__ == "__main__":

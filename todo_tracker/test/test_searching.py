@@ -1,6 +1,7 @@
 import pytest
 import string
 import time
+from itertools import izip_longest
 from random import Random
 
 from todo_tracker import searching
@@ -24,6 +25,37 @@ def test_derp():
     assert searching.SearchGrammar("test :{test, test}").tagged_node()
     assert repr(searching.SearchGrammar("test > test :{test}").query())
     assert repr(searching.SearchGrammar("test :{test}").query())
+
+
+@pytest.mark.parametrize(("querytext", "node_type", "text"), [
+    ("reference: '<< > target'", "reference", "<< > target"),
+
+    (r"reference: '<< > \'target'", "reference", r"""<< > 'target"""),
+
+    (r"""reference: '<< > \\"target'""", "reference", r"""<< > \"target"""),
+
+    (r'reference: "<< > \"target\""', "reference", '<< > "target"'),
+
+    ("""reference: '<< > target > reference: "<< > *"' """,
+        "reference", '<< > target > reference: "<< > *"'),
+
+    ('''reference: "<< > target > reference: '<< > *'" ''',
+        "reference", "<< > target > reference: '<< > *'"),
+
+    ("task: do something with 'something'",
+        "task", "do something with 'something'"),
+
+    ('task: do something with "something"',
+        "task", 'do something with "something"'),
+
+    ('''task: do 'something' with "something"''',
+        "task", 'do \'something\' with "something"'),
+])
+def test_quoting(querytext, node_type, text):
+    q = searching.Query(querytext)
+    assert q.segments[0].pattern.type == node_type
+    assert q.segments[0].pattern.text == text
+    assert len(q.segments) == 1
 
 
 def test_search():
