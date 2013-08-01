@@ -10,10 +10,13 @@ import string
 import sys
 
 
+class CaseInsensitiveStr(str):
+    def __eq__(self, other):
+        return self.lower() == getattr(other, "lower", lambda: None)()
+
+
 class GrammarExtensions(OMetaBase):
     def __init__(self, input, *args, **kwargs):
-        if not kwargs.get("stream", False) and not kwargs.get("tree", False):
-            input = input.lower()
         super(GrammarExtensions, self).__init__(input, *args, **kwargs)
 
     def rule_s(self, tok):
@@ -30,7 +33,8 @@ class GrammarExtensions(OMetaBase):
             raise e.withMessage(expected("string", tok))
 
     def exactly(self, string):
-        return super(GrammarExtensions, self).exactly(string.lower())
+        return super(GrammarExtensions, self).exactly(
+                CaseInsensitiveStr(string))
 
     def _match_or_none(self, rulename, *args):
         def success():
