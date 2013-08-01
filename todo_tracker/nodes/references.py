@@ -304,6 +304,7 @@ class Reference(BaseTask):
         self._real_px_target = None
         self._px_didstart = False
         self._px_dostart = False
+        self._propogate_started = True
         BaseTask.__init__(self, *args)
 
     def addchild(self, child, before=None, after=None):
@@ -328,6 +329,14 @@ class Reference(BaseTask):
     @setter
     def started(self, value):
         self._realstarted = value
+        if (self._propogate_started
+                and self._px_target is not None
+                and value
+                and not getattr(self._px_target, "started", False)):
+            try:
+                self._px_target.started = self.started
+            except AttributeError:
+                pass
 
     def _init_children(self):
         self.children = ReferenceNodeList(self, None)
@@ -342,11 +351,7 @@ class Reference(BaseTask):
 
         if self._px_dostart:
             self._px_start()
-        if self.started and not getattr(self._px_target, "started", False):
-            try:
-                self._px_target.started = self.started
-            except AttributeError:
-                pass
+        self.started = self.started
 
     def is_owned(self, node):
         return getattr(node, "_px_root", None) is self
@@ -389,11 +394,17 @@ class Reference(BaseTask):
             self._px_dostart = True
 
     def _px_start(self):
-        BaseTask.start(self)
-        if not self._px_target.started:
-            self._px_target.start()
-            self._px_didstart = True
-        self._px_dostart = False
+        try:
+            self._propogate_started = False
+
+            BaseTask.start(self)
+            if (self._px_target.can_activate
+                    and not getattr(self._px_target, "started", None)):
+                self._px_target.start()
+                self._px_didstart = True
+            self._px_dostart = False
+        finally:
+            self._propogate_started = True
 
     def finish(self):
         BaseTask.finish(self)
@@ -415,6 +426,56 @@ class Reference(BaseTask):
         return result.partition("\n")[0]
 
 
+@nodecreator("depends")
+@nodecreator("depend")
 class Depends(Reference):
+
+    def __init__(self, *a, **kw):
+        Reference.__init__(self, *a, **kw)
+        self._propogate_finished = True
+        self._px_dofinish = False
+
+    def load_finished(self):
+        Reference.load_finished(self)
+        if self._px_dofinish:
+            self._px_finish()
+        self.finished = self.finished
+
+    @setter
+    def finished(self, value):
+        self._realfinished = value
+
+        if (self._propogate_finished
+                and self._px_target is not None
+                and value
+                and not getattr(self._px_target, "finished", False)):
+            try:
+                self._px_target.finished = value
+            except AttributeError:
+                pass
+
     def finish(self):
-        self._px_
+        if self._px_target is not None:
+            self._px_finish()
+        else:
+            self._px_dofinish = True
+
+    def _px_finish(self):
+        try:
+            self._propogate_finished = False
+
+            Reference.finish(self)
+            if (self._px_target.can_activate
+                    and not getattr(self._px_target, "finished", None)):
+                self._px_target.finish()
+                self._px_didfinish = True
+            self._px_dofinish = False
+        finally:
+            self._propogate_finished = True
+
+    def unfinish(self):
+        result = self._px_target.unfinish()
+        if not result:
+            return result
+
+        return Reference.unfinish(self)

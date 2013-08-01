@@ -2,6 +2,7 @@ from todo_tracker.tracker import Tracker, nodecreator
 from todo_tracker import navigation
 from todo_tracker import searching
 from todo_tracker.nodes import references
+from todo_tracker.nodes import node
 
 import pytest
 
@@ -817,6 +818,36 @@ def test_active(tracker):
     assert ui_dict["active"]
 
 
+def test_active_anomaly(tracker):
+    return
+    tracker.deserialize("str",
+        "task: target\n"
+        "days\n"
+        "    day: today\n"
+        "        @started\n"
+        "        reference: << > target\n"
+        "            @active\n"
+    )
+
+    # try a creator
+    to_activate = tracker.root.find_one("days > day > reference > to activate")
+    target = to_activate._px_target
+
+    tracker.root.activate(to_activate)
+    assert tracker.root.active_node is to_activate
+    assert to_activate.active
+    assert not target.active
+    options = to_activate.option_values()
+    assert ("active", None, True) in options
+    options = target.option_values()
+    assert ("active", None, True) not in options
+
+    ui_dict = to_activate.ui_serialize()
+    options = [frozenset(x.items()) for x in ui_dict["options"]]
+    assert set((("type", "active"), ("text", None))) in options
+    assert ui_dict["active"]
+
+
 def test_recursion(tracker):
     tracker.deserialize("str",
         "task: target\n"
@@ -904,7 +935,68 @@ def test_reference_started(tracker):
     assert reference.started == target.started
     assert not reference._px_didstart
 
-# test hanging onto ui_serialize stuff, like finished
-# test displaying as active
+
+def test_reference_category(tracker):
+    tracker.deserialize("str",
+        "category: stuff\n"
+        "    task: stuff\n"
+        "days\n"
+        "    day: today\n"
+        "        reference: << > category"
+    )
+
+    ref = tracker.root.find_one('** > reference')
+    tracker.root.activate(ref)
+
+    assert ref.started
+
+
+def test_reference_category_existingtime(tracker):
+    tracker.deserialize("str",
+        "category: stuff\n"
+        "    task: stuff\n"
+        "days\n"
+        "    day: today\n"
+        "        reference: << > category\n"
+        "            @started: December 19, 1994 11:55 PM"
+    )
+
+    ref = tracker.root.find_one('** > reference')
+
+    assert ref.started
+
+
+def test_unwriteable_started(tracker, monkeypatch):
+    called = []
+
+    class NonTaskNode(node.Node):
+        def __setattr__(self, name, value):
+            if name == "started":
+                called.append(True)
+                raise AttributeError
+            node.Node.__setattr__(self, name, value)
+
+    monkeypatch.setitem(tracker.nodecreator.creators,
+            "nontask", NonTaskNode)
+
+    tracker.deserialize("str",
+        "nontask: something\n"
+        "    task: something else\n"
+        "        task: something else 3\n"
+        "    task: something else 2\n"
+        "days\n"
+        "    day: today\n"
+        "        reference: << >\n"
+        "            @started\n"
+    )
+
+    ref = tracker.root.find_one("days > day > reference")
+
+    assert called[0]
+    assert ref.started
+    assert not hasattr(ref._px_target, "started")
+
+
 # search contexts or search quoting are required to make references useful
-# test finished-loading creation of reference
+# test finish with behavior being called
+# test target nodes with no finished or started slots
