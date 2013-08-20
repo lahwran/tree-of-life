@@ -463,6 +463,7 @@ class Depends(Reference):
     def __init__(self, *a, **kw):
         self._propagate_finished = True
         self._px_dofinish = False
+        self._px_didfinish = False
         Reference.__init__(self, *a, **kw)
 
         if self.node_type in ["depend", "dep"]:

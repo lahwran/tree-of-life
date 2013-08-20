@@ -677,7 +677,7 @@ class TestRefnode(object):
         ]
 
 
-def test_child_loop(tracker):
+def test_child_loop(tracker, reftype):
     tracker.deserialize("str",
         "task: a\n"
         "    task: b\n"
@@ -686,10 +686,10 @@ def test_child_loop(tracker):
         "        task: g\n"
         "    task: c\n"
         "    task: d\n"
-        "reference: <-"
+        "%s: <-" % reftype
     )
 
-    a = tracker.root.find_one("reference")
+    a = tracker.root.find_one(reftype)
     b = a.find_one("b")
     c = a.find_one("c")
     d = a.find_one("d")
@@ -717,30 +717,30 @@ def test_child_loop(tracker):
 
 
 class TestSearchCreateIntegration(object):
-    def test_proxied_create(self, tracker):
+    def test_proxied_create(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
-        creator = searching.Creator("reference > task: test")
+        creator = searching.Creator(reftype + " > task: test")
         nodes = creator(tracker.root)
         assert len(nodes) == 1
         node = nodes[0]
-        proxy = tracker.root.find_one("reference > test")
+        proxy = tracker.root.find_one(reftype + "> test")
         assert node is proxy
 
-    def test_mini_child_loop(self, tracker):
+    def test_mini_child_loop(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
-        creator = searching.Creator("reference > task: test")
+        creator = searching.Creator(reftype + "> task: test")
         nodes = creator(tracker.root)
         assert len(nodes) == 1
 
-        proxy_task = tracker.root.find_one("reference > test")
+        proxy_task = tracker.root.find_one(reftype + "> test")
         target_task = tracker.root.find_one("target > test")
-        reference = tracker.root.find_one("reference")
+        reference = tracker.root.find_one(reftype)
         target = tracker.root.find_one("target")
 
         unwrap = reference.unwrap
@@ -760,20 +760,20 @@ class TestSearchCreateIntegration(object):
         assert proxy_task.parent is reference
 
 
-def test_simple_interaction(tracker):
+def test_simple_interaction(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "days\n"
         "    day: today\n"
         "        @started\n"
-        "        reference: << > target\n"
-        "            @active\n"
+        "        %s: << > target\n"
+        "            @active\n" % reftype
     )
 
     navigation.createauto("task: test", tracker)
 
     active_node = tracker.root.active_node
-    proxy = tracker.root.find_one("days > today > reference > test")
+    proxy = tracker.root.find_one("days > today > " + reftype + " > test")
     target = tracker.root.find_one("target > test")
     assert active_node is proxy
     assert proxy is not target
@@ -791,18 +791,19 @@ def test_simple_interaction(tracker):
     assert second_child.started
     assert not second_child.finished
 
-    proxy_active = tracker.root.find_one("days > day > reference > test 2")
+    proxy_active = tracker.root.find_one("days > day > "
+            + reftype + "> test 2")
     assert proxy_active is tracker.root.active_node
 
 
-def test_another_interaction(tracker):
+def test_another_interaction(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "days\n"
         "    day: today\n"
         "        @started\n"
-        "        reference: << > target\n"
-        "            @active\n"
+        "        %s: << > target\n"
+        "            @active\n" % reftype
     )
 
     navigation.createauto("task: test 1", tracker)
@@ -818,43 +819,55 @@ def test_another_interaction(tracker):
     assert second_child.started
     assert not second_child.finished
 
-    proxy_active = tracker.root.find_one("days > day > reference > test 2")
+    proxy_active = tracker.root.find_one("days > day > "
+            + reftype + " > test 2")
     assert proxy_active is tracker.root.active_node
 
 
-def test_str(tracker):
+def test_str(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    comment: to test against\n"
-        "reference: <-\n"
+        "%s: <-\n" % reftype
     )
 
-    proxy = tracker.root.find_one("reference > comment")
+    proxy = tracker.root.find_one(reftype + " > comment")
     proxy_target = proxy._px_target
     assert str(proxy) == str(proxy_target)
 
-    ref = tracker.root.find_one("reference")
-    assert str(ref) == "reference: target"
+    ref = tracker.root.find_one(reftype)
+    assert str(ref) == reftype + ": target"
 
-    ref2 = references.Reference("reference", "<- task: target")
-    assert str(ref2) == "reference: <- task: target"
+    if reftype == "reference":
+        ref2 = references.Reference("reference", "<- task: target")
+        assert str(ref2) == "reference: <- task: target"
 
-    tracker.root.addchild(ref2)
-    assert str(ref2) == "reference: target"
+        tracker.root.addchild(ref2)
+        assert str(ref2) == reftype + ": target"
+    elif reftype == "depends":
+        for x in ["depends", "dep", "depend"]:
+            ref2 = references.Depends(x, "<- task: target")
+            assert str(ref2) == "depends: <- task: target"
+
+            tracker.root.addchild(ref2)
+            assert str(ref2) == reftype + ": target"
+    else:  # pragma: no cover
+        assert False
 
 
-def test_active(tracker):
+def test_active(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: to activate\n"
         "days\n"
         "    day: today\n"
         "        @started\n"
-        "        reference: << > target\n"
-        "            @active\n"
+        "        %s: << > target\n"
+        "            @active\n" % reftype
     )
 
-    to_activate = tracker.root.find_one("days > day > reference > to activate")
+    to_activate = tracker.root.find_one("days > day > "
+            + reftype + " > to activate")
     target = to_activate._px_target
 
     tracker.root.activate(to_activate)
@@ -879,12 +892,13 @@ def test_active_anomaly(tracker):
         "days\n"
         "    day: today\n"
         "        @started\n"
-        "        reference: << > target\n"
-        "            @active\n"
+        "        %s: << > target\n"
+        "            @active\n" % reftype
     )
 
     # try a creator
-    to_activate = tracker.root.find_one("days > day > reference > to activate")
+    to_activate = tracker.root.find_one("days > day > "
+            + reftype + " > to activate")
     target = to_activate._px_target
 
     tracker.root.activate(to_activate)
@@ -902,30 +916,30 @@ def test_active_anomaly(tracker):
     assert ui_dict["active"]
 
 
-def test_recursion(tracker):
+def test_recursion(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: something\n"
-        "        reference: < target\n"
+        "        %s: < target\n" % reftype
     )
 
     assert _dump(tracker.root.children) == [
         "task: target",
         "    task: something",
-        "        reference: < target",
+        "        %s: < target" % reftype,
         "            proxy: task: something",
-        "                proxy: reference: <recursing>",
+        "                proxy: %s: <recursing>" % reftype,
     ]
 
 
-def test_ui_serialize(tracker):
+def test_ui_serialize(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: child\n"
-        "reference: <-\n"
+        "%s: <-\n" % reftype
     )
 
-    child = tracker.root.find_one("reference > child")
+    child = tracker.root.find_one(reftype + " > child")
     ui_info = child.ui_serialize({
         "input": True
     })
@@ -935,16 +949,16 @@ def test_ui_serialize(tracker):
     assert not ui_info.get("finished", False)
 
 
-def test_ui_serialize_finished(tracker):
+def test_ui_serialize_finished(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: child\n"
         "        @started\n"
         "        @finished\n"
-        "reference: <-\n"
+        "%s: <-\n" % reftype
     )
 
-    child = tracker.root.find_one("reference > child")
+    child = tracker.root.find_one(reftype + " > child")
     ui_info = child.ui_serialize({
         "input": True
     })
@@ -956,6 +970,8 @@ def test_ui_serialize_finished(tracker):
 
 
 def test_no_query_finished(tracker, monkeypatch):
+    # this one does _not_ apply to depends, hence no reftype
+    # depends has to do a query to make sure the target is marked
     monkeypatch.setattr(references.Reference, "find_one", None)
     tracker.deserialize("str",
         "reference: <-\n"
@@ -964,63 +980,94 @@ def test_no_query_finished(tracker, monkeypatch):
     )
 
 
-def test_reference_finished(tracker):
+def test_reference_finished(tracker, reftype):
     tracker.deserialize("str",
         "task: finished node\n"
         "    @started: June 1, 2013 1:00 am\n"
         "    @finished: June 1, 2013 2:00 am\n"
-        "reference: <-"
+        "%s: <-" % reftype
     )
 
-    reference = tracker.root.find_one("reference")
+    reference = tracker.root.find_one(reftype)
     assert not reference.started
     assert reference.finished
 
 
-def test_reference_started(tracker):
+def test_depends_finished_node(tracker, reftype):
     tracker.deserialize("str",
         "task: finished node\n"
-        "reference: <-\n"
         "    @started: June 1, 2013 1:00 am\n"
+        "    @finished: June 1, 2013 2:00 am\n"
+        "%s: <-\n"
+        "    @finished: June 2, 2013 2:00 am" % reftype
     )
 
-    reference = tracker.root.find_one("reference")
+    reference = tracker.root.find_one(reftype)
+    target = tracker.root.find_one("task")
+    assert not reference.started
+    assert reference.finished
+    assert reference.finished > target.finished
+
+
+def test_reference_started(tracker, reftype):
+    tracker.deserialize("str",
+        "task: finished node\n"
+        "%s: <-\n"
+        "    @started: June 1, 2013 1:00 am\n" % reftype
+    )
+
+    reference = tracker.root.find_one(reftype)
     target = reference._px_target
     assert reference.started == target.started
     assert not reference._px_didstart
 
 
-def test_reference_category(tracker):
+def test_depends_propogate_finished(tracker):
+    tracker.deserialize("str",
+        "task: finished node\n"
+        "depends: <-\n"
+        "    @started: June 1, 2013 1:00 am\n"
+        "    @finished: June 2, 2013 1:00 am\n"
+    )
+
+    dep = tracker.root.find_one("depends")
+    target = tracker.root.find_one("task")
+    assert dep._px_target is None
+    assert dep.finished == target.finished
+    assert not dep._px_didfinish
+
+
+def test_reference_category(tracker, reftype):
     tracker.deserialize("str",
         "category: stuff\n"
         "    task: stuff\n"
         "days\n"
         "    day: today\n"
-        "        reference: << > category"
+        "        %s: << > category" % reftype
     )
 
-    ref = tracker.root.find_one('** > reference')
+    ref = tracker.root.find_one('** > ' + reftype)
     tracker.root.activate(ref)
 
     assert ref.started
 
 
-def test_reference_category_existingtime(tracker):
+def test_reference_category_existingtime(tracker, reftype):
     tracker.deserialize("str",
         "category: stuff\n"
         "    task: stuff\n"
         "days\n"
         "    day: today\n"
-        "        reference: << > category\n"
-        "            @started: December 19, 1994 11:55 PM"
+        "        %s: << > category\n"
+        "            @started: December 19, 1994 11:55 PM" % reftype
     )
 
-    ref = tracker.root.find_one('** > reference')
+    ref = tracker.root.find_one('** > ' + reftype)
 
     assert ref.started
 
 
-def test_unwriteable_started(tracker, monkeypatch):
+def test_unwriteable_started(tracker, monkeypatch, reftype):
     called = []
 
     class NonTaskNode(node.Node):
@@ -1040,15 +1087,47 @@ def test_unwriteable_started(tracker, monkeypatch):
         "    task: something else 2\n"
         "days\n"
         "    day: today\n"
-        "        reference: << >\n"
-        "            @started\n"
+        "        %s: << >\n"
+        "            @started\n" % reftype
     )
 
-    ref = tracker.root.find_one("days > day > reference")
+    ref = tracker.root.find_one("days > day > " + reftype)
 
     assert called[0]
     assert ref.started
     assert not hasattr(ref._px_target, "started")
+
+
+def test_unwriteable_finished(tracker, monkeypatch):
+    called = []
+
+    class NonTaskNode(node.Node):
+        def __setattr__(self, name, value):
+            if name == "finished":
+                called.append(True)
+                raise AttributeError
+            node.Node.__setattr__(self, name, value)
+
+    monkeypatch.setitem(tracker.nodecreator.creators,
+            "nontask", NonTaskNode)
+
+    tracker.deserialize("str",
+        "nontask: something\n"
+        "    task: something else\n"
+        "        task: something else 3\n"
+        "    task: something else 2\n"
+        "days\n"
+        "    day: today\n"
+        "        depends: << >\n"
+        "            @started\n"
+        "            @finished\n"
+    )
+
+    ref = tracker.root.find_one("days > day > depends")
+
+    assert called[0]
+    assert ref.finished
+    assert not hasattr(ref._px_target, "finished")
 
 
 # search contexts or search quoting are required to make references useful
