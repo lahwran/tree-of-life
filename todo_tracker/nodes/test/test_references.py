@@ -13,6 +13,11 @@ def tracker():
     return tracker
 
 
+@pytest.fixture(params=["depends", "reference"])
+def reftype(request):
+    return request.param
+
+
 def _dump(nodes, getiterator=lambda x: x.children, depth=0, proxyinfo=True):
     result = []
     for node in nodes:
@@ -24,26 +29,26 @@ def _dump(nodes, getiterator=lambda x: x.children, depth=0, proxyinfo=True):
     return result
 
 
-def test_reference(tracker):
+def test_reference(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
         "        task: somechild\n"
         "    comment: derp\n"
-        "reference: <- target\n"
+        "%s: <- target\n" % reftype
     )
 
-    assert len(tracker.root.find_one("reference").children) == 2
+    assert len(tracker.root.find_one(reftype).children) == 2
 
-    assert _dump(tracker.root.find("reference")) == [
-        "reference: <- target",
+    assert _dump(tracker.root.find(reftype)) == [
+        "%s: <- target" % reftype,
         "    proxy: task: somechild",
         "        proxy: task: somechild",
         "    proxy: comment: derp"
     ]
 
 
-def test_nested_reference(tracker):
+def test_nested_reference(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -53,12 +58,12 @@ def test_nested_reference(tracker):
         "    task: do some work\n"
         "        reference: << > target\n"
         "    task: do some other work\n"
-        "reference: <- task\n"
+        "%s: <- task\n" % reftype
     )
 
-    x = _dump(tracker.root.find("reference"))
+    x = _dump(tracker.root.find(reftype))
     y = [
-        "reference: <- task",
+        "%s: <- task" % reftype,
         "    proxy: task: do some work",
         "        proxy: reference: << > target",
         "            proxy: task: somechild",
@@ -69,7 +74,7 @@ def test_nested_reference(tracker):
     assert x == y
 
 
-def test_nested_createchild(tracker):
+def test_nested_createchild(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
@@ -79,11 +84,11 @@ def test_nested_createchild(tracker):
         "    task: do some work\n"
         "        reference: << > target\n"
         "    task: do some other work\n"
-        "reference: <- task\n"
+        "%s: <- task\n" % reftype
     )
 
-    somechild = tracker.root.find_one("reference > task > "
-                "reference > somechild")
+    somechild = tracker.root.find_one("%s > task > "
+                "reference > somechild" % reftype)
     node = somechild.createchild("task", "test")
     node2 = tracker.root.find_one("task > task > reference > task > test")
     assert node._px_target is node2
@@ -103,7 +108,7 @@ def test_nested_createchild(tracker):
         "                proxy: task: test",
         "            proxy: comment: derp",
         "    task: do some other work",
-        "reference: <- task",
+        "%s: <- task" % reftype,
         "    proxy: task: do some work",
         "        proxy: reference: << > target",
         "            proxy: task: somechild",
@@ -114,16 +119,16 @@ def test_nested_createchild(tracker):
     ]
 
 
-def test_createchild(tracker):
+def test_createchild(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
         "    task: somechild\n"
         "        task: somechild\n"
         "    comment: derp\n"
-        "reference: <- target\n"
+        "%s: <- target\n" % reftype
     )
 
-    somechild = tracker.root.find_one("reference > somechild")
+    somechild = tracker.root.find_one("%s > somechild" % reftype)
     somechild.createchild("task", "test")
 
     assert _dump(tracker.root.find("*")) == [
@@ -132,7 +137,7 @@ def test_createchild(tracker):
         "        task: somechild",
         "        task: test",
         "    comment: derp",
-        "reference: <- target",
+        "%s: <- target" % reftype,
         "    proxy: task: somechild",
         "        proxy: task: somechild",
         "        proxy: task: test",
@@ -140,32 +145,32 @@ def test_createchild(tracker):
     ]
 
 
-def test_parent(tracker):
+def test_parent(tracker, reftype):
     tracker.deserialize("str",
         "task: target 1\n"
         "    task: target 2\n"
         "        task: target 3\n"
-        "reference: <-"
+        "%s: <-" % reftype
     )
 
-    proxy_3 = tracker.root.find_one("reference > * > target 3")
-    proxy_2 = tracker.root.find_one("reference > target 2")
-    reference = tracker.root.find_one("reference")
+    proxy_3 = tracker.root.find_one("%s > * > target 3" % reftype)
+    proxy_2 = tracker.root.find_one("%s > target 2" % reftype)
+    reference = tracker.root.find_one(reftype)
     assert proxy_3.parent is proxy_2
     assert proxy_2.parent is reference
 
 
 class TestProxynode(object):
-    def test_activate(self, tracker):
+    def test_activate(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
-            "reference: <-\n"
+            "%s: <-\n"
             "days\n"
             "    day: today\n"
-            "        reference: << > reference\n"
-            "            @active\n"
+            "        reference: << > %s\n"
+            "            @active\n" % (reftype, reftype)
         )
 
         root = tracker.root
@@ -200,20 +205,20 @@ class TestProxynode(object):
         assert not target_1.finished
         assert reference.finished > target_2.finished
 
-    def test_reposition(self, tracker):
+    def test_reposition(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
             "    task: target 4\n"
-            "reference: <- target 1\n"
+            "%s: <- target 1\n" % reftype
         )
 
         target_3 = tracker.root.find_one("task > task > target 3")
         target_4 = tracker.root.find_one("task > target 4")
 
-        proxy_3 = tracker.root.find_one("reference > task > target 3")
-        proxy_4 = tracker.root.find_one("reference > target 4")
+        proxy_3 = tracker.root.find_one("%s > task > target 3" % reftype)
+        proxy_4 = tracker.root.find_one("%s > target 4" % reftype)
 
         proxy_3 = proxy_3.detach()
         proxy_3.parent = proxy_4
@@ -225,27 +230,27 @@ class TestProxynode(object):
             "    task: target 2",
             "    task: target 4",
             "        task: target 3",
-            "reference: <- target 1",
+            "%s: <- target 1" % reftype,
             "    proxy: task: target 2",
             "    proxy: task: target 4",
             "        proxy: task: target 3",
         ]
 
-    def test_reposition_2(self, tracker):
+    def test_reposition_2(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
             "    task: target 4\n"
-            "reference: <-\n"
-            "reference: <-\n"
+            "%s: <-\n"
+            "reference: <-\n" % reftype
         )
 
         target_3 = tracker.root.find_one("task > task > target 3")
         target_4 = tracker.root.find_one("task > target 4")
 
-        proxy_3 = tracker.root.find_one("reference -> "
-                "reference > task > target 3")
+        proxy_3 = tracker.root.find_one("%s -> "
+                "reference > task > target 3" % reftype)
 
         detached = proxy_3.detach()
         detached.parent = target_4
@@ -258,7 +263,7 @@ class TestProxynode(object):
             "    task: target 2",
             "    task: target 4",
             "        task: target 3",
-            "reference: <-",
+            "%s: <-" % reftype,
             "    proxy: task: target 2",
             "    proxy: task: target 4",
             "        proxy: task: target 3",
@@ -268,18 +273,18 @@ class TestProxynode(object):
             "        proxy: task: target 3",
         ]
 
-    def test_reposition_3(self, tracker):
+    def test_reposition_3(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "    task: target 3\n"
-            "reference: <- target 1\n"
+            "%s: <- target 1\n" % reftype
         )
 
         target_2 = tracker.root.find_one("task > target 2")
         target_3 = tracker.root.find_one("task > target 3")
 
-        proxy_2 = tracker.root.find_one("reference > target 2")
+        proxy_2 = tracker.root.find_one("%s > target 2" % reftype)
 
         detached = proxy_2.detach()
         detached.parent = target_3
@@ -291,25 +296,25 @@ class TestProxynode(object):
             "task: target 1",
             "    task: target 3",
             "        task: target 2",
-            "reference: <- target 1",
+            "%s: <- target 1" % reftype,
             "    proxy: task: target 3",
             "        proxy: task: target 2",
         ]
 
-    def test_copy_1(self, tracker):
+    def test_copy_1(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
             "    task: target 4\n"
-            "reference: <- target 1\n"
+            "%s: <- target 1\n" % reftype
         )
 
         target_3 = tracker.root.find_one("task > task > target 3")
         target_4 = tracker.root.find_one("task > target 4")
 
-        proxy_3 = tracker.root.find_one("reference > task > target 3")
-        proxy_4 = tracker.root.find_one("reference > target 4")
+        proxy_3 = tracker.root.find_one(reftype + " > task > target 3")
+        proxy_4 = tracker.root.find_one(reftype + " > target 4")
 
         target_3_new = proxy_3.copy()
         target_3_new.parent = proxy_4
@@ -322,27 +327,27 @@ class TestProxynode(object):
             "        task: target 3",
             "    task: target 4",
             "        task: target 3",
-            "reference: <- target 1",
+            "%s: <- target 1" % reftype,
             "    proxy: task: target 2",
             "        proxy: task: target 3",
             "    proxy: task: target 4",
             "        proxy: task: target 3",
         ]
 
-    def test_copy_2(self, tracker):
+    def test_copy_2(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "        task: target 3\n"
             "    task: target 4\n"
-            "reference: <- target 1\n"
+            "%s: <- target 1\n" % reftype
         )
 
         target_3 = tracker.root.find_one("task > task > target 3")
         target_4 = tracker.root.find_one("task > target 4")
 
-        proxy_3 = tracker.root.find_one("reference > task > target 3")
-        proxy_4 = tracker.root.find_one("reference > target 4")
+        proxy_3 = tracker.root.find_one(reftype + "> task > target 3")
+        proxy_4 = tracker.root.find_one(reftype + "> target 4")
 
         target_3_new = proxy_3.copy(parent=proxy_4)
 
@@ -354,21 +359,21 @@ class TestProxynode(object):
             "        task: target 3",
             "    task: target 4",
             "        task: target 3",
-            "reference: <- target 1",
+            reftype + ": <- target 1",
             "    proxy: task: target 2",
             "        proxy: task: target 3",
             "    proxy: task: target 4",
             "        proxy: task: target 3",
         ]
 
-    def test_creation(self, tracker):
+    def test_creation(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
 
-        target_2 = tracker.root.find_one("reference > ")
+        target_2 = tracker.root.find_one(reftype + " > ")
 
         target_2.createchild("task", "test")
 
@@ -376,22 +381,22 @@ class TestProxynode(object):
             "task: target 1",
             "    task: target 2",
             "        task: test",
-            "reference: <-",
+            reftype + ": <-",
             "    proxy: task: target 2",
             "        proxy: task: test"
         ]
 
-    def test_whacky_reposition_setparent(self, tracker):
+    def test_whacky_reposition_setparent(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
             "    task: dummy\n"
             "        task: move me\n"
             "    task: parent\n"
-            "reference: <- to reference\n"
+            "%s: <- to reference\n" % reftype
         )
 
-        proxy = tracker.root.find_one("reference > task > move me")
-        parent = tracker.root.find_one("reference > task: parent")
+        proxy = tracker.root.find_one(reftype + " > task > move me")
+        parent = tracker.root.find_one(reftype + "> task: parent")
         move_me = proxy._px_target
 
         move_me.detach()
@@ -407,23 +412,23 @@ class TestProxynode(object):
             "    task: dummy",
             "    task: parent",
             "        task: move me",
-            "reference: <- to reference",
+            reftype + ": <- to reference",
             "    proxy: task: dummy",
             "    proxy: task: parent",
             "        proxy: task: move me",
         ]
 
-    def test_whacky_reposition_noneparent(self, tracker):
+    def test_whacky_reposition_noneparent(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
             "    task: dummy\n"
             "        task: move me\n"
             "    task: parent\n"
-            "reference: <- to reference\n"
+            "%s: <- to reference\n" % reftype
         )
 
-        proxy = tracker.root.find_one("reference > task > move me")
-        parent = tracker.root.find_one("reference > task: parent")
+        proxy = tracker.root.find_one(reftype + "> task > move me")
+        parent = tracker.root.find_one(reftype + "> task: parent")
         move_me = proxy._px_target
 
         move_me.detach()
@@ -439,53 +444,53 @@ class TestProxynode(object):
             "    task: dummy",
             "    task: parent",
             "        task: move me",
-            "reference: <- to reference",
+            reftype + ": <- to reference",
             "    proxy: task: dummy",
             "    proxy: task: parent",
             "        proxy: task: move me",
         ]
 
-    def test_set_text(self, tracker):
+    def test_set_text(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
             "    task: to rename\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
 
-        to_rename = tracker.root.find_one('reference > to rename')
+        to_rename = tracker.root.find_one(reftype + ' > to rename')
         to_rename.text = "renamed"
 
         assert _dump(tracker.root.children) == [
             "task: to reference",
             "    task: renamed",
-            "reference: <-",
+            reftype + ": <-",
             "    proxy: task: renamed"
         ]
 
-    def test_export(self, tracker):
+    def test_export(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
             "    task: parent\n"
             "        task: child 1\n"
             "        task: child 2\n"
             "        task: child 3\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
 
         from todo_tracker.file_storage import serialize
 
-        assert serialize(tracker.root.find_one("reference > parent")) == [
+        assert serialize(tracker.root.find_one(reftype + " > parent")) == [
             "task: parent"
         ]
 
-    def test_no_options(self, tracker):
+    def test_no_options(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
             "    task: target\n"
-            "reference: <-"
+            "%s: <-" % reftype
         )
 
-        target = tracker.root.find_one("reference > target")
+        target = tracker.root.find_one(reftype + "> target")
 
         with pytest.raises(AttributeError) as excinfo:
             target.options
@@ -494,47 +499,52 @@ class TestProxynode(object):
 
 
 class TestRefnode(object):
-    def test_creation(self, tracker):
+    def test_creation(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
-            "reference: <-"
+            "{}: <-".format(reftype)
         )
 
-        ref = tracker.root.find_one("reference")
+        ref = tracker.root.find_one(reftype)
 
         ref.createchild("task", "test")
 
         assert _dump(tracker.root.find("*")) == [
             "task: target 1",
             "    task: test",
-            "reference: <-",
+            reftype + ": <-",
             "    proxy: task: test"
         ]
 
-    def test_unfinish(self, tracker):
+    def test_unfinish(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "days\n"
             "    day: today\n"
             "        @active\n"
-            "        reference: << >\n"
+            "        {}: << >\n".format(reftype)
         )
 
         navigation.done(tracker.root)
-        refnode = tracker.root.find_one("** > reference")
+        refnode = tracker.root.find_one("** > " + reftype)
         assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
         assert _dump([refnode]) == [
-            "reference: << >",
+            reftype + ": << >",
             "    proxy: task: target 2"
         ]
         navigation.finish("<", tracker.root)
+        target = tracker.root.find_one("task: target 1")
+        if reftype == "depends":
+            assert target.finished
+        else:
+            assert not target.finished
         assert refnode.finished
         assert _dump([refnode]) == [
-            "reference: << >"
+            reftype + ": << >"
         ]
         assert not refnode.active
         assert tracker.root.active_node.node_type == "day"
@@ -544,30 +554,36 @@ class TestRefnode(object):
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
+        assert not target.finished
         assert _dump([refnode]) == [
-            "reference: << >",
+            reftype + ": << >",
             "    proxy: task: target 2"
         ]
 
-    def test_unfinish_notinitialized(self, tracker):
+    def test_unfinish_notinitialized(self, tracker, reftype):
         tracker.deserialize("str",
             "task: target 1\n"
             "    task: target 2\n"
             "days\n"
             "    day: today\n"
             "        @active\n"
-            "        reference: << >\n"
+            "        {}: << >\n"
             "            @started\n"
-            "            @finished\n"
+            "            @finished\n".format(reftype)
         )
 
-        refnode = tracker.root.find_one("** > reference")
+        refnode = tracker.root.find_one("** > " + reftype)
         assert refnode.finished
         assert _dump([refnode]) == [
-            "reference: << >"
+            reftype + ": << >"
         ]
         assert not refnode.active
         assert tracker.root.active_node.node_type == "day"
+        target = tracker.root.find_one("task: target 1")
+        if reftype == "depends":
+            assert target.finished
+        else:
+            assert not target.finished
 
         navigation.forceactivate(
             searching.Query(">"), tracker.root)
@@ -575,13 +591,51 @@ class TestRefnode(object):
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
+        assert not refnode._px_target.finished
         assert _dump([refnode]) == [
-            "reference: << >",
+            reftype + ": << >",
             "    proxy: task: target 2"
         ]
 
-    def test_initial_state(self, tracker):
-        ref = references.Reference("reference", "<-")
+    def test_unfinish_targetfinished(self, tracker, reftype):
+        tracker.deserialize("str",
+            "task: target 1\n"
+            "    @started\n"
+            "    @finished\n"
+            "    task: target 2\n"
+            "days\n"
+            "    day: today\n"
+            "        @active\n"
+            "        {}: << >\n"
+            "            @started\n"
+            "            @finished\n".format(reftype)
+        )
+
+        refnode = tracker.root.find_one("** > " + reftype)
+        assert refnode.finished
+        assert _dump([refnode]) == [
+            reftype + ": << >"
+        ]
+        assert not refnode.active
+        assert tracker.root.active_node.node_type == "day"
+        target = tracker.root.find_one("task: target 1")
+        assert target.finished
+
+        navigation.forceactivate(
+            searching.Query(">"), tracker.root)
+        assert refnode.active
+        assert tracker.root.active_node is refnode
+        assert refnode.started
+        assert not refnode.finished
+        assert not refnode._px_target.finished
+        assert _dump([refnode]) == [
+            reftype + ": << >",
+            "    proxy: task: target 2"
+        ]
+
+    def test_initial_state(self, tracker, reftype):
+        creator = tracker.nodecreator.creators[reftype]
+        ref = creator(reftype, "<-")
 
         assert ref._px_target is None
         assert ref.children.length == 0
@@ -595,31 +649,31 @@ class TestRefnode(object):
 
         assert ref._px_target is tracker.root.find_one("task")
 
-    def test_export(self, tracker):
+    def test_export(self, tracker, reftype):
         tree = (
             "task: target\n"
             "    task: somechild\n"
             "        task: somechild\n"
             "    comment: derp\n"
-            "reference: <- target\n"
+            "{}: <- target\n".format(reftype)
         )
         tracker.deserialize("str", tree)
 
         assert tracker.serialize("str") == tree
 
-    def test_removechild(self, tracker):
+    def test_removechild(self, tracker, reftype):
         tracker.deserialize("str",
             "task: referenced\n"
             "    task: toremove\n"
-            "reference: <-\n"
+            "{}: <-\n".format(reftype)
         )
-        reference = tracker.root.find_one("reference")
+        reference = tracker.root.find_one(reftype)
 
         toremove = reference.find_one("task")
         reference.removechild(toremove)
         assert _dump(tracker.root.children) == [
             "task: referenced",
-            "reference: <-"
+            "{}: <-".format(reftype)
         ]
 
 

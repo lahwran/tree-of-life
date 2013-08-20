@@ -296,6 +296,8 @@ class ReferenceNodeList(_NodeListRoot):
 
 
 @nodecreator("reference")
+@nodecreator("work on")
+@nodecreator("workon")
 class Reference(BaseTask):
 
     def __init__(self, *args):
@@ -304,8 +306,11 @@ class Reference(BaseTask):
         self._real_px_target = None
         self._px_didstart = False
         self._px_dostart = False
-        self._propogate_started = True
+        self._propagate_started = True
         BaseTask.__init__(self, *args)
+
+        #if self.node_type in ["reference", "work on"]:
+        #    self.node_type = "reference"
 
     def addchild(self, child, before=None, after=None):
         before = self._px_root.unwrap(before)
@@ -321,15 +326,16 @@ class Reference(BaseTask):
 
     @setter
     def _px_target(self, newvalue):
-        assert not self.finished or newvalue is None
+        assert self._px_can_target or newvalue is None
         self._real_px_target = newvalue
-        self.finished = getattr(newvalue, "finished", self.finished)
+        if self.finished is None:
+            self.finished = getattr(newvalue, "finished", self.finished)
         self.children = self.get_proxy(newvalue.children)
 
     @setter
     def started(self, value):
         self._realstarted = value
-        if (self._propogate_started
+        if (self._propagate_started
                 and self._px_target is not None
                 and value
                 and not getattr(self._px_target, "started", False)):
@@ -343,11 +349,21 @@ class Reference(BaseTask):
         self._next_node = None
         self._prev_node = None
 
-    def load_finished(self):
-        if not self.finished:
-            _px_target = self.find_one(self.text)
-            assert _px_target is not None
-            self._px_target = _px_target
+    def _find_target(self):
+        _px_target = self.find_one(self.text)
+        assert _px_target is not None, "No target found"
+        return _px_target
+
+    @property
+    def _px_can_target(self):
+        return not self.finished
+
+    def load_finished(self, target=None):
+        if self._px_can_target:
+            if target is not None:
+                self._px_target = target
+            else:
+                self._px_target = self._find_target()
 
         if self._px_dostart:
             self._px_start()
@@ -395,7 +411,7 @@ class Reference(BaseTask):
 
     def _px_start(self):
         try:
-            self._propogate_started = False
+            self._propagate_started = False
 
             BaseTask.start(self)
             if (self._px_target.can_activate
@@ -404,19 +420,32 @@ class Reference(BaseTask):
                 self._px_didstart = True
             self._px_dostart = False
         finally:
-            self._propogate_started = True
+            self._propagate_started = True
 
-    def finish(self):
-        BaseTask.finish(self)
+    def _finish_cleanup(self):
         self._real_px_target = None
         self.children = ReferenceNodeList(self, None)
         self.proxies = None
 
+    def finish(self):
+        BaseTask.finish(self)
+        self._finish_cleanup()
+
     def unfinish(self):
-        BaseTask.unfinish(self)
+        temp_target = self._find_target()
+        assert temp_target is not None, "cannot unfinish if my target is gone!"
+
+        result = temp_target.unfinish()
+        if not result:
+            return result
+
+        assert BaseTask.unfinish(self), ("was unable to unfinish reference!"
+                    " tree state is probably bad!")
+        assert not self.finished
         self.proxies = WeakKeyDictionary()
         self._px_dostart = False
-        self.load_finished()
+
+        self.load_finished(temp_target)
         return True
 
     def __str__(self):
@@ -428,24 +457,33 @@ class Reference(BaseTask):
 
 @nodecreator("depends")
 @nodecreator("depend")
+@nodecreator("dep")
 class Depends(Reference):
 
     def __init__(self, *a, **kw):
-        Reference.__init__(self, *a, **kw)
-        self._propogate_finished = True
+        self._propagate_finished = True
         self._px_dofinish = False
+        Reference.__init__(self, *a, **kw)
 
-    def load_finished(self):
-        Reference.load_finished(self)
+        if self.node_type in ["depend", "dep"]:
+            self.node_type = "depends"
+
+    def load_finished(self, target=None):
+        Reference.load_finished(self, target)
         if self._px_dofinish:
             self._px_finish()
+        print "attempting to set finished..."
         self.finished = self.finished
+        print "...done"
+
+        if self.finished:
+            self._finish_cleanup()
 
     @setter
     def finished(self, value):
         self._realfinished = value
 
-        if (self._propogate_finished
+        if (self._propagate_finished
                 and self._px_target is not None
                 and value
                 and not getattr(self._px_target, "finished", False)):
@@ -453,6 +491,10 @@ class Depends(Reference):
                 self._px_target.finished = value
             except AttributeError:
                 pass
+
+    @property
+    def _px_can_target(self):
+        return True
 
     def finish(self):
         if self._px_target is not None:
@@ -462,20 +504,13 @@ class Depends(Reference):
 
     def _px_finish(self):
         try:
-            self._propogate_finished = False
+            self._propagate_finished = False
 
-            Reference.finish(self)
             if (self._px_target.can_activate
                     and not getattr(self._px_target, "finished", None)):
                 self._px_target.finish()
                 self._px_didfinish = True
             self._px_dofinish = False
+            Reference.finish(self)
         finally:
-            self._propogate_finished = True
-
-    def unfinish(self):
-        result = self._px_target.unfinish()
-        if not result:
-            return result
-
-        return Reference.unfinish(self)
+            self._propagate_finished = True
