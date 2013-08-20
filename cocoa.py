@@ -473,6 +473,56 @@ def init_log(config):
     return logfile
 
 
+class NoCacheFile(twisted.web.static.File):
+    def render_GET(self, request):
+        """
+        Begin sending the contents of this L{File} (or a subset of the
+        contents, based on the 'range' header) to the given request.
+        """
+
+        from twisted.web.static import getTypeAndEncoding, resource, server
+
+        self.restat(False)
+
+        if self.type is None:
+            self.type, self.encoding = getTypeAndEncoding(self.basename(),
+                                              self.contentTypes,
+                                              self.contentEncodings,
+                                              self.defaultType)
+
+        request.setHeader("Cache-Control",
+                "no-cache, no-store, must-revalidate")
+        request.setHeader("Pragma", "no-cache")
+        request.setHeader("Expires", "0")
+
+        if not self.exists():
+            return self.ensure_no_cache(self.childNotFound.render(request))
+
+        if self.isdir():
+            return self.redirect(request)
+
+        request.setHeader('accept-ranges', 'bytes')
+
+        try:
+            fileForReading = self.openForReading()
+        except IOError, e:
+            import errno
+            if e[0] == errno.EACCES:
+                return resource.ForbiddenResource().render(request)
+            else:
+                raise
+
+        producer = self.makeProducer(request, fileForReading)
+
+        if request.method == 'HEAD':
+            return ''
+
+        producer.start()
+        # and make sure the connection doesn't get closed
+        return server.NOT_DONE_YET
+    render_HEAD = render_GET
+
+
 def main(restarter, args):
     os.chdir(os.path.abspath(os.path.dirname(__file__)))
     config = argparser.parse_args(args)
@@ -500,7 +550,7 @@ def main(restarter, args):
 
     # serve ui directory
     ui_dir = os.path.join(os.path.dirname(__file__), "ui")
-    resource = twisted.web.static.File(ui_dir)
+    resource = NoCacheFile(ui_dir)
     static = twisted.web.server.Site(resource)
     reactor.listenTCP(config.port + 1, static, interface=config.listen_iface)
     try:
