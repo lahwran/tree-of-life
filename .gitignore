@@ -11,3 +11,6 @@ sentryurl
 incidents
 
 pudb_stringifier.py
+/ve
+/*.txt
+/*.egg-info
