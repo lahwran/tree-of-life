@@ -365,6 +365,9 @@ class JSONProtocol(LineOnlyReceiver):
             self.sendmessage({
                 "max_width": self.commandline.config["max_width"]
             })
+            self.sendmessage({
+                "display": True
+            })
             self.update()
             self.commandline.listeners.append(self)
         except Exception:
