@@ -135,6 +135,8 @@ class BaseTask(Node):
 
 
 @nodecreator("task")
+@nodecreator("question")
+@nodecreator("problem")
 @nodecreator("project")
 @nodecreator("bug")
 @nodecreator("feature")

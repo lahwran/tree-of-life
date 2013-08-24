@@ -136,6 +136,8 @@ class GenericActivate(GenericNode):
 
 
 @nodecreator("comment")
+@nodecreator("answer")
+@nodecreator("solution")
 @nodecreator("IGNORE")
 class Comment(Node):
     multiline = True
