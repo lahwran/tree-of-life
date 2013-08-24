@@ -15,6 +15,7 @@ from twisted.internet import reactor
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
+from txws import WebSocketFactory
 
 from todo_tracker.userinterface import (SavingInterface, command,
     generate_listing)
@@ -550,6 +551,8 @@ def main(restarter, args):
 
     factory = JSONFactory(ui)
     reactor.listenTCP(config.port, factory, interface=config.listen_iface)
+    reactor.listenTCP(config.port + 2,
+            WebSocketFactory(factory), interface=config.listen_iface)
 
     # serve ui directory
     ui_dir = os.path.join(os.path.dirname(__file__), "ui")
