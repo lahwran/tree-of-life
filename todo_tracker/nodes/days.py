@@ -407,10 +407,6 @@ class Days(Node):
 
     def addchild(self, child, before=None, after=None):
         if child.node_type in task_types:
-            if before is not None or after is not None:
-                logger.warn("attempted to specify position of days-sorted "
-                        "node")
-
             before = None
             after = None
             for existing_child in reversed(self.children):
