@@ -68,6 +68,7 @@ class DateTask(BaseTask):
         types, texts = BaseTask.search_texts(self)
         texts.add(timefmt.approx_delta(datetime.now().date(), self.date))
         texts.add(self.date.strftime('%A'))
+        texts.add(timefmt.date_to_str(self.date))
 
         return types, texts
 
