@@ -357,7 +357,7 @@ def tag_filter(nodes, tags, counter=None):
 class Matcher(object):
     def __init__(self, type, text, rel="default"):
         self.type = None if type == "*" else type
-        self.text = None if text == "*" else text
+        self.text = None if text == "*" else text.lower()
         self.create_relationship = rel
 
         self.is_rigid = self.type is not None and self.text is not None
@@ -368,9 +368,15 @@ class Matcher(object):
         for node in nodes:
             tick(counter)
             node_types, texts = node.search_texts()
+            texts_lower = []
+            for text in texts:
+                if text is None:
+                    continue
+                texts_lower.append(text.lower())
+
             if self.type is not None and self.type not in node_types:
                 continue
-            if self.text is not None and self.text not in texts:
+            if self.text is not None and self.text not in texts_lower:
                 continue
             yield node
 
