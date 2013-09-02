@@ -338,6 +338,7 @@ class Node(object):
 
     def addchild(self, child, before=None, after=None):
         if (self.allowed_children is not None and
+                child.node_type != "" and
                 child.node_type not in self.allowed_children):
             raise LoadError("node %s cannot be child of %r" %
                     (child._do_repr(parent=False), self))
@@ -558,6 +559,11 @@ class Node(object):
 @nodecreator('-')
 def continue_text(node_type, text, parent):
     parent.continue_text(text)
+
+
+@nodecreator("")
+class EmptyLineNode(Node):
+    pass
 
 
 class Option(object):

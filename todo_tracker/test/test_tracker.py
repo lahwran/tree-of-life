@@ -110,6 +110,29 @@ class TestTracker(object):
             "node3\n"
         )
 
+    def test_empty_line(self):
+        tracker = Tracker(skeleton=False)
+        tracker.deserialize("str",
+                "\n"
+                "task: whatever\n"
+                "   \n"
+                "    task: whatever again\n"
+                "\n"
+                "    task: some other thing\n"
+                "\n"
+                "\n"
+        )
+        assert tracker.serialize("str") == (
+                "\n"
+                "task: whatever\n"
+                "    \n"
+                "    task: whatever again\n"
+                "        \n"
+                "    task: some other thing\n"
+                "        \n"
+                "        \n"
+        )
+
     def test_too_indented(self):
         tracker = Tracker(skeleton=False,
                 nodecreator=FakeNodeCreator(GenericActivate))

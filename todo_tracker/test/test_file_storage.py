@@ -21,6 +21,22 @@ class TestParseLine(object):
         assert node_type == "project"
         assert text == "todo tracker"
 
+    def test_empty_line(self):
+        line = ""
+        indent, is_metadata, node_type, text = parse_line(line)
+        assert indent == 0
+        assert not is_metadata
+        assert node_type == ""
+        assert text is None
+
+    def test_empty_line_indent(self):
+        line = "      "
+        indent, is_metadata, node_type, text = parse_line(line)
+        assert indent == 0
+        assert not is_metadata
+        assert node_type == ""
+        assert text is None
+
     def test_notext(self):
         line = "        minor tasks"
         indent, is_metadata, node_type, text = parse_line(line)

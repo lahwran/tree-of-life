@@ -19,6 +19,9 @@ def parse_line(line):
     node_type = ""
     text = None
 
+    if line.strip() == "":
+        return 0, False, "", None
+
     for char in line:
         last_parsing = parsing
         if parsing == parsing_indent:
@@ -80,9 +83,10 @@ class FileParser(object):
 
 
 def parse_file(reader, error_context):
+    reader = list(reader)
     for index, line in enumerate(reader):
         error_context.line = index
-        if not line:
+        if index == len(reader) - 1 and not line:
             continue
         yield parse_line(line)
 

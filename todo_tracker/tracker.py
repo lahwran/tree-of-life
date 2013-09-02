@@ -36,6 +36,10 @@ class Tracker(object):
             parser = loaders.handlers[format](reader)
             parser.error_context = error_context
             for indent, is_metadata, node_type, text in parser:
+                if node_type == "":
+                    indent = lastindent
+                    if lastnode is not None and lastnode.node_type != "":
+                        indent += 1
                 if indent > lastindent:
                     if indent > lastindent + 1:
                         raise LoadError("indented too far")
