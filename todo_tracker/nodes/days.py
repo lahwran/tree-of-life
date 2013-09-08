@@ -14,7 +14,7 @@ task_types = ("day", "sleep")
 
 
 class DateTask(BaseTask):
-    chidren_of = ("days",)
+    children_of = ("days",)
     text_required = True
 
     @property
