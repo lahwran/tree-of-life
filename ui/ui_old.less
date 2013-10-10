@@ -35,9 +35,9 @@ table {
 
 body {
     position: relative;
-    /* overflow: hidden;*/
+    overflow: hidden;
 }
-.size-container, pre, .root {
+.size-container, pre {
     font-family: DejaVu Sans Mono;
     font-size: 12px;
 }
@@ -46,6 +46,51 @@ body {
     top: 0px;
     left: 0px;
     min-width: 600px;
+}
+
+._js_messages_scroller {
+    height: 150px;
+    overflow: scroll;
+}
+._js_message {
+    padding-bottom: 5px;
+    position: relative;
+}
+._js_message.highlit {
+    background-color: rgb(235,245,255);
+}
+._js_message .number {
+    position: absolute;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    width: 25px;
+
+    color: rgb(235,225,215);
+    display: inline-block;
+    margin-right: 7px;
+    padding-right: 3px;
+}
+
+._js_message .number,
+._js_message .message .arg {
+    border-right: 1px solid rgb(235,225,215);
+}
+._js_message.highlit .number {
+    color: rgb(215,225,235);
+}
+._js_message.highlit .number,
+._js_message.highlit .message .arg {
+    border-right: 1px solid rgb(215,225,235);
+}
+._js_message .message {
+    display: inline-block;
+    margin-left: 35px;
+    overflow-x: scroll;
+    .arg {
+        padding-left: 2px;
+        padding-right: 2px;
+    }
 }
 
 .bottom {

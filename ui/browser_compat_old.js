@@ -6,12 +6,13 @@ function __delaycall(data, amount) {
 tracker_api_browser = {
     connect: function() {
         ui_console.log("COMPAT: connecting");
-        _handlers.browser_compat_mode();
+        $(".browser-compat").show();
+        $(".command-box .input").addClass("taller");
 
         tracker_api.socket = new WebSocket("ws://localhost:18083");
+        on_status_changed("connecting...");
 
         tracker_api.socket.onopen = function(event) {
-            tracker_api._data = "";
             tracker_api.socket.onmessage = function(event) {
                 if (event.data === undefined) return;
                 tracker_api._data += event.data;
@@ -20,12 +21,14 @@ tracker_api_browser = {
                 while (true) {
                     var match = pattern.exec(tracker_api._data)
                     if (!match) return;
+                    console.log(match);
                     tracker_api._data = match[2];
                     __delaycall(match[1], index);
                     index += 1;
                 }
             }
 
+            on_status_changed("connected");
             on_connected();
         }
     },
