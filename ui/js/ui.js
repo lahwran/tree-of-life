@@ -13,7 +13,6 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, connection, handlers) {
-    $scope.inbrowser = inbrowser;
     $scope.root = {
         type: "root",
         text: null,
@@ -39,7 +38,6 @@ var nodetypes = {
     days: {templateurl: "partials/node-days.html"},
     day: {
         controller: function($scope) {
-            console.log($scope.node);
             $scope.$watch("node.text", function(text) {
                 var matches = text.match(/([^ ]{3})[^ ]* ([0-9]+), ([0-9]+) ?(.*)/);
                 $scope.m = matches[1];
@@ -75,6 +73,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                 setTimeout(function() { ensure(backoff * 5); }, backoff);
             }
             scope.$on("panel_shown", function() {
+                console.log("derp");
                 ensure();
             });
         };

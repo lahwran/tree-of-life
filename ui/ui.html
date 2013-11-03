@@ -18,8 +18,8 @@
   <body>
     <div ng-controller="ui_controller">
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
-        class="commandbox"/>
-      <div ng-if="inbrowser" ng-include="'/partials/browser-compat.html'">
+        autofocus class="commandbox"/>
+      <div ng-if="browser_compat" ng-include="'/partials/browser-compat.html'">
       </div>
       <div class="content">
         <node node="days" toplevel></node>

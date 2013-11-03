@@ -59,13 +59,24 @@ tracker_api_browser = {
         tracker_api.socket.send("" + line + "\n");
     }
 }
-inbrowser = false;
 if (typeof tracker_api === "undefined") {
     tracker_api = tracker_api_browser;
     ui_console = console;
-    inbrowser = true;
 }
 
-function browser_compat_controller() {
-    //
+function browser_compat_controller($scope) {
+    $scope.signals = [
+        "panel_shown",
+        "panel_hidden",
+        "attempting_reconnect",
+        "connected",
+        "disconnected"
+    ];
+    $scope.signal = function(s) {
+        setTimeout(function() {
+            var handler = _handlers[s];
+            console.log(handler);
+            handler();
+        }, 1);
+    };
 }

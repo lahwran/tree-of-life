@@ -1,21 +1,19 @@
-.browser-compat {
+.browser-compat.collapseable {
     background-color: @background;
     position: fixed;
     height: 100%;
     top: 0px;
     right: 0px;
     z-index: 5;
-    .collapseable {
-        height: 100%;
-        .expand-collapse {
-            border-left-color: @blue;
-        }
-        .children.expanded {
-            padding-top: 2em;
-            width: 200px;
-        }
-        .children.collapsed {
-            width: 0px;
-        }
+
+    .expand-collapse {
+        border-left-color: @blue;
+    }
+    .children.expanded {
+        padding-top: 2em;
+        width: 200px;
+    }
+    .children.collapsed {
+        width: 0px;
     }
 }
