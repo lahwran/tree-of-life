@@ -1,3 +1,6 @@
+@foreground: #a8b4a9;
+@background: #1f2220;
+@highlight: #c94196;
 
 * {
   margin: 0;
@@ -35,6 +38,8 @@ table {
 
 body {
     position: relative;
+    color: @foreground;
+    background-color: @background;
     /* overflow: hidden;*/
 }
 .size-container, pre, .root {
@@ -105,14 +110,45 @@ body {
 }
 
 .node, .option {
+    position: relative;
+    .node-left {
+        position: absolute;
+        left: 0px;
+        width: 0px;
+        .before-node {
+            position: absolute;
+            right: 0px;
+        }
+    }
+    .before-node .control-hide {
+        display: none;
+    }
+    .node-top:hover .before-node .control-hide {
+        display: block;
+    }
     .type, .text, .text-seperator {
         display: inline-block;
+        vertical-align: top;
+        white-space: pre;
     }
-    .text-seperator:before {
-        content: ":";
-    }
-    .children, .options {
-        margin-left: 2em;
+    .children-container {
+        position: relative;
+        .children {
+            display: inline-block;
+            margin-left: 2em;
+        }
+        div.expand-collapse {
+            height: 100%;
+            width: 2em;
+            display: inline-block;
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            z-index: 1;
+        }
+        div.expand-collapse:hover {
+            background-color: @highlight;
+        }
     }
     .title {
         border-radius: 3px;
@@ -145,7 +181,7 @@ body {
     height: 31px;
     padding-left: 12px;
     padding-right: 5px;
-    background: url(spotlight-bg.png) repeat-x left top;
+    background: url(images/spotlight-bg.png) repeat-x left top;
     z-index: 0;
     * {
         height: 31px;
@@ -157,7 +193,7 @@ body {
             width: 100%;
             outline: none;
             border: none;
-            background: url(spotlight-fg.png) repeat-x left top;
+            background: url(images/spotlight-fg.png) repeat-x left top;
             padding-left: 11px;
             padding-right: 17px;
             z-index: 0;
@@ -168,12 +204,12 @@ body {
             z-index: 1;
 
             &.left {
-                background: url(spotlight-left.png) no-repeat left top;
+                background: url(images/spotlight-left.png) no-repeat left top;
                 width: 11px;
                 left: 0px;
             }
             &.right {
-                background: url(spotlight-right.png) no-repeat left top;
+                background: url(images/spotlight-right.png) no-repeat left top;
                 width: 17px;
                 right: 0px;
             }

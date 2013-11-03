@@ -5,26 +5,22 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <link rel="stylesheet/less" type="text/css" href="ui.less">
-    <link rel="stylesheet/less" type="text/css" href="browser_compat.less">
+    <link rel="stylesheet/less" type="text/css" href="less/ui.less">
+    <link rel="stylesheet/less" type="text/css" href="less/browser_compat.less">
 
-    <script src="jquery-1.8.2.min.js"></script>
-    <script src="angular.js"></script>
-    <script src="less-1.3.0.min.js"></script>
+    <script src="js/third-party/jquery-1.8.2.min.js"></script>
+    <script src="js/third-party/angular.js"></script>
+    <script src="js/third-party/less-1.3.0.min.js"></script>
 
-    <script src="console.js"></script>
-    <script src="browser_compat.js"></script>
-    <script src="ui.js"></script>
+    <script src="js/console.js"></script>
+    <script src="js/browser_compat.js"></script>
+    <script src="js/ui.js"></script>
   </head>
   <body>
     <div ng-controller="ui_controller">
-      <a href="#" ng-click="connect()"> connect </a>
-      <a href="#" ng-click="causelag()"> causelag1 </a>
-      <a href="#" ng-click="causelag2()"> causelag2 </a>
       <input type="text" ng-model="_command" ng-click="sendcommand(_command)">
-      <div class="root">
-        {{root.children.length}}
-        <node node="root"></node>
+      <div class="section">
+        <node node="days" toplevel></node>
       </div>
     </div>
   </body>

@@ -13,9 +13,6 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, connection, handlers) {
-    $scope.connect = function() {
-        connection.host.connect();
-    }
     $scope.root = {
         type: "root",
         text: null,
@@ -25,15 +22,29 @@ function ui_controller($scope, connection, handlers) {
         connection.send({command: command});
     }
     $scope.$on("message/tree", function(event, tree) {
-        console.log("tree", tree);
         $scope.root.children = tree;
+        angular.forEach(tree, function(child) {
+            if (child.type == "days") {
+                $scope.days = child;
+                console.log(child);
+            } else if (child.type == "todo bucket") {
+                $scope.todo_bucket = child;
+                console.log(child);
+            }
+        });
     });
 }
 
-nodetypes = {
+var nodetypes = {
+    days: {
+        templateurl: "partials/node-default.html"
+    },
+    root: {
+        template: '<nodes nodes="node.children"></node>'
+    },
     _default: {
-        templateurl: "node-default.html"
-    }
+        templateurl: "partials/node-default.html"
+    },
 };
 
 angular.module("todotracker", [], function($rootScopeProvider) {
@@ -42,11 +53,39 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     .run(function(connection, handlers) {
         connection.host.connect();
     })
+    .directive("nodes", function() {
+        return {
+            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode"></node>',
+            scope: {
+                nodes: "="
+            },
+            replace: true
+        };
+    })
+    .directive("collapseable", function() {
+        return {
+            restrict: "E",
+            transclude: true,
+            replace: true,
+            scope: true,
+            templateUrl: "partials/collapseable.html",
+            link: function(scope, element, attrs) {
+                scope.collapsed = angular.isDefined(attrs.collapsed);
+                attrs.$observe("text", function(text) {
+                    if (text) {
+                        scope.collapsedtext = text;
+                    } else {
+                        scope.collapsedtext = "...";
+                    }
+                });
+            }
+        };
+    })
     .directive("node", function($compile, $templateCache, $http, $injector) {
         return {
             restrict: "E",
             replace: true,
-            template: "<div class='node'></div>",
+            template: "<div class='node'>loading...</div>",
             compile: function(tElement, tAttrs) {
                 return function(scope, element, attrs) {
                     var childscope;
@@ -98,8 +137,11 @@ angular.module("todotracker", [], function($rootScopeProvider) {
 
                     function finishlink(template, nodetype, tElement) {
                         if (angular.isDefined(nodetype.controller)) {
-                            $injector.invoke(nodetype.controller, null, {$scope: childscope});
+                            $injector.invoke(nodetype.controller, null, {
+                                $scope: childscope,
+                            });
                         }
+                        childscope.is_toplevel = angular.isDefined(attrs.toplevel);
 
                         element.html(template);
                         var link = $compile(element.contents());

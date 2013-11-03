@@ -1,0 +1,7 @@
+<div class="node-top">
+  {{node.type}}<span ng-show="node.text">: </span><div ng-show="node.text" class="text">{{node.text}}</div>
+</div>
+<!-- need "track by node.id" for any kind of fancy animation or etc, but for now $index will do the job -->
+<collapseable class="children-container">
+  <nodes nodes="node.children"></node>
+</collapseable>

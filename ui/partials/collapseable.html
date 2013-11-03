@@ -1,0 +1,9 @@
+<div class="collapseable">
+  <div class="expand-collapse" ng-click="collapsed=!collapsed">
+  </div>
+  <div class="children" ng-show="collapsed">
+    {{ collapsedtext }}
+  </div>
+  <div class="children" ng-show="!collapsed" ng-transclude>
+  </div>
+</div>
