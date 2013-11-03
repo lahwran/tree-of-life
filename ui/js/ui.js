@@ -23,28 +23,22 @@ function ui_controller($scope, connection, handlers) {
     }
     $scope.$on("message/tree", function(event, tree) {
         $scope.root.children = tree;
+        console.log(tree);
         angular.forEach(tree, function(child) {
             if (child.type == "days") {
                 $scope.days = child;
-                console.log(child);
             } else if (child.type == "todo bucket") {
                 $scope.todo_bucket = child;
-                console.log(child);
             }
         });
     });
 }
 
 var nodetypes = {
-    days: {
-        templateurl: "partials/node-default.html"
-    },
-    root: {
-        template: '<nodes nodes="node.children"></node>'
-    },
-    _default: {
-        templateurl: "partials/node-default.html"
-    },
+    days: {templateurl: "partials/node-days.html"},
+    //day: {templateurl: "partials/node-day.html"},
+    root: {template: '<nodes nodes="node.children"></node>'},
+    _default: {templateurl: "partials/node-default.html"},
 };
 
 angular.module("todotracker", [], function($rootScopeProvider) {
@@ -55,7 +49,9 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     })
     .directive("nodes", function() {
         return {
-            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode"></node>',
+            restrict: 'E',
+            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode">'
+                    + '</node>',
             scope: {
                 nodes: "="
             },
@@ -67,9 +63,12 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             restrict: "E",
             transclude: true,
             replace: true,
-            scope: true,
+            scope: {
+                nodes: '='
+            },
             templateUrl: "partials/collapseable.html",
             link: function(scope, element, attrs) {
+                scope.addnodes = angular.isDefined(attrs.nodes);
                 scope.collapsed = angular.isDefined(attrs.collapsed);
                 attrs.$observe("text", function(text) {
                     if (text) {
@@ -77,6 +76,9 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                     } else {
                         scope.collapsedtext = "...";
                     }
+                });
+                scope.$watch("collapsed", function(collapsed) {
+                    scope.evershown = scope.evershown || !collapsed;
                 });
             }
         };

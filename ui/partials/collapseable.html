@@ -1,9 +1,13 @@
-<div class="collapseable">
+<div class="collapseable" ng-show="!addnodes || nodes.length">
   <div class="expand-collapse" ng-click="collapsed=!collapsed">
   </div>
   <div class="children" ng-show="collapsed">
     {{ collapsedtext }}
   </div>
-  <div class="children" ng-show="!collapsed" ng-transclude>
+  <div class="children" ng-if="addnodes && evershown" ng-show="!collapsed">
+    <nodes nodes="nodes"></nodes>
+  </div>
+  <div class="children" ng-if="!addnodes && evershown"
+    ng-show="!collapsed" ng-transclude>
   </div>
 </div>
