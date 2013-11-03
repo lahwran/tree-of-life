@@ -36,10 +36,22 @@ function ui_controller($scope, connection, handlers) {
 
 var nodetypes = {
     days: {templateurl: "partials/node-days.html"},
-    //day: {templateurl: "partials/node-day.html"},
+    day: {
+        controller: function($scope) {
+            console.log($scope.node);
+            $scope.$watch("node.text", function(text) {
+                var matches = text.match(/([^,]+), ([0-9]+) ?(.*)/);
+                $scope.md = matches[1];
+                $scope.y = matches[2];
+                $scope.info = matches[3];
+            });
+        },
+        templateurl: "partials/node-date.html"
+    },
     root: {template: '<nodes nodes="node.children"></node>'},
     _default: {templateurl: "partials/node-default.html"},
 };
+nodetypes.sleep = nodetypes.day;
 
 angular.module("todotracker", [], function($rootScopeProvider) {
         $rootScopeProvider.digestTtl(200);
