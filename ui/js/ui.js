@@ -96,6 +96,21 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             }
         };
     })
+    .directive("externEnter", function() {
+        return {
+            link: function(scope, element, attrs) {
+                element.bind("keydown keypress", function(event) {
+                    if(event.which === 13) {
+                        scope.$apply(function(){
+                            scope.$eval(attrs.externEnter);
+                        });
+
+                        event.preventDefault();
+                    }
+                });
+            }
+        };
+    })
     .directive("node", function($compile, $templateCache, $http, $injector) {
         return {
             restrict: "E",

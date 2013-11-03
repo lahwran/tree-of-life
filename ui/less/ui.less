@@ -4,8 +4,9 @@
 @grey: #8e8f89;
 @orange: #fe9600;
 @purple: #aa83ff;
-@pink: #aa83ff;
-@green: #aa83ff;
+@pink: #e32e64;
+@green: #a7df00;
+@blue: #5ed8f0;
 @line: (@background * 0.8);
 
 @indentwidth: 32px;
@@ -59,7 +60,7 @@ body {
         z-index: 1;
     }
     div.expand-collapse:hover {
-        border-left-color: @highlight;
+        border-left-color: @highlight !important;
     }
 }
 
@@ -81,21 +82,27 @@ body {
         }
 
         .olddays > .collapseable {
-            &> .expand-collapse {
-                border-left: 1px solid @green;
-                &:hover {
-                    border-left-color: @highlight;
-                }
+            &> .expand-collapse.expanded {
+                border-left: 1px solid @blue;
             }
             &> .collapsed {
                 font-size: 10px;
             }
         }
+
+        .currentdays,
+        .olddays > .collapseable > .children.expanded
+        {
+            & > .node {
+                margin-top: 1em;
+            }
+        }
     }
+
+    
 
     &.node-sleep, &.node-day {
         min-height: 3em;
-        margin-top: 1em;
         &> .node-top {
             position: absolute;
             width: 150px;
@@ -113,6 +120,10 @@ body {
         }
         &> .children-container {
             margin-left: 150px;
+            min-height: 3em;
+            &> .expand-collapse {
+                border-left-color: @pink;
+            }
         }
     }
     &.node-sleep {
