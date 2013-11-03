@@ -171,6 +171,13 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                         element.addClass("node-"+type);
                         childscope = scope.$new();
                         childscope.node = scope[attrs.node];
+                        childscope.$watch("node.active", function(isactive) {
+                            if (isactive) {
+                                element.addClass("active");
+                            } else {
+                                element.removeClass("active");
+                            }
+                        });
 
                         // render new html
                         if (angular.isDefined(nodetype.templateurl)) {
