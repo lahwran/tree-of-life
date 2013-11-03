@@ -40,10 +40,11 @@ var nodetypes = {
         controller: function($scope) {
             console.log($scope.node);
             $scope.$watch("node.text", function(text) {
-                var matches = text.match(/([^,]+), ([0-9]+) ?(.*)/);
-                $scope.md = matches[1];
-                $scope.y = matches[2];
-                $scope.info = matches[3];
+                var matches = text.match(/([^ ]{3})[^ ]* ([0-9]+), ([0-9]+) ?(.*)/);
+                $scope.m = matches[1];
+                $scope.d = matches[2];
+                $scope.y = matches[3];
+                $scope.info = matches[4];
             });
         },
         templateurl: "partials/node-date.html"

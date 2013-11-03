@@ -8,6 +8,8 @@
 @green: #aa83ff;
 @line: (@background * 0.8);
 
+@indentwidth: 32px;
+
 @import "cssreset.less";
 @import "browser_compat.less";
 
@@ -38,15 +40,18 @@ body {
 
 .collapseable {
     position: relative;
+    .collapsed {
+        font-style: italic;
+    }
     .children {
         display: inline-block;
-        margin-left: 2em;
+        margin-left: @indentwidth;
     }
     div.expand-collapse {
         border-left: 1px solid;
         border-left-color: @background;
         height: 100%;
-        width: 2em;
+        width: @indentwidth;
         display: inline-block;
         position: absolute;
         top: 0px;
@@ -69,6 +74,25 @@ body {
         font-style: italic;
     }
 
+    &.node-days {
+        .currentdays {
+            margin-left: @indentwidth;
+            border-left: 1px solid @background;
+        }
+
+        .olddays > .collapseable {
+            &> .expand-collapse {
+                border-left: 1px solid @green;
+                &:hover {
+                    border-left-color: @highlight;
+                }
+            }
+            &> .collapsed {
+                font-size: 10px;
+            }
+        }
+    }
+
     &.node-sleep, &.node-day {
         min-height: 3em;
         margin-top: 1em;
@@ -84,6 +108,7 @@ body {
             }
             h2 {
                 font-size: 10px;
+                word-wrap: break-word;
             }
         }
         &> .children-container {
@@ -94,24 +119,4 @@ body {
         color: @grey;
         font-style: italic;
     }
-}
-
-.olddays {
-    border-left: 1px solid @green;
-}
-
-.content .suggestions {
-  max-height: 20px;
-}
-
-.content .messages {
-    margin-top: 10px;
-}
-
-.hide {
-    display: none;
-}
-
-.error {
-    color: red;
 }

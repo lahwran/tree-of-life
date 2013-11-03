@@ -1,5 +1,6 @@
 <div class="node-top">
-  <h1> {{ md }} </h1>
+  <h1> {{ m }} {{ d }} </h1>
+  <h2 ng-show="node.type == 'sleep'"> sleep </h2>
   <h2> {{ y }} {{ info }} </h2>
 </div>
 <!-- need "track by node.id" for any kind of fancy animation or etc, but for now $index will do the job -->
