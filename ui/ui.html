@@ -18,7 +18,9 @@
   <body>
     <div ng-controller="ui_controller">
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
-        class="commandbox">
+        class="commandbox"/>
+      <div ng-if="inbrowser" ng-include="'/partials/browser-compat.html'">
+      </div>
       <div class="content">
         <node node="days" toplevel></node>
       </div>

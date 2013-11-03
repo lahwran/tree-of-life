@@ -59,7 +59,13 @@ tracker_api_browser = {
         tracker_api.socket.send("" + line + "\n");
     }
 }
+inbrowser = false;
 if (typeof tracker_api === "undefined") {
     tracker_api = tracker_api_browser;
     ui_console = console;
+    inbrowser = true;
+}
+
+function browser_compat_controller() {
+    //
 }

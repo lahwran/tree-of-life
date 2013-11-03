@@ -13,6 +13,7 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, connection, handlers) {
+    $scope.inbrowser = inbrowser;
     $scope.root = {
         type: "root",
         text: null,
@@ -59,6 +60,24 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     })
     .run(function(connection, handlers) {
         connection.host.connect();
+    })
+    .directive("autofocus", function() {
+        return function(scope, element, attrs) {
+            function ensure(backoff) {
+                if (element.is(":focus")) {
+                    return;
+                }
+                if (!angular.isDefined(backoff)) {
+                    backoff = 10;
+                } else {
+                }
+                element.focus();
+                setTimeout(function() { ensure(backoff * 5); }, backoff);
+            }
+            scope.$on("panel_shown", function() {
+                ensure();
+            });
+        };
     })
     .directive("nodes", function() {
         return {

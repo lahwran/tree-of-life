@@ -28,10 +28,12 @@ function on_message_received(message) {
 function on_status_changed(message) {
 }
 function on_calculate_width() {
+// FIXME TODO XXX PORT
     var width = min($(".size-container").width(), tracker_api.getScreenWidth()/2);
     return width;
 }
 function on_calculate_height() {
+// FIXME TODO XXX PORT
     var max_height = tracker_api.getScreenHeight() - 50;
 
     set_heights(max_height);
@@ -64,6 +66,7 @@ function on_connected() {
 // height calc
 
 function get_height_adds() {
+// FIXME TODO XXX PORT
     var total_height = {value: 0};
     $(".height-add").each(function(item) {
         var height = $(this).outerHeight(true);
@@ -73,6 +76,7 @@ function get_height_adds() {
 }
 
 function set_heights(max_height) {
+// FIXME TODO XXX PORT
     var used = get_height_adds();
     assert(used <= max_height, "height-add elements taller than max height");
 
@@ -132,6 +136,7 @@ function render_tree(tree) {
 
 message_handlers = {
     status: function(status) {
+// FIXME TODO XXX PORT
         $(".content .status").html(status);
         tracker_api.resize();
     },
@@ -151,14 +156,17 @@ message_handlers = {
         tracker_api.resize();
     },
     prompt: function(prompt) {
+// FIXME TODO XXX PORT
         tracker_api.setMenuText(JSON.stringify(prompt));
     },
     should_quit: function(should_quit) {
+// FIXME TODO XXX PORT
         if (should_quit) {
             tracker_api.quit();
         }
     },
     display: function(display) {
+// FIXME TODO XXX PORT
         tracker_api.setPanelShown(display);
         if (display) {
             setTimeout(function() {
@@ -170,12 +178,15 @@ message_handlers = {
         }
     },
     max_width: function(width) {
+// FIXME TODO XXX PORT
         tracker_api.setMaxWidth(width);
     },
     input: function(input) {
+// FIXME TODO XXX PORT
         $(".command-box input").val(input);
     },
     error: function(error) {
+// FIXME TODO XXX PORT
         var error_count = parseInt($.trim($(".error-count").text()));
 
         error_count += 1;
@@ -195,6 +206,7 @@ message_handlers = {
         tracker_api.resize();
     },
     editor_running: function(editor_running) {
+// FIXME TODO XXX PORT
         if (editor_running) {
             $(".editor-running").show();
             $(".tree").hide();
@@ -235,6 +247,7 @@ ui_handlers = {
         }
     },
     typing: function(event) {
+// FIXME TODO XXX PORT
         if (event.which == 38) {
             message({navigate: "up"});
         } else if (event.which == 40) {
@@ -246,6 +259,7 @@ ui_handlers = {
         }
     },
     quit: function() {
+// FIXME TODO XXX PORT
         tracker_api.quit();
     }
 }

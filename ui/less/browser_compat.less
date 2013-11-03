@@ -1,14 +1,21 @@
 .browser-compat {
-    display: none;
+    background-color: @background;
     position: fixed;
-    bottom: 0px;
+    height: 100%;
+    top: 0px;
     right: 0px;
-
-    .container {
-        display: inline-block;
+    z-index: 5;
+    .collapseable {
+        height: 100%;
+        .expand-collapse {
+            border-left-color: @blue;
+        }
+        .children.expanded {
+            padding-top: 2em;
+            width: 200px;
+        }
+        .children.collapsed {
+            width: 0px;
+        }
     }
-}
-
-.command-box .input.taller {
-    height: 32 !important;
 }

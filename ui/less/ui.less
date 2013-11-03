@@ -22,7 +22,8 @@ body {
     background-color: @background;
     white-space: nowrap;
 }
-.content{
+.content {
+    margin-top: 2em;
     padding-left: 5px;
     padding-right: 5px;
     padding-top: 0px;
@@ -30,13 +31,31 @@ body {
     width: 100%;
 }
 
+* {
+
+    transition: border 0.8s;
+    -webkit-transition: border 0.8s; /* Safari */
+}
+
 .commandbox {
     padding: 5px;
+    height: 1.1em;
+
+    box-sizing: content-box;
+
     background-color: (@background * 1.5);
     width: 100%;
     color: @foreground;
     border-bottom: 1px solid @line;
     margin-bottom: 10px;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    z-index: 10;
+
+    &:focus {
+        border-bottom-color: @green;
+    }
 }
 
 .collapseable {
@@ -58,9 +77,9 @@ body {
         top: 0px;
         left: 0px;
         z-index: 1;
-    }
-    div.expand-collapse:hover {
-        border-left-color: @highlight !important;
+        &:hover {
+            border-left-color: @highlight !important;
+        }
     }
 }
 
