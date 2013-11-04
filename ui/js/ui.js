@@ -53,6 +53,10 @@ var nodetypes = {
 };
 nodetypes.sleep = nodetypes.day;
 
+var optiontypes = {
+    _default: {templateurl: "partials/option-default.html"}
+}
+
 angular.module("todotracker", [], function($rootScopeProvider) {
         $rootScopeProvider.digestTtl(200);
     })
@@ -81,10 +85,11 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     .directive("nodes", function() {
         return {
             restrict: 'E',
-            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode">'
+            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode" option="options">'
                     + '</node>',
             scope: {
-                nodes: "="
+                nodes: "=",
+                options: "="
             },
             replace: true
         };
@@ -95,7 +100,8 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             transclude: true,
             replace: true,
             scope: {
-                nodes: '='
+                nodes: '=',
+                options: '='
             },
             templateUrl: "partials/collapseable.html",
             link: function(scope, element, attrs) {
@@ -133,11 +139,12 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         return {
             restrict: "E",
             replace: true,
-            template: "<div class='node'>loading...</div>",
+            template: "<div>loading...</div>",
             compile: function(tElement, tAttrs) {
                 return function(scope, element, attrs) {
                     var childscope;
                     var lastnodetype;
+                    var is_option = scope.$eval(attrs.option);
                     scope.$watch(attrs.node, function(node) {
                         if (!angular.isDefined(childscope)) return;
                         childscope.node = node;
@@ -149,35 +156,39 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                         if (!angular.isDefined(type)) {
                             return;
                         }
+                        var chosen_nodetypes;
+                        var ntype;
+                        if (is_option) {
+                            chosen_nodetypes = optiontypes;
+                            ntype = "option";
+                        } else {
+                            chosen_nodetypes = nodetypes;
+                            ntype = "node";
+                        }
 
                         // get node type
-                        var nodetype = nodetypes[type];
+                        var nodetype = chosen_nodetypes[type];
                         if (typeof nodetype == 'string') {
-                            nodetype = nodetypes[nodetype];
+                            nodetype = chosen_nodetypes[nodetype];
                         }
                         if (!angular.isDefined(nodetype)) {
-                            nodetype = nodetypes._default;
+                            nodetype = chosen_nodetypes._default;
                         }
                         if (nodetype === lastnodetype) return;
                         lastnodetype = nodetype;
 
+                        element.addClass(ntype);
+
                         // update childscope and css
                         if (angular.isDefined(last)) {
-                            element.removeClass("node-"+last);
+                            element.removeClass(ntype + "-" + last);
                         }
                         if (angular.isDefined(childscope)) {
                             childscope.$destroy();
                         }
-                        element.addClass("node-"+type);
+                        element.addClass(ntype + "-" + type);
                         childscope = scope.$new();
                         childscope.node = scope[attrs.node];
-                        childscope.$watch("node.active", function(isactive) {
-                            if (isactive) {
-                                element.addClass("active");
-                            } else {
-                                element.removeClass("active");
-                            }
-                        });
 
                         // render new html
                         if (angular.isDefined(nodetype.templateurl)) {

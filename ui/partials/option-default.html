@@ -1,8 +1,8 @@
 <div class="node-top" ng-class="{finished: node.finished, active: node.active}"
-  ><span class="type">{{node.type}}</span
+  ><span class="type">@{{node.type}}</span
   ><span ng-show="node.text" class="colon">: </span
   ><div ng-show="node.text" class="text">{{node.text}}</div>
-  <collapseable nodes="node.options" options="true" text="@..."></collapseable>
+  <collapseable nodes="node.options" options="true"></collapseable>
   <!-- whacky >< used to avoid whitespace -->
 </div>
 <!-- need "track by node.id" for any kind of fancy animation or etc, but for now $index will do the job -->

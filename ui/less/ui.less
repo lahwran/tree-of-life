@@ -93,8 +93,11 @@ body {
     .type {
         font-style: italic;
     }
-    &.active > .node-top {
+    .active.node-top {
         color: @green;
+    }
+    .finished {
+        color: @grey;
     }
 
     &.node-days {
@@ -152,4 +155,8 @@ body {
         color: @grey;
         font-style: italic;
     }
+}
+
+.option {
+    font-size: 10px;
 }
