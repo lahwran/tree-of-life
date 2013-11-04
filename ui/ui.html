@@ -19,10 +19,17 @@
     <div ng-controller="ui_controller">
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
         autofocus class="commandbox"/>
-      <div ng-if="browser_compat" ng-include="'/partials/browser-compat.html'">
-      </div>
       <div class="content">
-        <node node="days" toplevel></node>
+        <collapseable text="" class="sidebar" shown="sidebar_shown">
+          <div ng-if="browser_compat" ng-include="'/partials/browser-compat.html'">
+          </div>
+          <!-- insert other stuff here -->
+          {{todo_bucket}}
+          <nodes nodes="todo_bucket.children"></nodes>
+        </collapseable>
+        <div class="content-inner" ng-class="{withsidebar: sidebar_shown}">
+          <node node="days" toplevel></node>
+        </div>
       </div>
     </div>
   </body>

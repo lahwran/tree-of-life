@@ -18,8 +18,10 @@ function ui_controller($scope, connection, handlers) {
         text: null,
         children: []
     }
+    $scope.sidebar = {};
     $scope.sendcommand = function(command) {
         connection.send({command: command});
+        $scope._command = "";
     }
     $scope.$on("message/tree", function(event, tree) {
         $scope.root.children = tree;
@@ -116,6 +118,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                 });
                 scope.$watch("collapsed", function(collapsed) {
                     scope.evershown = scope.evershown || !collapsed;
+                    scope.$parent[attrs.shown] = !collapsed;
                 });
             }
         };
