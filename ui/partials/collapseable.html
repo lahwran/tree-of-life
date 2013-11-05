@@ -8,7 +8,7 @@
   <div class="children expanded" ng-if="addnodes && evershown" ng-show="!collapsed">
     <nodes nodes="nodes" options="options"></nodes>
   </div>
-  <div class="children expanded" ng-if="!addnodes && evershown"
-    ng-show="!collapsed" ng-transclude>
+  <!-- directive: ng-if="!addnodes && evershown" -->
+  <div class="children expanded" ng-show="!addnodes && !collapsed" ng-transclude>
   </div>
 </div>

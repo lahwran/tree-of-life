@@ -10,6 +10,7 @@ function on_status_changed(message)     {return (_handlers.status_changed       
 function on_calculate_width()           {return (_handlers.calculate_width       || angular.noop)();}
 function on_calculate_height()          {return (_handlers.calculate_height      || angular.noop)();}
 
+tracker_api.setMenuText(JSON.stringify(["todo tracker (fixme)"]));
 
 
 function ui_controller($scope, connection, handlers) {
@@ -22,6 +23,9 @@ function ui_controller($scope, connection, handlers) {
     $scope.sendcommand = function(command) {
         connection.send({command: command});
         $scope._command = "";
+    }
+    $scope._quit = function() {
+        tracker_api.quit();
     }
     $scope.$on("message/tree", function(event, tree) {
         $scope.root.children = tree;
@@ -68,12 +72,11 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     .directive("autofocus", function() {
         return function(scope, element, attrs) {
             function ensure(backoff) {
-                if (element.is(":focus")) {
+                if (backoff > 2000) {
                     return;
                 }
                 if (!angular.isDefined(backoff)) {
                     backoff = 10;
-                } else {
                 }
                 element.focus();
                 setTimeout(function() { ensure(backoff * 5); }, backoff);
@@ -87,8 +90,8 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     .directive("nodes", function() {
         return {
             restrict: 'E',
-            template: '<node ng-repeat="subnode in nodes track by $index" node="subnode" option="options">'
-                    + '</node>',
+            template: '<div class="nodes"><node ng-repeat="subnode in nodes track by $index" node="subnode" option="options">'
+                    + '</node></div>',
             scope: {
                 nodes: "=",
                 options: "="

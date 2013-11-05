@@ -20,14 +20,18 @@
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
         autofocus class="commandbox"/>
       <div class="content">
-        <collapseable text="" class="sidebar" shown="sidebar_shown">
-          <div ng-if="browser_compat" ng-include="'/partials/browser-compat.html'">
+        <collapseable collapsed text="" class="sidebar" shown="sidebar_shown">
+          <div ng-show="browser_compat">
+            <div ng-include="'/partials/browser-compat.html'">
+            </div>
+          </div>
+          <div class="control-utils">
+            <div ng-click="_quit()"> quit popup </div>
           </div>
           <!-- insert other stuff here -->
-          {{todo_bucket}}
           <nodes nodes="todo_bucket.children"></nodes>
         </collapseable>
-        <div class="content-inner" ng-class="{withsidebar: sidebar_shown}">
+        <div class="content-inner">
           <node node="days" toplevel></node>
         </div>
       </div>
