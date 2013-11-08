@@ -258,7 +258,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             return value;
         }
         _handlers.calculate_width = function() {
-            return 600;
+            return 1200;
             var value = 0;
             function add(v) { value += v; }
             $rootScope.$broadcast("widthcalc", add);
