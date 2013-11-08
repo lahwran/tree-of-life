@@ -11,6 +11,12 @@ logger.setLevel(logging.INFO)
 
 
 def lazyproperty(func):
+    """
+    Crazy mixin thing to compensate for lack of __init__ on mixins
+
+    Use this to create attributes that are initialized on use,
+    instead of at __init__
+    """
     sentinel = object()
     f = "_lazyproperty_" + str(uuid.uuid4())
 
