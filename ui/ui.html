@@ -25,9 +25,6 @@
             <div ng-include="'/partials/browser-compat.html'">
             </div>
           </div>
-          <div class="control-utils">
-            <div ng-click="_quit()"> quit popup </div>
-          </div>
           <div ng-show="notifications.length" class="notifications">
             <div ng-repeat="notification in notifications track by $index" class="notification">
               {{ notification }} <a ng-click="removeNotification($index)">x</a>
@@ -39,6 +36,9 @@
         <div class="content-inner">
           <node node="days" toplevel></node>
         </div>
+      </div>
+      <div class="control-utils">
+        <div ng-click="_quit()"> quit popup </div>
       </div>
     </div>
   </body>
