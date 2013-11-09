@@ -28,9 +28,9 @@
           <div class="control-utils">
             <div ng-click="_quit()"> quit popup </div>
           </div>
-          <div ng-show="backend.notifications.length" class="notifications">
-            <div ng-repeat="notification in backend.notifications track by $index" class="notification">
-              {{ notification }} <a ng-click="backend.removeNotification($index)">x</a>
+          <div ng-show="notifications.length" class="notifications">
+            <div ng-repeat="notification in notifications track by $index" class="notification">
+              {{ notification }} <a ng-click="removeNotification($index)">x</a>
             </div>
           </div>
           <!-- insert other stuff here -->

@@ -23,7 +23,7 @@ function ui_controller($scope, backend, handlers, $timeout) {
         $scope._command = "";
     }
     $scope._quit = function() {
-        tracker_api.quit();
+        backend.quit = true;
     }
     $scope.$on("message/tree", function(event, tree) {
         $scope.root.children = tree;
@@ -36,12 +36,11 @@ function ui_controller($scope, backend, handlers, $timeout) {
             }
         });
     });
-    $scope.$on("message/prompt", function(event, prompt) {
-        $scope.backend.prompt = prompt;
-    });
-    $scope.$on("message/notification", function(event, info) {
-        $scope.backend.notifications.push(info);
-    });
+    $scope.notifications = backend.notifications;
+    $scope.removeNotification = function(index) {
+        $scope.notifications.splice(index, 1);
+    }
+
     function whatareyoudoing() {
         $timeout(whatareyoudoing, 30 * 60 * 1000);
         $scope.backend.notifications.push("What are you currently doing?");
@@ -76,7 +75,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         $rootScopeProvider.digestTtl(200);
     })
     .run(function(backend, handlers) {
-        backend.host.connect();
+        backend.__host__.connect();
     })
     .directive("autofocus", function() {
         return function(scope, element, attrs) {
@@ -234,23 +233,33 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     })
     .factory("backend", function($rootScope, $timeout) {
         browser_compat($rootScope);
+        var b = $rootScope.$new();
+        $rootScope.backend = b;
 
-        $rootScope.backend = {prompt: [], notifications: []};
-        var b = $rootScope.backend;
+        b.prompt = [];
+        b.notifications = [];
+        b.__host__ = tracker_api;
+
+        b.send = function(obj) {
+            b.__host__.sendline(JSON.stringify(obj));
+        }
+
         var notePrefixes = [".......... - ", "!!!!!!!!!! - "];
         var notePrefix = 0;
-        function resetMenuText() {
+
+        function reset_menu_text() {
             if (b.notifications.length) {
-                setMenuText();
+                set_menu_text();
             }
-            $timeout(resetMenuText, 1000);
+            $timeout(reset_menu_text, 1000);
         }
-        resetMenuText();
-        function setMenuText() {
+        reset_menu_text();
+
+        function set_menu_text() {
             var x;
             if (b.notifications.length) {
                 var last = b.notifications[b.notifications.length-1];
-                var c = $.merge([], $rootScope.backend.prompt);
+                var c = $.merge([], b.prompt);
                 x = $.merge(c, [notePrefixes[notePrefix] + last]);
                 notePrefix += 1;
                 if (notePrefix >= notePrefixes.length) {
@@ -259,85 +268,105 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             } else {
                 x = b.prompt;
             }
-            tracker_api.setMenuText(JSON.stringify(x));
+            b.__host__.setMenuText(JSON.stringify(x));
         }
 
-        $rootScope.$watch("backend.prompt", function(x) {
-            if (!angular.isDefined(x)) return;
-            setMenuText();
-        })
-        $rootScope.$watch("backend.notifications", function(ns) {
-            if (!angular.isDefined(ns)) return;
-            setMenuText();
-        }, true);
-        b.removeNotification = function(index) {
-            b.notifications.splice(index, 1);
-        }
-        return {
-            host: tracker_api,
-            send: function(obj) {
-                tracker_api.sendline(JSON.stringify(obj));
+        b.$watch("quit", function(x) {
+            if (x) {
+                b.__host__.quit();
             }
-        };
+        });
+
+        b.$watch("max_width", function(x) {
+            if (!angular.isDefined(x)) return;
+            b.__host__.setMaxWidth(x);
+        });
+
+        b.$watch("prompt", function(x) {
+            if (!angular.isDefined(x)) return;
+            set_menu_text();
+        })
+
+        b.$watch("notifications", function(ns) {
+            if (!angular.isDefined(ns)) return;
+            set_menu_text();
+        }, true);
+
+        b.$watch("display", function(x) {
+            if (!angular.isDefined(x)) return;
+            b.__host__.setPanelShown(x);
+        })
+    
+
+        return b;
     })
     .factory("handlers", function($rootScope, backend) {
-        _handlers.panel_shown           = function() { $rootScope.$broadcast("panel_shown"); };
-        _handlers.panel_hidden          = function() { $rootScope.$broadcast("panel_hidden"); };
-        _handlers.attempting_reconnect  = function() { $rootScope.$broadcast("attempting_reconnect"); };
-        _handlers.connected             = function() {
+        _handlers.panel_shown = function() {
+            $rootScope.$broadcast("panel_shown"); $rootScope.$digest();
+        };
+
+        _handlers.panel_hidden = function() {
+            $rootScope.$broadcast("panel_hidden"); $rootScope.$digest();
+        };
+
+        _handlers.attempting_reconnect = function() {
+            $rootScope.$broadcast("attempting_reconnect"); $rootScope.$digest();
+        };
+
+        _handlers.connected = function() {
             $rootScope.$broadcast("connected");
             backend.send({ui_connected: true});
             $rootScope.$digest();
         };
-        _handlers.disconnected          = function() { $rootScope.$broadcast("disconnected"); };
-        _handlers.message_received      = function(message) {
+
+        _handlers.disconnected = function() {
+            $rootScope.$broadcast("disconnected"); $rootScope.$digest();
+        };
+
+        _handlers.message_received = function(message) {
             var loaded = JSON.parse(message);
             angular.forEach(loaded, function(value, key) {
                 $rootScope.$broadcast("message/" + key, value);
             })
             $rootScope.$digest();
         };
-        _handlers.status_changed        = function(message) { $rootScope.backend.connection_status = message; };
-        _handlers.browser_compat_mode   = function() { $rootScope.browser_compat = true; };
+
+        _handlers.status_changed = function(message) {
+            $rootScope.backend.connection_status = message;
+            $rootScope.$digest();
+        };
+
+        _handlers.browser_compat_mode = function() {
+            $rootScope.browser_compat = true; $rootScope.$digest();
+        };
+
         _handlers.calculate_height = function() {
             return 800;
-            var value = 0;
-            function add(v) { value += v; }
-            $rootScope.$broadcast("heightcalc", add);
-            return value;
         }
+
         _handlers.calculate_width = function() {
             return 1200;
-            var value = 0;
-            function add(v) { value += v; }
-            $rootScope.$broadcast("widthcalc", add);
-            return value;
         }
+
+        $rootScope.$on("message/prompt", function(event, prompt) {
+            backend.prompt = prompt;
+        });
+        $rootScope.$on("message/notification", function(event, info) {
+            backend.notifications.push(info);
+        });
+        $rootScope.$on("message/max_width", function(event, maxwidth) {
+            backend.max_width = maxwidth;
+        });
+        $rootScope.$on("message/display", function(event, display) {
+            backend.display = display;
+        });
+        $rootScope.$on("message/editor_running", function(event, editor_running) {
+            backend.editor_running = editor_running;
+        });
+        $rootScope.$on("message/should_quit", function(event, should_quit) {
+            backend.quit = should_quit;
+        });
+
+
         return _handlers;
     })
-    /*.directive("heightbox", function() {
-        return function(scope, element, attrs) {
-            scope.$on("heightcalc", function(addheight) {
-                if (attrs.heightElement == "element") {
-                    addheight(element.height());
-                } else if (attrs.heightElement == "border") {
-                    addheight(element.outerHeight(false));
-                } else {
-                    addheight(element.outerHeight(true));
-                }
-            });
-        }
-    })
-    .directive("widthbox", function() {
-        return function(scope, element, attrs) {
-            scope.$on("widthcalc", function(addheight) {
-                if (attrs.heightElement == "element") {
-                    addheight(element.height());
-                } else if (attrs.heightElement == "border") {
-                    addheight(element.outerHeight(false));
-                } else {
-                    addheight(element.outerHeight(true));
-                }
-            });
-        }
-    })*/

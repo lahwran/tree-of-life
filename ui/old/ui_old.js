@@ -156,7 +156,6 @@ message_handlers = {
         tracker_api.resize();
     },
     prompt: function(prompt) {
-// PORTING FIXME TODO XXX PORT
         tracker_api.setMenuText(JSON.stringify(prompt));
     },
     should_quit: function(should_quit) {
@@ -166,7 +165,6 @@ message_handlers = {
         }
     },
     display: function(display) {
-// FIXME TODO XXX PORT
         tracker_api.setPanelShown(display);
         if (display) {
             setTimeout(function() {
@@ -178,7 +176,6 @@ message_handlers = {
         }
     },
     max_width: function(width) {
-// FIXME TODO XXX PORT
         tracker_api.setMaxWidth(width);
     },
     input: function(input) {
@@ -206,7 +203,6 @@ message_handlers = {
         tracker_api.resize();
     },
     editor_running: function(editor_running) {
-// FIXME TODO XXX PORT
         if (editor_running) {
             $(".editor-running").show();
             $(".tree").hide();

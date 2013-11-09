@@ -1,8 +1,10 @@
 <div class="browser-compat">
-  <div ng-repeat="s in browser.signals" ng-click="browser.send_signal(s)">
+  <div ng-repeat="s in browser.signals" ng-click="browser.send_signal(s)" class="signal">
     {{ s }}
   </div>
 
   <div class="info" > Menu text: {{ browser.menuText }} </div>
   <div class="info"> Menu text (not parsed): {{ browser.menuTextUnparsed }} </div>
+  <div class="info"> max width: {{ browser.maxWidth }} </div>
+  <div class="info"> panel shown: {{ browser.panelShown }} </div>
 </div>

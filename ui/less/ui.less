@@ -92,6 +92,7 @@ body {
         top: 0px;
         left: 0px;
         z-index: 1;
+        cursor: pointer;
         &:hover {
             border-left-color: @highlight !important;
         }
@@ -241,6 +242,8 @@ body {
     .children.expanded {
         padding-top: 2em;
         width: (@fullwidth / 2) - 32px;
+        max-height: 100%;
+        overflow-y: scroll;
     }
     .children.collapsed {
         width: 0px;
@@ -253,6 +256,11 @@ body {
             margin-bottom: 5px;
             padding-right: 10px;
             padding-left: 10px;
+            a {
+                font-weight: bold;
+                color: @orange;
+                cursor: pointer;
+            }
         }
     }
 }

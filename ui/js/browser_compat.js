@@ -71,7 +71,8 @@ function browser_compat($rootScope) {
         menuText: ["no menu text provided yet"],
         screenWidth: 1280,
         screenHeight: 1024,
-        panelShown: false
+        panelShown: false,
+        maxWidth: "none"
     };
     var browser = $scope.browser;
 
@@ -87,5 +88,8 @@ function browser_compat($rootScope) {
     };
     tracker_api_browser.setPanelShown = function(shown) {
         browser.panelShown = shown;
+    };
+    tracker_api_browser.setMaxWidth = function(maxwidth) {
+        browser.maxWidth = maxWidth;
     };
 }
