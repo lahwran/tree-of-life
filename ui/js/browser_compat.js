@@ -37,22 +37,8 @@ tracker_api_browser = {
         $(".browser-compat .width").text(width);
         ui_console.log("COMPAT: done");
     },
-    setMenuText: function(input) {
-        ui_console.log("COMPAT: menu text set:", input);
-        $(".browser-compat .prompt").text(repr(input));
-    },
-    getScreenWidth: function() {
-        return parseInt($(".browser-compat .screen-width").val());
-    },
-    getScreenHeight: function() {
-        return parseInt($(".browser-compat .screen-height").val());
-    },
     quit: function() {
         ui_console.log("COMPAT: quit attempted");
-    },
-    setPanelShown: function(shown) {
-        ui_console.log("COMPAT: setting panel shown:", shown);
-        $(".browser-compat .visibilty").text(repr(shown));
     },
     sendline: function(line) {
         ui_console.log("COMPAT sending line:", line);
@@ -64,19 +50,42 @@ if (typeof tracker_api === "undefined") {
     ui_console = console;
 }
 
-function browser_compat_controller($scope) {
-    $scope.signals = [
-        "panel_shown",
-        "panel_hidden",
-        "attempting_reconnect",
-        "connected",
-        "disconnected"
-    ];
-    $scope.signal = function(s) {
-        setTimeout(function() {
-            var handler = _handlers[s];
-            console.log(handler);
-            handler();
-        }, 1);
+function browser_compat($rootScope) {
+    var $scope = $rootScope;
+    $scope.browser = {
+        signals: [
+            "panel_shown",
+            "panel_hidden",
+            "attempting_reconnect",
+            "connected",
+            "disconnected"
+        ],
+        send_signal: function(s) {
+            setTimeout(function() {
+                var handler = _handlers[s];
+                console.log(handler);
+                handler();
+            }, 1);
+        },
+        menuTextUnparsed: "no menu text provided yet",
+        menuText: ["no menu text provided yet"],
+        screenWidth: 1280,
+        screenHeight: 1024,
+        panelShown: false
+    };
+    var browser = $scope.browser;
+
+    tracker_api_browser.setMenuText = function(input) {
+        browser.menuTextUnparsed = input;
+        browser.menuText = JSON.parse(input);
+    };
+    tracker_api_browser.getScreenWidth = function() {
+        return browser.screenWidth;
+    };
+    tracker_api_browser.getScreenHeight = function() {
+        return browser.screenHeight;
+    };
+    tracker_api_browser.setPanelShown = function(shown) {
+        browser.panelShown = shown;
     };
 }

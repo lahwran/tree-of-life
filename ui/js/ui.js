@@ -10,10 +10,8 @@ function on_status_changed(message)     {return (_handlers.status_changed       
 function on_calculate_width()           {return (_handlers.calculate_width       || angular.noop)();}
 function on_calculate_height()          {return (_handlers.calculate_height      || angular.noop)();}
 
-tracker_api.setMenuText(JSON.stringify(["todo tracker (fixme)"]));
 
-
-function ui_controller($scope, connection, handlers) {
+function ui_controller($scope, backend, handlers, $timeout) {
     $scope.root = {
         type: "root",
         text: null,
@@ -21,7 +19,7 @@ function ui_controller($scope, connection, handlers) {
     }
     $scope.sidebar = {};
     $scope.sendcommand = function(command) {
-        connection.send({command: command});
+        backend.send({command: command});
         $scope._command = "";
     }
     $scope._quit = function() {
@@ -38,6 +36,17 @@ function ui_controller($scope, connection, handlers) {
             }
         });
     });
+    $scope.$on("message/prompt", function(event, prompt) {
+        $scope.backend.prompt = prompt;
+    });
+    $scope.$on("message/notification", function(event, info) {
+        $scope.backend.notifications.push(info);
+    });
+    function whatareyoudoing() {
+        $timeout(whatareyoudoing, 30 * 60 * 1000);
+        $scope.backend.notifications.push("What are you currently doing?");
+    }
+    whatareyoudoing();
 }
 
 var nodetypes = {
@@ -66,8 +75,8 @@ var optiontypes = {
 angular.module("todotracker", [], function($rootScopeProvider) {
         $rootScopeProvider.digestTtl(200);
     })
-    .run(function(connection, handlers) {
-        connection.host.connect();
+    .run(function(backend, handlers) {
+        backend.host.connect();
     })
     .directive("autofocus", function() {
         return function(scope, element, attrs) {
@@ -223,7 +232,47 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             }
         }
     })
-    .factory("connection", function() {
+    .factory("backend", function($rootScope, $timeout) {
+        browser_compat($rootScope);
+
+        $rootScope.backend = {prompt: [], notifications: []};
+        var b = $rootScope.backend;
+        var notePrefixes = [".......... - ", "!!!!!!!!!! - "];
+        var notePrefix = 0;
+        function resetMenuText() {
+            if (b.notifications.length) {
+                setMenuText();
+            }
+            $timeout(resetMenuText, 1000);
+        }
+        resetMenuText();
+        function setMenuText() {
+            var x;
+            if (b.notifications.length) {
+                var last = b.notifications[b.notifications.length-1];
+                var c = $.merge([], $rootScope.backend.prompt);
+                x = $.merge(c, [notePrefixes[notePrefix] + last]);
+                notePrefix += 1;
+                if (notePrefix >= notePrefixes.length) {
+                    notePrefix = 0;
+                }
+            } else {
+                x = b.prompt;
+            }
+            tracker_api.setMenuText(JSON.stringify(x));
+        }
+
+        $rootScope.$watch("backend.prompt", function(x) {
+            if (!angular.isDefined(x)) return;
+            setMenuText();
+        })
+        $rootScope.$watch("backend.notifications", function(ns) {
+            if (!angular.isDefined(ns)) return;
+            setMenuText();
+        }, true);
+        b.removeNotification = function(index) {
+            b.notifications.splice(index, 1);
+        }
         return {
             host: tracker_api,
             send: function(obj) {
@@ -231,13 +280,13 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             }
         };
     })
-    .factory("handlers", function($rootScope, connection) {
+    .factory("handlers", function($rootScope, backend) {
         _handlers.panel_shown           = function() { $rootScope.$broadcast("panel_shown"); };
         _handlers.panel_hidden          = function() { $rootScope.$broadcast("panel_hidden"); };
         _handlers.attempting_reconnect  = function() { $rootScope.$broadcast("attempting_reconnect"); };
         _handlers.connected             = function() {
             $rootScope.$broadcast("connected");
-            connection.send({ui_connected: true});
+            backend.send({ui_connected: true});
             $rootScope.$digest();
         };
         _handlers.disconnected          = function() { $rootScope.$broadcast("disconnected"); };
@@ -248,7 +297,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             })
             $rootScope.$digest();
         };
-        _handlers.status_changed        = function(message) { $rootScope.connection_status = message; };
+        _handlers.status_changed        = function(message) { $rootScope.backend.connection_status = message; };
         _handlers.browser_compat_mode   = function() { $rootScope.browser_compat = true; };
         _handlers.calculate_height = function() {
             return 800;

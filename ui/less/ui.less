@@ -103,7 +103,7 @@ body {
     .type, .text, .text-seperator {
         display: inline-block;
         vertical-align: top;
-        white-space: pre;
+        white-space: pre-line;
         max-width: 100%;
     }
     .type {
@@ -244,5 +244,15 @@ body {
     }
     .children.collapsed {
         width: 0px;
+    }
+
+    .notifications {
+        margin-bottom: 20px;
+        .notification {
+            border-left: 1px solid @pink;
+            margin-bottom: 5px;
+            padding-right: 10px;
+            padding-left: 10px;
+        }
     }
 }

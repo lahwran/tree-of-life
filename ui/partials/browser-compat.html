@@ -1,5 +1,8 @@
-<div ng-controller="browser_compat_controller" class="browser-compat">
-  <div ng-repeat="s in signals" ng-click="signal(s)">
+<div class="browser-compat">
+  <div ng-repeat="s in browser.signals" ng-click="browser.send_signal(s)">
     {{ s }}
   </div>
+
+  <div class="info" > Menu text: {{ browser.menuText }} </div>
+  <div class="info"> Menu text (not parsed): {{ browser.menuTextUnparsed }} </div>
 </div>
