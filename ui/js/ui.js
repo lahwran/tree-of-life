@@ -341,7 +341,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         };
 
         _handlers.calculate_height = function() {
-            return 800;
+            return 750;
         }
 
         _handlers.calculate_width = function() {
