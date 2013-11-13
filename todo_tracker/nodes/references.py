@@ -351,7 +351,7 @@ class Reference(BaseTask):
 
     def _find_target(self):
         _px_target = self.find_one(self.text)
-        assert _px_target is not None, "No target found"
+        assert _px_target is not None, "No target found for %r" % self
         return _px_target
 
     @property
