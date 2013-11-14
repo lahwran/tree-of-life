@@ -191,7 +191,8 @@ class ProxyNode(Node):
         "make_skeleton",
         "load_finished",
         "auto_add",
-        "_do_repr"
+        "_do_repr",
+        "id"
     )
 
     def __init__(self, proxy_root, target):
@@ -300,14 +301,14 @@ class ReferenceNodeList(_NodeListRoot):
 @nodecreator("workon")
 class Reference(BaseTask):
 
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self.proxies = WeakKeyDictionary()
         self._px_root = self
         self._real_px_target = None
         self._px_didstart = False
         self._px_dostart = False
         self._propagate_started = True
-        BaseTask.__init__(self, *args)
+        BaseTask.__init__(self, *args, **kwargs)
 
         #if self.node_type in ["reference", "work on"]:
         #    self.node_type = "reference"

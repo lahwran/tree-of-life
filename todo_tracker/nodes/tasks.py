@@ -83,8 +83,8 @@ class BaseTask(Node):
         ActiveMarker()
     )
 
-    def __init__(self, *args):
-        super(BaseTask, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(BaseTask, self).__init__(*args, **kwargs)
 
         self.started = None
         self.finished = None
@@ -142,9 +142,6 @@ class BaseTask(Node):
 @nodecreator("feature")
 class Task(BaseTask):
     multiline = True
-
-    def __init__(self, *args):
-        super(Task, self).__init__(*args)
 
 
 @nodecreator("category")

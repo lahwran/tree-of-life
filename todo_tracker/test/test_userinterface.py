@@ -7,14 +7,14 @@ from todo_tracker.tracker import Tracker
 
 class Test_makenode(object):
     def test_makenode_indent(self, monkeypatch):
-        result = 1, False, "node_type", "text"
+        result = 1, False, "abcde", "node_type", "text"
         monkeypatch.setattr(userinterface, "parse_line", lambda string: result)
 
         with pytest.raises(exceptions.InvalidInputError):
             userinterface._makenode("sentinel")
 
     def test_makenode_metadata(self, monkeypatch):
-        result = 0, True, "node_type", "text"
+        result = 0, True, "abcde", "node_type", "text"
         monkeypatch.setattr(userinterface, "parse_line", lambda string: result)
 
         with pytest.raises(exceptions.InvalidInputError):

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def _makenode(string):
-    indent, is_metadata, node_type, text = parse_line(string)
+    indent, is_metadata, nodeid, node_type, text = parse_line(string)
     if is_metadata:
         raise InvalidInputError("metadata not allowed")
     if indent > 0:

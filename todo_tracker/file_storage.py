@@ -1,26 +1,33 @@
 from todo_tracker.exceptions import LoadError
 from todo_tracker.util import HandlerList
+import string
 
 
 loaders = HandlerList()
 serializers = HandlerList()
 
-parsing_indent = 0
-parsing_type = 1
-parsing_type_text_sep = 2
-parsing_text = 3
+nodeidchars = string.letters + string.digits
 
 
 def parse_line(line):
+    # would making this a set speed it up?
+
+    parsing_indent = 0
+    parsing_type = 1
+    parsing_id = 2
+    parsing_type_text_sep = 3
+    parsing_text = 4
+
     parsing = 0
     indent = 0
+    id = None
     is_metadata = False
 
     node_type = ""
     text = None
 
     if line.strip() == "":
-        return 0, False, "", None
+        return 0, False, None, "", None
 
     for char in line:
         last_parsing = parsing
@@ -45,13 +52,28 @@ def parse_line(line):
                     continue
                 elif char == "-":
                     node_type = "-"
-                    parsing += 1
+                    parsing = parsing_type_text_sep
                     continue
             if char == ":":
-                parsing += 1
+                parsing = parsing_type_text_sep
+                continue
+            if char == "#":
+                parsing = parsing_id
                 continue
 
             node_type += char
+            continue
+
+        if parsing == parsing_id:
+            if id is None:
+                id = ""
+            if char == ":":
+                parsing += 1
+                continue
+            elif char not in nodeidchars:
+                raise LoadError("node id must be a-zA-Z0-9, got: %s%s" %
+                        (id, char))
+            id += char
             continue
 
         if parsing == parsing_type_text_sep:
@@ -64,7 +86,13 @@ def parse_line(line):
             text = ""
 
         text += char
-    return indent, is_metadata, node_type, text
+
+    if id is not None and len(id) != 5:
+        raise LoadError("node id must be exactly 5 long")
+    if id is not None and is_metadata:
+        raise LoadError("cannot have node IDs on metadata")
+
+    return indent, is_metadata, id, node_type, text
 
 
 @loaders.add("str")
@@ -98,13 +126,16 @@ def serialize(tree, is_root=False, one_line=False):
     else:
         indent = " " * 4
 
-        if tree.text:
+        if tree.node_type == "":
+            lines.append("")
+        elif tree.text:
             text_lines = tree.text.split("\n")
-            lines.append("%s: %s" % (tree.node_type, text_lines[0]))
+            lines.append("%s#%s: %s" % (tree.node_type,
+                tree.id, text_lines[0]))
             for line in text_lines[1:]:
                 lines.append(indent + "- %s" % line)
         else:
-            lines.append(tree.node_type)
+            lines.append("%s#%s" % (tree.node_type, tree.id))
 
     for name, value, show in tree.option_values():
         if not show:

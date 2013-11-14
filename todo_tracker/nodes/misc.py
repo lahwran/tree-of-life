@@ -15,9 +15,10 @@ from todo_tracker import timefmt
 class GenericNode(Node):
     multiline = True
 
-    def __init__(self, node_type="_gennode", text=None, parent=None):
+    def __init__(self, node_type="_gennode", text=None, parent=None,
+            nodeid=None):
         self.metadata = OrderedDict()
-        super(GenericNode, self).__init__(node_type, text, parent)
+        super(GenericNode, self).__init__(node_type, text, parent, nodeid)
 
     def setoption(self, option, value):
         self.metadata[option] = value
@@ -29,19 +30,26 @@ class GenericNode(Node):
 
 @nodecreator("archived")
 class Archived(GenericNode):
+    def __init__(self, node_type, text, *a, **kw):
+        if kw.get("nodeid", None) is None and text:
+            indent, ismetadata, nodeid, node_type, text = parse_line(text)
+            kw["nodeid"] = nodeid
+        GenericNode.__init__(self, node_type, text, *a, **kw)
+
     @classmethod
     def fromnode(cls, node, parent):
         if node.node_type == "archived":
-            newnode = node.copy(parent=parent, children=False)
+            newnode = node.copy(parent=parent, children=False, nodeid=node.id)
         else:
-            text = "%s: %s" % (node.node_type, node.text)
-            newnode = cls("archived", text, parent)
+            text = "%s#%s: %s" % (node.node_type, node.id, node.text)
+            newnode = cls("archived", text, parent, nodeid=node.id)
             for option, value, show in node.option_values():
                 if show:
                     newnode.setoption(option, value)
         newnode.setoption("_af", None)
 
-        for child in node.children:
+        for child in list(node.children):
+            child = child.detach()
             newnode.addchild(cls.fromnode(child, parent=newnode))
         return newnode
 
@@ -62,25 +70,33 @@ class Archived(GenericNode):
 @nodecreator("unarchive")
 @nodecreator("unarchived")
 class Unarchiver(GenericNode):
+    def __init__(self, node_type, text, *a, **kw):
+        if kw.get("nodeid", None) is None and text:
+            indent, ismetadata, nodeid, node_type, text = parse_line(text)
+            kw["nodeid"] = nodeid
+        GenericNode.__init__(self, node_type, text, *a, **kw)
+
     @classmethod
     def unarchive(cls, node, parent):
         if node.node_type not in ("archived", "unarchive", "unarchived"):
-            newnode = node.copy(parent=parent, children=False)
+            newnode = node.copy(parent=parent, children=False, nodeid=node.id)
         else:
-            indent, ismetadata, node_type, text = parse_line(node.text)
+            indent, ismetadata, nodeid, node_type, text = parse_line(node.text)
             assert not indent
             assert not ismetadata
             if node_type == "archived":
-                indent, ismetadata, node_type, text = parse_line(text)
+                indent, ismetadata, nodeid, node_type, text = parse_line(text)
                 assert not indent
                 assert not ismetadata
 
-            newnode = node.root.nodecreator.create(node_type, text, parent)
+            newnode = node.root.nodecreator.create(node_type, text, parent,
+                    nodeid=nodeid)
             for option, value, show in node.option_values():
                 if show and option != "_af":
                     newnode.setoption(option, value)
 
-        for child in node.children:
+        for child in list(node.children):
+            child = child.detach()
             newnode.addchild(cls.unarchive(child, parent=newnode))
 
         return newnode
@@ -96,8 +112,9 @@ class Unarchiver(GenericNode):
 
 @nodecreator("_genactive")
 class GenericActivate(GenericNode):
-    def __init__(self, node_type="_genactive", text=None, parent=None):
-        super(GenericActivate, self).__init__(node_type, text, parent)
+    def __init__(self, node_type="_genactive", text=None, parent=None,
+            nodeid=None):
+        super(GenericActivate, self).__init__(node_type, text, parent, nodeid)
         self.deactivate = False
 
     def setoption(self, option, value):

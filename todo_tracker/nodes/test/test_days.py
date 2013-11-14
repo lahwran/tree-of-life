@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 
 import pytest
 
+from todo_tracker.test.util import match
 from todo_tracker.tracker import Tracker
 from todo_tracker.nodes.days import Day, Sleep, Days
 from todo_tracker.nodes.misc import GenericActivate
@@ -119,18 +120,18 @@ class TestMakeSkeleton(object):
 
         assert tracker.root.active_node is target
 
-        assert tracker.serialize("str") == (
-            "days\n"
-            "    day: 1\n"
-            "    day: 2\n"
-            "    day: 3\n"
-            "    day: 4\n"
-            "    day: 5\n"
-            "    day: 6\n"
+        assert match(tracker.serialize("str"), (
+            "days#?????\n"
+            "    day#?????: 1\n"
+            "    day#?????: 2\n"
+            "    day#?????: 3\n"
+            "    day#?????: 4\n"
+            "    day#?????: 5\n"
+            "    day#?????: 6\n"
             "        @active\n"
-            "    day: 7\n"
-            "    day: 8\n"
-        )
+            "    day#?????: 7\n"
+            "    day#?????: 8\n"
+        ))
 
     def test_acceptable_parent(self, monkeypatch):
         tracker = Tracker(skeleton=False)
@@ -154,15 +155,15 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         assert tracker.root.active_node is target
-        assert tracker.serialize("str") == (
-            "days\n"
-            "    day: 1\n"
-            "    day: 2\n"
-            "        generic\n"
-            "            target\n"
+        assert match(tracker.serialize("str"), (
+            "days#?????\n"
+            "    day#?????: 1\n"
+            "    day#?????: 2\n"
+            "        generic#?????\n"
+            "            target#?????\n"
             "                @active\n"
-            "    day: 3\n"
-        )
+            "    day#?????: 3\n"
+        ))
 
     def test_unacceptable_parent(self, monkeypatch):
         tracker = Tracker(skeleton=False)
@@ -185,15 +186,15 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         assert tracker.root.active_node is target
-        assert tracker.serialize("str") == (
-            "days\n"
-            "    day: 1\n"
-            "    day: 2\n"
-            "        generic\n"
-            "            non-target\n"
-            "    day: 3\n"
+        assert match(tracker.serialize("str"), (
+            "days#?????\n"
+            "    day#?????: 1\n"
+            "    day#?????: 2\n"
+            "        generic#?????\n"
+            "            non-target#?????\n"
+            "    day#?????: 3\n"
             "        @active\n"
-        )
+        ))
 
     def test_no_acceptable_activate(self, setdt, monkeypatch):
         monkeypatch.setattr(Day, "_post_started", lambda self: None)
@@ -212,15 +213,15 @@ class TestMakeSkeleton(object):
 
         Days.make_skeleton(tracker.root)
 
-        assert tracker.serialize("str") == (
-            "days\n"
-            "    day: December 19, 2012 (Wednesday, 3 days ago)\n"
-            "    day: December 20, 2012 (Thursday, 2 days ago)\n"
-            "    day: December 21, 2012 (Friday, yesterday)\n"
-            "    day: December 22, 2012 (Saturday, today)\n"
+        assert match(tracker.serialize("str"), (
+            "days#?????\n"
+            "    day#?????: December 19, 2012 (Wednesday, 3 days ago)\n"
+            "    day#?????: December 20, 2012 (Thursday, 2 days ago)\n"
+            "    day#?????: December 21, 2012 (Friday, yesterday)\n"
+            "    day#?????: December 22, 2012 (Saturday, today)\n"
             "        @started: December 22, 2012 12:00:00 PM\n"
             "        @active\n"
-        )
+        ))
 
     def test_edge_cases(self, setdt, monkeypatch):
         monkeypatch.setattr(Day, "_post_started", lambda self: None)
@@ -242,17 +243,17 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         result = tracker.serialize("str")
-        assert result == (
-            "days\n"
-            "    day: December 19, 2012 (Wednesday, 2 days ago)\n"
-            "    archived: herp derp\n"
-            "    day: December 20, 2012 (Thursday, yesterday)\n"
-            "    day: December 21, 2012 (Friday, today)\n"
+        assert match(result, (
+            "days#?????\n"
+            "    day#?????: December 19, 2012 (Wednesday, 2 days ago)\n"
+            "    archived#?????: herp derp\n"
+            "    day#?????: December 20, 2012 (Thursday, yesterday)\n"
+            "    day#?????: December 21, 2012 (Friday, today)\n"
             "        @finished: 1h after December 21, 2012 07:00:00 AM\n"
-            "    day: December 21, 2012 (Friday, today)\n"
+            "    day#?????: December 21, 2012 (Friday, today)\n"
             "        @started: December 21, 2012 12:00:00 PM\n"
             "        @active\n"
-        )
+        ))
 
 
 def test_out_of_order(setdt):
@@ -284,28 +285,28 @@ def test_out_of_order(setdt):
     days_node.addchild(GenericActivate("archived", "20 out of order b"))
 
     result = tracker.serialize("str")
-    assert result == (
-        "days\n"
-        "    day: December 19, 2012 (Wednesday, 1 year ago)\n"
-        "    archived: 19 a\n"
-        "    archived: 19 b\n"
-        "    day: December 20, 2012 (Thursday, 1 year ago)\n"
-        "    day: December 21, 2012 (Friday, 1 year ago)\n"
-        "    archived: 21 a\n"
-        "    archived: 21 b\n"
+    assert match(result, (
+        "days#?????\n"
+        "    day#?????: December 19, 2012 (Wednesday, 1 year ago)\n"
+        "    archived#?????: 19 a\n"
+        "    archived#?????: 19 b\n"
+        "    day#?????: December 20, 2012 (Thursday, 1 year ago)\n"
+        "    day#?????: December 21, 2012 (Friday, 1 year ago)\n"
+        "    archived#?????: 21 a\n"
+        "    archived#?????: 21 b\n"
 
         # December 22 was moved back to before 23, leaving
         # its archived nodes behind
-        "    day: December 22, 2012 (Saturday, 1 year ago)\n"
-        "    day: December 23, 2012 (Sunday, 1 year ago)\n"
-        "    archived: 23 a\n"
-        "    archived: 23 b\n"
+        "    day#?????: December 22, 2012 (Saturday, 1 year ago)\n"
+        "    day#?????: December 23, 2012 (Sunday, 1 year ago)\n"
+        "    archived#?????: 23 a\n"
+        "    archived#?????: 23 b\n"
 
-        "    archived: 22 out of order a\n"
-        "    archived: 22 out of order b\n"
-        "    archived: 20 out of order a\n"
-        "    archived: 20 out of order b\n"
-    )
+        "    archived#?????: 22 out of order a\n"
+        "    archived#?????: 22 out of order b\n"
+        "    archived#?????: 20 out of order a\n"
+        "    archived#?????: 20 out of order b\n"
+    ))
 
 
 def test_bad_child():
@@ -336,13 +337,13 @@ def test_archiving(setdt):
     tracker.root.loading_in_progress = False
 
     assert all(node.node_type == "archived" for node in days_node.children)
-    assert [node.text for node in days_node.children] == [
-        "day: July 19, 2012 (Thursday, 1 year ago)",
-        "day: July 20, 2012 (Friday, 1 year ago)",
-        "day: July 21, 2012 (Saturday, 1 year ago)",
-        "day: July 22, 2012 (Sunday, 1 year ago)",
-        "day: July 23, 2012 (Monday, 1 year ago)",
-    ]
+    assert match("\n".join(node.text for node in days_node.children), (
+        "day#?????: July 19, 2012 (Thursday, 1 year ago)\n"
+        "day#?????: July 20, 2012 (Friday, 1 year ago)\n"
+        "day#?????: July 21, 2012 (Saturday, 1 year ago)\n"
+        "day#?????: July 22, 2012 (Sunday, 1 year ago)\n"
+        "day#?????: July 23, 2012 (Monday, 1 year ago)"
+    ))
 
 
 def test_ui_serialize(setdt, monkeypatch):

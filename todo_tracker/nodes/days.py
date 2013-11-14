@@ -295,8 +295,8 @@ class Days(Node):
         "sleep"
     ]
 
-    def __init__(self, *args):
-        super(Days, self).__init__(*args)
+    def __init__(self, *args, **kwargs):
+        super(Days, self).__init__(*args, **kwargs)
         self.day_children = {}
         self.archive_date = (datetime.now() - timedelta(days=31)).date()
 

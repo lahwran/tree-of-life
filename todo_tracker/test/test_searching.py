@@ -7,7 +7,7 @@ from random import Random
 from todo_tracker import searching
 from todo_tracker.tracker import Tracker
 from todo_tracker.parseutil import ParseError
-from todo_tracker.test.util import FakeNodeCreator
+from todo_tracker.test.util import FakeNodeCreator, match
 from todo_tracker.nodes.misc import GenericActivate
 from todo_tracker.file_storage import serialize
 
@@ -256,10 +256,10 @@ class TestCreate(object):
         creator = searching.Creator("task: target")
         creator(origin)
 
-        assert serialize(origin) == [
-            "task: origin",
-            "    task: target"
-        ]
+        assert match("\n".join(serialize(origin)), (
+            "task#?????: origin\n"
+            "    task#?????: target"
+        ))
         assert repr(creator)
 
     def test_create_node_existing(self):
@@ -301,10 +301,10 @@ class TestCreate(object):
         creator = searching.Creator(joinedsearch=selector)
         creator(origin)
 
-        assert serialize(origin) == [
-            "task: origin",
-            "    task: target"
-        ]
+        assert match("\n".join(serialize(origin)), (
+            "task#?????: origin\n"
+            "    task#?????: target"
+        ))
         assert repr(creator)
 
     def test_multi_create(self):
@@ -360,15 +360,15 @@ class TestCreate(object):
         creator = searching.Creator("task: target :{first, after}")
         creator(origin)
 
-        assert serialize(origin) == [
-            "task: origin",
-            "    task: 1",
-            "    task: target",
-            "    task: 2",
-            "    task: 3",
-            "    task: 4",
-            "    task: 5",
-        ]
+        assert match("\n".join(serialize(origin)), (
+            "task#?????: origin\n"
+            "    task#?????: 1\n"
+            "    task#?????: target\n"
+            "    task#?????: 2\n"
+            "    task#?????: 3\n"
+            "    task#?????: 4\n"
+            "    task#?????: 5"
+        ))
         assert repr(creator)
 
     def test_after_started(self):
@@ -666,10 +666,10 @@ class TestCreate(object):
         origin = tracker.root.createchild("task", "origin")
         creator = searching.Creator("<- task: derp")
         creator(origin)
-        assert serialize(tracker.root, is_root=True) == [
-            "task: derp",
-            "task: origin",
-        ]
+        assert match("\n".join(serialize(tracker.root, is_root=True)), (
+            "task#?????: derp\n"
+            "task#?????: origin"
+        ))
         assert repr(creator)
 
     def test_empty_next_peer(self):
@@ -677,10 +677,10 @@ class TestCreate(object):
         origin = tracker.root.createchild("task", "origin")
         creator = searching.Creator("-> task: derp")
         creator(origin)
-        assert serialize(tracker.root, is_root=True) == [
-            "task: origin",
-            "task: derp",
-        ]
+        assert match("\n".join(serialize(tracker.root, is_root=True)), (
+            "task#?????: origin\n"
+            "task#?????: derp"
+        ))
         assert repr(creator)
 
     def test_default_first(self):
@@ -696,14 +696,14 @@ class TestCreate(object):
 
         creator(origin)
 
-        assert serialize(tracker.root, is_root=True) == [
-            "task: origin",
-            "task: expected",
-            "    task: target",
-            "task: ignore 1",
-            "task: ignore 2",
-            "task: ignore 3",
-        ]
+        assert match("\n".join(serialize(tracker.root, is_root=True)), (
+            "task#?????: origin\n"
+            "task#?????: expected\n"
+            "    task#?????: target\n"
+            "task#?????: ignore 1\n"
+            "task#?????: ignore 2\n"
+            "task#?????: ignore 3"
+        ))
         assert repr(creator)
 
     def test_last_2(self):
@@ -719,14 +719,14 @@ class TestCreate(object):
 
         creator(origin)
 
-        assert serialize(tracker.root, is_root=True) == [
-            "task: origin",
-            "task: ignore 1",
-            "task: ignore 2",
-            "task: ignore 3",
-            "task: expected",
-            "    task: target",
-        ]
+        assert match("\n".join(serialize(tracker.root, is_root=True)), (
+            "task#?????: origin\n"
+            "task#?????: ignore 1\n"
+            "task#?????: ignore 2\n"
+            "task#?????: ignore 3\n"
+            "task#?????: expected\n"
+            "    task#?????: target"
+        ))
         assert repr(creator)
 
     def test_many(self):
@@ -741,15 +741,15 @@ class TestCreate(object):
 
         creator(origin)
 
-        assert serialize(tracker.root, is_root=True) == [
-            "task: origin",
-            "task: expected 1",
-            "    task: target",
-            "task: expected 2",
-            "    task: target",
-            "task: expected 3",
-            "    task: target",
-        ]
+        assert match("\n".join(serialize(tracker.root, is_root=True)), (
+            "task#?????: origin\n"
+            "task#?????: expected 1\n"
+            "    task#?????: target\n"
+            "task#?????: expected 2\n"
+            "    task#?????: target\n"
+            "task#?????: expected 3\n"
+            "    task#?????: target"
+        ))
         assert repr(creator)
 
 

@@ -18,33 +18,38 @@ def reftype(request):
     return request.param
 
 
-def _dump(nodes, getiterator=lambda x: x.children, depth=0, proxyinfo=True):
+def _dump(nodes, getiterator=lambda x: x.children, depth=0, proxyinfo=True,
+        ids=False):
     result = []
     for node in nodes:
-        strnode = "%s: %s" % (node.node_type, node.text)
+        if ids:
+            strnode = "%s#%s: %s" % (node.node_type, node.id, node.text)
+        else:
+            strnode = "%s: %s" % (node.node_type, node.text)
         if proxyinfo and isinstance(node, references.ProxyNode):
             strnode = "proxy: " + strnode
         result.append(" " * depth * 4 + strnode)
-        result.extend(_dump(getiterator(node), getiterator, depth + 1))
+        result.extend(_dump(getiterator(node), getiterator, depth + 1,
+            proxyinfo=proxyinfo, ids=ids))
     return result
 
 
 def test_reference(tracker, reftype):
     tracker.deserialize("str",
-        "task: target\n"
-        "    task: somechild\n"
-        "        task: somechild\n"
-        "    comment: derp\n"
-        "%s: <- target\n" % reftype
+        "task#11111: target\n"
+        "    task#22222: somechild\n"
+        "        task#33333: somechild\n"
+        "    comment#44444: derp\n"
+        "%s#aaaaa: <- target\n" % reftype
     )
 
     assert len(tracker.root.find_one(reftype).children) == 2
 
-    assert _dump(tracker.root.find(reftype)) == [
-        "%s: <- target" % reftype,
-        "    proxy: task: somechild",
-        "        proxy: task: somechild",
-        "    proxy: comment: derp"
+    assert _dump(tracker.root.find(reftype), ids=True) == [
+        "%s#aaaaa: <- target" % reftype,
+        "    proxy: task#22222: somechild",
+        "        proxy: task#33333: somechild",
+        "    proxy: comment#44444: derp"
     ]
 
 
@@ -470,7 +475,7 @@ class TestProxynode(object):
     def test_export(self, tracker, reftype):
         tracker.deserialize("str",
             "task: to reference\n"
-            "    task: parent\n"
+            "    task#aaaaa: parent\n"
             "        task: child 1\n"
             "        task: child 2\n"
             "        task: child 3\n"
@@ -480,7 +485,7 @@ class TestProxynode(object):
         from todo_tracker.file_storage import serialize
 
         assert serialize(tracker.root.find_one(reftype + " > parent")) == [
-            "task: parent"
+            "task#aaaaa: parent"
         ]
 
     def test_no_options(self, tracker, reftype):
@@ -651,11 +656,11 @@ class TestRefnode(object):
 
     def test_export(self, tracker, reftype):
         tree = (
-            "task: target\n"
-            "    task: somechild\n"
-            "        task: somechild\n"
-            "    comment: derp\n"
-            "{}: <- target\n".format(reftype)
+            "task#55555: target\n"
+            "    task#44444: somechild\n"
+            "        task#33333: somechild\n"
+            "    comment#22222: derp\n"
+            "{}#11111: <- target\n".format(reftype)
         )
         tracker.deserialize("str", tree)
 

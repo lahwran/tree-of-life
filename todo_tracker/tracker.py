@@ -35,7 +35,7 @@ class Tracker(object):
         try:
             parser = loaders.handlers[format](reader)
             parser.error_context = error_context
-            for indent, is_metadata, node_type, text in parser:
+            for indent, is_metadata, nodeid, node_type, text in parser:
                 if node_type == "":
                     indent = lastindent
                     if lastnode is not None and lastnode.node_type != "":
@@ -60,7 +60,8 @@ class Tracker(object):
                     if node_type != "-":
                         metadata_allowed_here = False
 
-                    node = self.nodecreator.create(node_type, text, parent)
+                    node = self.nodecreator.create(node_type, text, parent,
+                            nodeid=nodeid)
                     if node is not None:
                         parent.addchild(node)
                     lastnode = node

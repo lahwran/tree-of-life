@@ -1,6 +1,8 @@
 import inspect
 import operator
 import logging
+import weakref
+import random
 
 from todo_tracker.ordereddict import OrderedDict
 from todo_tracker.exceptions import (ListIntegrityError, LoadError,
@@ -15,13 +17,13 @@ class _NodeCreatorTracker(HandlerList):
     name = "creators"
     autodetect = False
 
-    def create(self, node_type, text, parent, validate=True):
+    def create(self, node_type, text, parent, validate=True, nodeid=None):
         from todo_tracker.nodes import import_all
         try:
             creator = self.creators[node_type]
         except KeyError:
             raise LoadError("No such node type: %r" % node_type)
-        result = creator(node_type, text, parent)
+        result = creator(node_type, text, parent, nodeid=nodeid)
         if result and validate:
             result._validate()
         return result
@@ -159,7 +161,9 @@ class Node(object):
     #                 initialization                  #
     #-------------------------------------------------#
 
-    def __init__(self, node_type, text, parent=None):
+    def __init__(self, node_type, text, parent=None, nodeid=None):
+        self.id = nodeid
+
         self._init_children()
 
         self.__initing = True  # hack for assignment hooks
@@ -198,6 +202,13 @@ class Node(object):
     @root.setter
     def root(self, root):
         self._root = root
+        if root is not None:
+            if self.id is None:
+                self.id = root.generate_id()
+            if self.id in root.ids:
+                raise LoadError("Duplicate node IDs #%s: %r and %r" % (self.id,
+                    self, self.root.ids[self.id]))
+            root.ids[self.id] = self
         if (root is not None and not root.loading_in_progress
                 and not self.__initing):
             self.load_finished()
@@ -374,14 +385,16 @@ class Node(object):
     def detach(self):
         if self.parent:
             self.parent.removechild(self)
+        if self.root:
+            del self.root.ids[self.id]
         return self
 
-    def copy(self, parent=None, children=True, options=True):
+    def copy(self, parent=None, children=True, options=True, nodeid=None):
         if parent is None:
             parent = self.parent
 
         newnode = self.root.nodecreator.create(self.node_type, self.text,
-                parent)
+                parent, nodeid=nodeid)
         if options:
             for option, value, show in self.option_values():
                 if show:
@@ -557,7 +570,7 @@ class Node(object):
 
 
 @nodecreator('-')
-def continue_text(node_type, text, parent):
+def continue_text(node_type, text, parent, nodeid):
     parent.continue_text(text)
 
 
@@ -617,11 +630,12 @@ class BooleanOption(object):
 
 class TreeRootNode(Node):
     def __init__(self, tracker, nodecreator, loading_in_progress=False):
+        self.ids = weakref.WeakValueDictionary()
         self.nodecreator = nodecreator
         self.tracker = tracker
         self.loading_in_progress = loading_in_progress
 
-        super(TreeRootNode, self).__init__("life", None, None)
+        super(TreeRootNode, self).__init__("life", None, None, nodeid="00000")
         self.root = self
 
         self.editor_callback = None
@@ -663,6 +677,17 @@ class TreeRootNode(Node):
             except CantStartNodeError:
                 if parent_node is node:
                     raise
+
+    def generate_id(self):
+        for x in xrange(10):
+            nodeid = "".join(random.choice(file_storage.nodeidchars)
+                    for x in xrange(5))
+            if nodeid in self.ids:
+                continue
+            return nodeid
+        else:  # pragma: no cover
+            raise Exception("10 tries to generate node id failed. wat? %s"
+                    % nodeid)
 
 #    def _skip_ignored(self, peergetter, node):
 #        while node is not None:

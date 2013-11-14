@@ -2,7 +2,7 @@ from itertools import izip_longest
 
 import pytest
 
-from todo_tracker.test.util import FakeNodeCreator
+from todo_tracker.test.util import FakeNodeCreator, match
 from todo_tracker.tracker import Tracker
 from todo_tracker.nodes.node import Node, _NodeListRoot, Option
 from todo_tracker.nodes.misc import GenericNode, GenericActivate
@@ -459,71 +459,71 @@ class TestRootNode(object):
         tracker = Tracker(skeleton=False)
         sequence = [
             (
-                "_genactive: 0\n"
+                "_genactive#00001: 0\n"
                 "    @deactivate\n"
-                "    _genactive: 0.1\n"
+                "    _genactive#00002: 0.1\n"
                 "        @deactivate\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @deactivate\n"  # note: order matters; must have
                 "            @active\n"      # deactivate before active
-                "    _genactive: 0.2\n"
+                "    _genactive#00004: 0.2\n"
                 "        @deactivate\n"
-                "        _genactive: 0.2.1\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @deactivate\n"
             ),
             (
-                "_genactive: 0\n"
-                "    _genactive: 0.1\n"
+                "_genactive#00001: 0\n"
+                "    _genactive#00002: 0.1\n"
                 "        @active\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @locked\n"
-                "    _genactive: 0.2\n"
+                "    _genactive#00004: 0.2\n"
                 "        @deactivate\n"
-                "        _genactive: 0.2.1\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @deactivate\n"
             ),
             (
-                "_genactive: 0\n"
-                "    _genactive: 0.1\n"
+                "_genactive#00001: 0\n"
+                "    _genactive#00002: 0.1\n"
                 "        @locked\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @locked\n"
-                "    _genactive: 0.2\n"
+                "    _genactive#00004: 0.2\n"
                 "        @active\n"
-                "        _genactive: 0.2.1\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @deactivate\n"
             ),
             (
-                "_genactive: 0\n"
-                "    _genactive: 0.1\n"
+                "_genactive#00001: 0\n"
+                "    _genactive#00002: 0.1\n"
                 "        @locked\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @locked\n"
-                "    _genactive: 0.2\n"
-                "        _genactive: 0.2.1\n"
+                "    _genactive#00004: 0.2\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @active\n"
             ),
             (
-                "_genactive: 0\n"
-                "    _genactive: 0.1\n"
+                "_genactive#00001: 0\n"
+                "    _genactive#00002: 0.1\n"
                 "        @locked\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @locked\n"
-                "    _genactive: 0.2\n"
+                "    _genactive#00004: 0.2\n"
                 "        @active\n"
-                "        _genactive: 0.2.1\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @locked\n"
             ),
             (
-                "_genactive: 0\n"
+                "_genactive#00001: 0\n"
                 "    @active\n"
-                "    _genactive: 0.1\n"
+                "    _genactive#00002: 0.1\n"
                 "        @locked\n"
-                "        _genactive: 0.1.2\n"
+                "        _genactive#00003: 0.1.2\n"
                 "            @locked\n"
-                "    _genactive: 0.2\n"
+                "    _genactive#00004: 0.2\n"
                 "        @locked\n"
-                "        _genactive: 0.2.1\n"
+                "        _genactive#00005: 0.2.1\n"
                 "            @locked\n"
             ),
         ]
@@ -571,17 +571,17 @@ class TestRootNode(object):
                 assert False, "failed to reach end in 30 tries"
 
         expected_str = (
-            "_genactive: 0\n"
-            "_genactive: 1\n"
-            "_genactive: 1.5\n"
-            "_genactive: 2\n"
-            "_genactive: 3\n"
-            "_genactive: 4\n"
+            "_genactive#?????: 0\n"
+            "_genactive#?????: 1\n"
+            "_genactive#?????: 1.5\n"
+            "_genactive#?????: 2\n"
+            "_genactive#?????: 3\n"
+            "_genactive#?????: 4\n"
             "    @active\n"
         )
 
         serialized = tracker.serialize("str")
-        assert serialized == expected_str
+        assert match(serialized, expected_str)
 
     @pytest.mark.xfail
     def test_create_nonactivate(self):
@@ -630,38 +630,47 @@ class TestRootNode(object):
         )
         today = tracker.root.active_node.text
         tracker.root.active_node.started = None
-        assert serialize_to_str(tracker.root) == (
-            "days\n"
-            "    day: {0}\n"
+        assert match(serialize_to_str(tracker.root), (
+            "days#?????\n"
+            "    day#?????: {0}\n"
             "        @active\n"
-            "    sleep: {0}\n"
-            "todo bucket\n"
-            "fitness log\n"
-        ).format(today)
+            "    sleep#?????: {0}\n"
+            "todo bucket#?????\n"
+            "fitness log#?????\n"
+        ).format(today))
+        assert len(tracker.root.ids) == 6
+        assert tracker.root.id == "00000"
+        assert "00000" in tracker.root.ids
+        assert tracker.root.ids["00000"] is tracker.root
+        for depth, node in tracker.root.iter_flat_children():
+            assert node.id in tracker.root.ids
+            assert tracker.root.ids[node.id] is node
 
     def test_skeleton_day_active(self, setdt):
         from todo_tracker.nodes import days
         setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
-            "days\n"
-            "    day: today\n"
+            "days#abcde\n"
+            "    day#bcdef: today\n"
             "        @started: September 23, 2012 11:00 AM\n"
-            "        _genactive: something\n"
+            "        _genactive#cdefg: something\n"
             "            @active\n"
-            "    sleep: today\n"
-            "todo bucket\n"
-            "fitness log"
+            "    sleep#defgh: today\n"
+            "todo bucket#ghijk\n"
+            "fitness log#hijkl"
         )
         today = tracker.root.find_one("days > day: today")
         tracker.root.active_node.started = None
         assert serialize_to_str(tracker.root) == (
-            "days\n"
-            "    day: {0}\n"
+            "days#abcde\n"
+            "    day#bcdef: {0}\n"
             "        @started: September 23, 2012 11:00:00 AM\n"
-            "        _genactive: something\n"
+            "        _genactive#cdefg: something\n"
             "            @active\n"
-            "    sleep: {0}\n"
-            "todo bucket\n"
-            "fitness log\n"
+            "    sleep#defgh: {0}\n"
+            "todo bucket#ghijk\n"
+            "fitness log#hijkl\n"
         ).format(today.text)
+        assert set(tracker.root.ids) == {
+                "abcde", "bcdef", "cdefg", "defgh", "ghijk", "hijkl", "00000"}

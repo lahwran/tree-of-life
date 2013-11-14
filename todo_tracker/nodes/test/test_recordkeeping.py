@@ -69,13 +69,13 @@ def test_measurement_time():
     tracker.root.addchild(fitnesslog)
 
     measurement = SimpleMeasurement("_", "herp 1234 abc wearing a pot roast",
-            fitnesslog)
+            fitnesslog, nodeid="abcde")
     measurement._validate()
     fitnesslog.addchild(measurement)
 
     result = serialize_to_str(measurement, is_root=False)
     assert result.startswith(
-        "_: herp 1234 abc wearing a pot roast\n"
+        "_#abcde: herp 1234 abc wearing a pot roast\n"
         "    @time: "
     )
 

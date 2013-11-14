@@ -5,7 +5,7 @@ import pytest
 from todo_tracker.nodes.misc import GenericNode, GenericActivate
 from todo_tracker.nodes.node import TreeRootNode
 from todo_tracker.file_storage import serialize_to_str
-from todo_tracker.test.util import FakeNodeCreator
+from todo_tracker.test.util import FakeNodeCreator, match
 from todo_tracker import exceptions
 
 from todo_tracker.tracker import Tracker
@@ -26,10 +26,14 @@ class TestTracker(object):
 
         root = tracker_obj.root
         root_child0 = root.children.next_neighbor
+        assert root_child0.id in root.ids
+        assert len(root_child0.id) == 5
         assert root_child0.text == "args"
         assert root_child0.node_type == "firstchild"
 
         root_child0_child0 = root_child0.children.next_neighbor
+        assert root_child0_child0.id in root.ids
+        assert len(root_child0_child0.id) == 5
         assert root_child0_child0.text == "other args"
         assert root_child0_child0.node_type == "secondchild"
         assert root_child0_child0.metadata["option"] == "data"
@@ -97,38 +101,38 @@ class TestTracker(object):
 
         target = WriteTarget()
         tracker.serialize("file", target)
-        assert target.text == (
-            "node1: node1_text\n"
-            "    node1_1: node1_1_text\n"
+        assert match(target.text, (
+            "node1#?????: node1_text\n"
+            "    node1_1#?????: node1_1_text\n"
             "        @herp: derp\n"
-            "    node1_2: node1_2_text\n"
+            "    node1_2#?????: node1_2_text\n"
             "        - herk derk\n"
-            "node2: node2_text\n"
-            "    node2_1: node2_1_text\n"
+            "node2#?????: node2_text\n"
+            "    node2_1#?????: node2_1_text\n"
             "        - honk donk\n"
             "        @hark: dark\n"
-            "node3\n"
-        )
+            "node3#?????\n"
+        ))
 
     def test_empty_line(self):
         tracker = Tracker(skeleton=False)
         tracker.deserialize("str",
                 "\n"
-                "task: whatever\n"
+                "task#12345: whatever\n"
                 "   \n"
-                "    task: whatever again\n"
+                "    task#abcde: whatever again\n"
                 "\n"
-                "    task: some other thing\n"
+                "    task#hijkl: some other thing\n"
                 "\n"
                 "\n"
         )
         assert tracker.serialize("str") == (
                 "\n"
-                "task: whatever\n"
+                "task#12345: whatever\n"
                 "    \n"
-                "    task: whatever again\n"
+                "    task#abcde: whatever again\n"
                 "        \n"
-                "    task: some other thing\n"
+                "    task#hijkl: some other thing\n"
                 "        \n"
                 "        \n"
         )

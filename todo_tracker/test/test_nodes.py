@@ -1,10 +1,9 @@
 from datetime import datetime
-
 import pytest
 
 from todo_tracker.tracker import Tracker, nodecreator
 from todo_tracker.file_storage import serialize_to_str
-from todo_tracker.test.util import FakeNodeCreator
+from todo_tracker.test.util import FakeNodeCreator, match
 from todo_tracker import navigation
 from todo_tracker.nodes import tasks
 
@@ -62,12 +61,12 @@ def test_activate_deactivate(monkeypatch):
     navigation.done(tracker)
     navigation.done(tracker)
 
-    assert tracker.serialize("str") == (
-        "task: 1\n"
+    assert match(tracker.serialize("str"), (
+        "task#?????: 1\n"
         "    @finished: 1d after October 24, 2012 12:00:00 AM\n"
-        "task: 2\n"
+        "task#?????: 2\n"
         "    @finished: 0s after October 25, 2012 12:00:00 AM\n"
-        "task: 3\n"
+        "task#?????: 3\n"
         "    @started: October 25, 2012 12:00:00 AM\n"
         "    @active\n"
-    )
+    ))
