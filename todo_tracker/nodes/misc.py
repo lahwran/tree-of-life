@@ -32,7 +32,7 @@ class GenericNode(Node):
 class Archived(GenericNode):
     def __init__(self, node_type, text, *a, **kw):
         if kw.get("nodeid", None) is None and text:
-            indent, ismetadata, nodeid, node_type, text = parse_line(text)
+            _, _, nodeid, _, _ = parse_line(text)
             kw["nodeid"] = nodeid
         GenericNode.__init__(self, node_type, text, *a, **kw)
 
@@ -72,7 +72,7 @@ class Archived(GenericNode):
 class Unarchiver(GenericNode):
     def __init__(self, node_type, text, *a, **kw):
         if kw.get("nodeid", None) is None and text:
-            indent, ismetadata, nodeid, node_type, text = parse_line(text)
+            _, _, nodeid, _, _ = parse_line(text)
             kw["nodeid"] = nodeid
         GenericNode.__init__(self, node_type, text, *a, **kw)
 
