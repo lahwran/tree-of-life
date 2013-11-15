@@ -464,6 +464,7 @@ class Node(object):
                 result["children"] = children
         result["type"] = self.node_type
         result["text"] = self.text
+        result["id"] = self.id
         return result
 
     def search_texts(self):

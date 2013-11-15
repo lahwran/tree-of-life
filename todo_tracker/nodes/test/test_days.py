@@ -349,7 +349,7 @@ def test_archiving(setdt):
 def test_ui_serialize(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root)
+    days_node = Days("days", None, tracker.root, nodeid="abcde")
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -374,13 +374,14 @@ def test_ui_serialize(setdt, monkeypatch):
         "children": [node.ui_serialize() for node in after],
         "hidden_children": [node.ui_serialize() for node in before],
         "text": None,
-        "type": "days"
+        "type": "days",
+        "id": "abcde",
     }
 
 
 def test_ui_serialize_existing(setdt):
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root)
+    days_node = Days("days", None, tracker.root, nodeid="abcde")
     tracker.root.addchild(days_node)
     Days.make_skeleton(tracker.root)
 
@@ -396,14 +397,15 @@ def test_ui_serialize_existing(setdt):
         "children": existing_children,
         "hidden_children": existing_hidden_children,
         "text": None,
-        "type": "days"
+        "type": "days",
+        "id": "abcde",
     }
 
 
 def test_ui_serialize_rollover(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root)
+    days_node = Days("days", None, tracker.root, nodeid="abcde")
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -429,14 +431,15 @@ def test_ui_serialize_rollover(setdt, monkeypatch):
         "children": [node.ui_serialize() for node in after],
         "hidden_children": [node.ui_serialize() for node in before],
         "text": None,
-        "type": "days"
+        "type": "days",
+        "id": "abcde",
     }
 
 
 def test_ui_serialize_sleepnode(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root)
+    days_node = Days("days", None, tracker.root, nodeid="abcde")
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -461,7 +464,8 @@ def test_ui_serialize_sleepnode(setdt, monkeypatch):
         "children": [node.ui_serialize() for node in after],
         "hidden_children": [node.ui_serialize() for node in before],
         "text": None,
-        "type": "days"
+        "type": "days",
+        "id": "abcde",
     }
 
 

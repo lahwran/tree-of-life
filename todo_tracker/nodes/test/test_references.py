@@ -942,7 +942,7 @@ def test_recursion(tracker, reftype):
 def test_ui_serialize(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
-        "    task: child\n"
+        "    task#abcde: child\n"
         "%s: <-\n" % reftype
     )
 
@@ -954,12 +954,13 @@ def test_ui_serialize(tracker, reftype):
     assert "options" not in ui_info
     assert not ui_info.get("active", False)
     assert not ui_info.get("finished", False)
+    assert ui_info["id"] == "abcde"
 
 
 def test_ui_serialize_finished(tracker, reftype):
     tracker.deserialize("str",
         "task: target\n"
-        "    task: child\n"
+        "    task#abcde: child\n"
         "        @started\n"
         "        @finished\n"
         "%s: <-\n" % reftype
@@ -974,6 +975,7 @@ def test_ui_serialize_finished(tracker, reftype):
     assert ui_info["options"][0]["type"] == "finished"
     assert not ui_info.get("active", False)
     assert ui_info.get("finished", False)
+    assert ui_info["id"] == "abcde"
 
 
 def test_no_query_finished(tracker, monkeypatch):

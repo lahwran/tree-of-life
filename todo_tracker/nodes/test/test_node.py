@@ -338,6 +338,25 @@ class TestNode(object):
         tracker.root.createchild("_gennode", "text", nodeid="abcde")
         assert tracker.root.ids["abcde"].node_type == "_gennode"
 
+    def test_ui_serialize(self):
+        tracker = self.tracker()
+
+        child = tracker.root.createchild("child", "childtext", nodeid="abcde")
+        child2 = child.createchild("child2", "child2text", nodeid="12345")
+
+        assert child.ui_serialize() == {
+            "children": [
+                {
+                    "type": "child2",
+                    "text": "child2text",
+                    "id": "12345"
+                }
+            ],
+            "type": "child",
+            "text": "childtext",
+            "id": "abcde"
+        }
+
 
 def test_get_missing_option():
     obj = object()
