@@ -205,7 +205,7 @@ class Node(object):
         if root is not None:
             if self.id is None:
                 self.id = root.generate_id()
-            if self.id in root.ids:
+            if self.id in root.ids:  # pragma: no cover
                 raise LoadError("Duplicate node IDs #%s: %r and %r" % (self.id,
                     self, self.root.ids[self.id]))
             root.ids[self.id] = self
@@ -374,9 +374,10 @@ class Node(object):
 
         return child
 
-    def createchild(self, node_type, text=None, *args, **keywords):
-        node = self.root.nodecreator.create(node_type, text, self)
-        return self.addchild(node, *args, **keywords)
+    def createchild(self, node_type, text=None, nodeid=None, **keywords):
+        node = self.root.nodecreator.create(node_type, text, self,
+                nodeid=nodeid)
+        return self.addchild(node, **keywords)
 
     def removechild(self, child):
         self.children.remove(child)

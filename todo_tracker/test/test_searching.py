@@ -77,6 +77,48 @@ def test_search():
     assert repr(query2)
 
 
+def test_id_lookup():
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+    origin = tracker.root.createchild("task", "origin", nodeid="orign")
+    target1 = origin.createchild("task", "target1", nodeid="abcde")
+    target3 = origin.createchild("task", "#abcde")
+    ignoreme = origin.createchild("task", "ignoreme")
+    ignoreme.createchild("task", "ignore me too")
+    peer = tracker.root.createchild("task", "peer")
+    target2 = peer.createchild("task", "target2", nodeid="trgt2")
+    targetlist = [
+        target2.createchild("task") for x in range(10)]
+
+    query1 = searching.Query("#abcde")
+    assert list(query1([origin])) == [target1]
+    assert list(query1([target2])) == [target1]
+    assert repr(query1)
+
+    query2 = searching.Query("#orign -> task: peer > task: target2")
+    assert list(query2([ignoreme])) == [target2]
+    assert list(query2([tracker.root])) == [target2]
+    assert repr(query2)
+
+    query3 = searching.Query("#trgt2>")
+    assert list(query3([ignoreme])) == targetlist
+    assert list(query3([tracker.root])) == targetlist
+    assert repr(query3)
+
+    query4 = searching.Query("*: #abcde")
+    assert list(query4([origin])) == [target3]
+    assert repr(query4)
+
+
+def test_id_lookup_invalid():
+    with pytest.raises(Exception):
+        print searching.Query("-> #orign")
+    with pytest.raises(Exception):
+        print searching.Query("-> task -> #orign")
+    with pytest.raises(Exception):
+        print searching.Query("#orign test")
+
+
 def test_pluralities():
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 

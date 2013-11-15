@@ -333,6 +333,11 @@ class TestNode(object):
         with pytest.raises(exceptions.LoadError):
             node.start()
 
+    def test_createchild_nodeid(self):
+        tracker = self.tracker()
+        tracker.root.createchild("_gennode", "text", nodeid="abcde")
+        assert tracker.root.ids["abcde"].node_type == "_gennode"
+
 
 def test_get_missing_option():
     obj = object()

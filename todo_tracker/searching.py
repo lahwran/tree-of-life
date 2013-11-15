@@ -4,6 +4,7 @@
 # why there are classes that look like they're used as functions.
 from todo_tracker import parseutil
 from todo_tracker.util import HandlerList, memoize
+from todo_tracker import file_storage
 
 from collections import namedtuple
 
@@ -48,8 +49,14 @@ def split_tags(orig_tags):
 retrievers = HandlerList()
 
 
-def make_segment(separator, pattern, tags):
+def make_segment(separator, nodeid, pattern, tags):
     from todo_tracker.nodes.node import nodecreator
+
+    if separator == "default":
+        if nodeid is None:
+            separator = "children"
+        else:
+            separator = "self"
 
     tags, plurality = split_tags(tags)
 
@@ -67,7 +74,7 @@ def make_segment(separator, pattern, tags):
     retriever = retrievers.handlers["retriever_" + separator]
 
     return Segment(separator, pattern,
-            retriever, matcher, tags, plurality)
+            retriever, matcher, tags, plurality, nodeid=nodeid)
 
 
 class SearchGrammar(parseutil.Grammar):
@@ -84,13 +91,14 @@ class SearchGrammar(parseutil.Grammar):
     text_star = ('*' text? -> '*' ) | ~'*' text
 
     createrel = '+' | '-' | -> 'default'
-    node_base = ws? createrel:rel (text_star:node
+    node_base = ws? createrel:rel ~"#" (text_star:node
                 (~tags_begin ws? ':' ws node_text_star)?:text
                 -> Node(rel, node, text)
                 | -> Node(rel, '*', None))
 
     tagged_node = node_base:pattern (tags | -> ()):tags -> pattern, tags
-    matcher :sep = tagged_node:p -> make_segment(sep, p[0], p[1])
+    matcher :sep :nodeid = tagged_node:p
+            -> make_segment(sep, nodeid, p[0], p[1])
 
     tags_begin = ws? ':{'
     tags_end = ws? '}' | ~~separator
@@ -108,9 +116,14 @@ class SearchGrammar(parseutil.Grammar):
                 | (ws? '>' -> "children")
                 | (ws? '<' -> "parents")
 
-    query = (separator | -> 'children'):initial_sep
-            matcher(initial_sep):initial
-            (separator:sep matcher(sep))*:following
+    nodeidchar = anything:x ?(x in nodeidchars) -> x
+    nodeid = ws? '#' <nodeidchar{5}>
+
+    query = (nodeid:n (~~separator | ~anything) -> n
+                | -> None):nodeid
+            (separator | -> 'default'):initial_sep
+            matcher(initial_sep nodeid):initial
+            (separator:sep matcher(sep None))*:following
             -> JoinedSearch(initial, *following)
 
     """
@@ -118,7 +131,8 @@ class SearchGrammar(parseutil.Grammar):
         "Node": _Node,
         "TaggedPattern": _TaggedPattern,
         "JoinedSearch": JoinedSearch,
-        "make_segment": make_segment
+        "make_segment": make_segment,
+        "nodeidchars": file_storage.nodeidchars
     }
 
 Query = memoize(SearchGrammar.wraprule("query"))
@@ -194,7 +208,7 @@ class Creator(object):
         if segment.separator not in ("children", "next_peer", "prev_peer"):
             assert False
 
-        new_last = make_segment(segment.separator,
+        new_last = make_segment(segment.separator, None,
                 ("default", "*", None), new_tags)
         self.last_segment = new_last
 
@@ -345,6 +359,21 @@ def retriever_root(nodes, counter=None):
         return
 
 
+@retrievers.add()
+def retriever_self(nodes, counter=None):
+    for node in nodes:
+        tick(counter)
+        yield node
+        return
+
+
+def getnodeid(nodes, nodeid, counter=None):
+    for node in nodes:
+        tick(counter)
+        yield node.root.ids[nodeid]
+        return
+
+
 def tag_filter(nodes, tags, counter=None):
     tags = set(tags)
     for node in nodes:
@@ -387,7 +416,7 @@ class Matcher(object):
 
 class Segment(object):
     def __init__(self, separator, pattern,
-            retriever, matcher, tags, plurality):
+            retriever, matcher, tags, plurality, nodeid=None):
         self.separator = separator
         self.pattern = pattern
 
@@ -396,7 +425,11 @@ class Segment(object):
         self.tags = tags
         self.plurality = plurality
 
+        self.nodeid = nodeid
+
     def __call__(self, nodes, counter=None):
+        if self.nodeid is not None:
+            nodes = getnodeid(nodes, self.nodeid, counter=counter)
         nodes = self.retriever(nodes, counter=counter)
         if self.matcher is not None:
             nodes = self.matcher(nodes, counter=counter)
