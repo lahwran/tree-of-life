@@ -365,6 +365,7 @@ class Reference(BaseTask):
                 self._px_target = target
             else:
                 self._px_target = self._find_target()
+            self.text = "#%s" % self._px_target.id
 
         if self._px_dostart:
             self._px_start()
