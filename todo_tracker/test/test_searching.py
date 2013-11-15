@@ -66,13 +66,13 @@ def test_search():
     ignoreme = origin.createchild("task", "ignoreme")
     ignoreme.createchild("task", "ignore me too")
     peer = tracker.root.createchild("task", "peer")
-    target2 = peer.createchild("task", "target2")
+    target2 = peer.createchild("task", "Target2")
 
     query1 = searching.Query("task: target1")
     assert list(query1([origin])) == [target1]
     assert repr(query1)
 
-    query2 = searching.Query("-> task: peer > task: target2")
+    query2 = searching.Query("-> task: PEER > task: tarGet2")
     assert list(query2([origin])) == [target2]
     assert repr(query2)
 
@@ -295,12 +295,12 @@ class TestCreate(object):
 
         origin = tracker.root.createchild("task", "origin")
 
-        creator = searching.Creator("task: target")
+        creator = searching.Creator("task: Target")
         creator(origin)
 
         assert match("\n".join(serialize(origin)), (
             "task#?????: origin\n"
-            "    task#?????: target"
+            "    task#?????: Target"
         ))
         assert repr(creator)
 
@@ -772,7 +772,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_many(self):
-        creator = searching.Creator("-> :{many} > task: target")
+        creator = searching.Creator("-> :{many} > task: TARGET")
 
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
@@ -786,11 +786,11 @@ class TestCreate(object):
         assert match("\n".join(serialize(tracker.root, is_root=True)), (
             "task#?????: origin\n"
             "task#?????: expected 1\n"
-            "    task#?????: target\n"
+            "    task#?????: TARGET\n"
             "task#?????: expected 2\n"
-            "    task#?????: target\n"
+            "    task#?????: TARGET\n"
             "task#?????: expected 3\n"
-            "    task#?????: target"
+            "    task#?????: TARGET"
         ))
         assert repr(creator)
 
