@@ -13,7 +13,7 @@ fi
 
 if [ "$res" = "0" ]
 then
-    . $dir/../pypy_venv/bin/activate
+    . $dir/../pypy*venv/bin/activate
     time `which py.test` "$@"
     deactivate
 fi
