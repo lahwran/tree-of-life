@@ -45,7 +45,7 @@ function ui_controller($scope, backend, handlers, $timeout) {
         $timeout(whatareyoudoing, 30 * 60 * 1000);
         $scope.backend.notifications.push("What are you currently doing?");
     }
-    whatareyoudoing();
+    //whatareyoudoing();
 }
 
 var nodetypes = {
