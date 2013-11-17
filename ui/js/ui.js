@@ -17,6 +17,9 @@ function ui_controller($scope, backend, handlers, $timeout) {
         text: null,
         children: []
     }
+    $scope.show_editor = function() {
+        backend.send({command: "vim"});
+    }
     $scope.sidebar = {};
     $scope.sendcommand = function(command) {
         backend.send({command: command});
@@ -280,22 +283,23 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             if (b.notifications.length) {
                 set_menu_text();
             }
+            // FIXME: this causes a scope update every second :(
             $timeout(reset_menu_text, 1000);
         }
         reset_menu_text();
 
         function set_menu_text() {
-            var x;
+            var x = $.merge([], b.prompt);
             if (b.notifications.length) {
                 var last = b.notifications[b.notifications.length-1];
-                var c = $.merge([], b.prompt);
-                x = $.merge(c, [notePrefixes[notePrefix] + last]);
+                $.merge(x, [notePrefixes[notePrefix] + last]);
                 notePrefix += 1;
                 if (notePrefix >= notePrefixes.length) {
                     notePrefix = 0;
                 }
-            } else {
-                x = b.prompt;
+            }
+            if (b.editor_running) {
+                $.merge(x, ["editor running"]);
             }
             b.__host__.setMenuText(JSON.stringify(x));
         }
@@ -320,6 +324,10 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             if (!angular.isDefined(ns)) return;
             set_menu_text();
         }, true);
+        b.$watch("editor_running", function(ns) {
+            if (!angular.isDefined(ns)) return;
+            set_menu_text();
+        });
 
         b.$watch("display", function(x) {
             if (!angular.isDefined(x)) return;

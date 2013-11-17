@@ -19,6 +19,11 @@
     <div ng-controller="ui_controller" class="scroller">
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
         autofocus class="commandbox"/>
+      <div class="editor-running" ng-click="show_editor()" ng-show="backend.editor_running">
+        <div class="centered">
+          Editor Running
+        </div>
+      </div>
       <div class="content">
         <collapseable text="" class="sidebar" shown="sidebar_shown">
           <div ng-show="browser_compat">

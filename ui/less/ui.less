@@ -264,3 +264,32 @@ body {
         }
     }
 }
+
+.editor-running {
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    position: fixed;
+    z-index: 9;
+    background-color: rgba(213, 214, 205, 0.75);
+    color: @background;
+    text-align: center;
+    cursor: pointer;
+
+    &:before {
+        content: '';
+        display: inline-block;
+        height: 100%;
+        vertical-align: middle;
+        margin-right: -0.25em; /* Adjusts for spacing */
+    }
+
+    /* The element to be centered, can
+       also be of any width and height */ 
+    .centered {
+        display: inline-block;
+        vertical-align: middle;
+        font-size: 70px;
+    }
+}
