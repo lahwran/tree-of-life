@@ -6,7 +6,7 @@
     {{ collapsedtext }}
   </div>
   <div class="children expanded" ng-if="addnodes && evershown" ng-show="!collapsed">
-    <nodes nodes="nodes" options="options"></nodes>
+    <nodes pool="pool" nodes="nodes" options="options"></nodes>
   </div>
   <!-- directive: ng-if="!addnodes && evershown" -->
   <div class="children expanded" ng-show="!addnodes && !collapsed" ng-transclude>

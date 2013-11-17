@@ -271,9 +271,14 @@ class JSONProtocol(LineOnlyReceiver):
             reversed_displaychain = self.commandline.displaychain()[::-1]
             self.sendmessage({
                 "prompt": [str(node) for node in reversed_displaychain],
-                "root": "00000",
-                "days": "00001",
-                "tree": self.commandline.root.ui_graph(),
+                "graph": {
+                    "pool": self.commandline.root.ui_graph(),
+                    "ids": {
+                        "root": self.commandline.root.id,
+                        "days": "00001",
+                        "todo_bucket": self.commandline.root.todo.id
+                    },
+                }
             })
             self.commandline.auto_save()
         except Exception:

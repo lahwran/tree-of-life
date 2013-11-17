@@ -31,10 +31,10 @@
             </div>
           </div>
           <!-- insert other stuff here -->
-          <nodes nodes="todo_bucket.children"></nodes>
+          <nodes pool="pool" nodes="pool[ids.todo_bucket].children"></nodes>
         </collapseable>
         <div class="content-inner">
-          <node node="days" toplevel></node>
+          <node pool="pool" node="ids.days" toplevel></node>
         </div>
       </div>
       <div class="control-utils">

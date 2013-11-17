@@ -90,6 +90,6 @@ function browser_compat($rootScope) {
         browser.panelShown = shown;
     };
     tracker_api_browser.setMaxWidth = function(maxwidth) {
-        browser.maxWidth = maxWidth;
+        browser.maxWidth = maxwidth;
     };
 }

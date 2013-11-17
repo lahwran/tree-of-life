@@ -25,16 +25,11 @@ function ui_controller($scope, backend, handlers, $timeout) {
     $scope._quit = function() {
         backend.quit = true;
     }
-    $scope.$on("message/tree", function(event, tree) {
-        $scope.root.children = tree;
-        console.log(tree);
-        angular.forEach(tree, function(child) {
-            if (child.type == "days") {
-                $scope.days = child;
-            } else if (child.type == "todo bucket") {
-                $scope.todo_bucket = child;
-            }
-        });
+    $scope.$on("message/graph", function(event, graph) {
+        $scope.pool = graph.pool;
+        $scope.ids = graph.ids;
+        console.log(graph.pool);
+        console.log(graph.pool[graph.ids.days]);
     });
     $scope.notifications = backend.notifications;
     $scope.removeNotification = function(index) {
@@ -98,11 +93,13 @@ angular.module("todotracker", [], function($rootScopeProvider) {
     .directive("nodes", function() {
         return {
             restrict: 'E',
-            template: '<div class="nodes"><node ng-repeat="subnode in nodes track by $index" node="subnode" option="options">'
+            template: '<div class="nodes">'
+                    + '<node ng-repeat="subnode in nodes" node="subnode" option="options" pool="pool">'
                     + '</node></div>',
             scope: {
                 nodes: "=",
-                options: "="
+                options: "=",
+                pool: "="
             },
             replace: true
         };
@@ -114,7 +111,8 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             replace: true,
             scope: {
                 nodes: '=',
-                options: '='
+                options: '=',
+                pool: '='
             },
             templateUrl: "partials/collapseable.html",
             link: function(scope, element, attrs) {
@@ -159,50 +157,81 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                     var childscope;
                     var lastnodetype;
                     var is_option = scope.$eval(attrs.option);
-                    scope.$watch(attrs.node, function(node) {
+                    var _things;
+                    if (is_option) {
+                        _things = {
+                            nodeobj: function() {
+                                return scope[attrs.node];
+                            },
+                            nodetype: function() {
+                                var n = _things.nodeobj();
+                                if (n === undefined) return undefined;
+                                return n.type;
+                            },
+                            nodeid: function() {
+                                return undefined;
+                            },
+                            nodetypes: optiontypes,
+                            ntype: "option"
+                        };
+                    } else {
+                        _things = {
+                            nodeobj: function() {
+                                var pool = scope[attrs.pool];
+                                if (pool === undefined) return undefined;
+                                var nodeid = scope.$eval(attrs.node);
+                                if (nodeid === undefined) return undefined;
+                                return pool[nodeid];
+                            },
+                            nodetype: function() {
+                                var n = _things.nodeobj();
+                                if (n === undefined) return undefined;
+                                return n.type;
+                            },
+                            nodeid: function() {
+                                return scope.$eval(attrs.node);
+                            },
+                            nodetypes: nodetypes,
+                            ntype: "node"
+                        };
+                    }
+
+                    scope.$watch(_things.nodeobj, function(node) {
                         if (!angular.isDefined(childscope)) return;
+                        if (!angular.isDefined(node)) return;
                         childscope.node = node;
                     });
-                    scope.$watch(function() {
-                            if (!angular.isDefined(scope[attrs.node])) return undefined;
-                            return scope[attrs.node].type;
-                    }, function(type, last) {
+                    scope.$watch(_things.nodeid, function(nodeid) {
+                        if (nodeid === undefined) return;
+                        element.attr("nodeid", nodeid);
+                    });
+                    scope.$watch(_things.nodetype, function(type, last) {
                         if (!angular.isDefined(type)) {
                             return;
                         }
-                        var chosen_nodetypes;
-                        var ntype;
-                        if (is_option) {
-                            chosen_nodetypes = optiontypes;
-                            ntype = "option";
-                        } else {
-                            chosen_nodetypes = nodetypes;
-                            ntype = "node";
-                        }
-
                         // get node type
-                        var nodetype = chosen_nodetypes[type];
+                        var nodetype = _things.nodetypes[type];
                         if (typeof nodetype == 'string') {
-                            nodetype = chosen_nodetypes[nodetype];
+                            nodetype = _things.nodetypes[nodetype];
                         }
                         if (!angular.isDefined(nodetype)) {
-                            nodetype = chosen_nodetypes._default;
+                            nodetype = _things.nodetypes._default;
                         }
                         if (nodetype === lastnodetype) return;
                         lastnodetype = nodetype;
 
-                        element.addClass(ntype);
+                        element.addClass(_things.ntype);
 
                         // update childscope and css
                         if (angular.isDefined(last)) {
-                            element.removeClass(ntype + "-" + last);
+                            element.removeClass(_things.ntype + "-" + last);
                         }
                         if (angular.isDefined(childscope)) {
                             childscope.$destroy();
                         }
-                        element.addClass(ntype + "-" + type);
+                        element.addClass(_things.ntype + "-" + type);
                         childscope = scope.$new();
-                        childscope.node = scope[attrs.node];
+                        childscope.node = _things.nodeobj();
 
                         // render new html
                         if (angular.isDefined(nodetype.templateurl)) {
