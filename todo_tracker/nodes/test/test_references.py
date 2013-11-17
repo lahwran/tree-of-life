@@ -886,11 +886,6 @@ def test_active(tracker, reftype):
     options = target.option_values()
     assert ("active", None, True) not in options
 
-    ui_dict = to_activate.ui_serialize()
-    options = [frozenset(x.items()) for x in ui_dict["options"]]
-    assert set((("type", "active"), ("text", None))) in options
-    assert ui_dict["active"]
-
 
 def test_active_anomaly(tracker):
     return
@@ -917,11 +912,6 @@ def test_active_anomaly(tracker):
     options = target.option_values()
     assert ("active", None, True) not in options
 
-    ui_dict = to_activate.ui_serialize()
-    options = [frozenset(x.items()) for x in ui_dict["options"]]
-    assert set((("type", "active"), ("text", None))) in options
-    assert ui_dict["active"]
-
 
 def test_recursion(tracker, reftype):
     tracker.deserialize("str",
@@ -939,43 +929,47 @@ def test_recursion(tracker, reftype):
     ]
 
 
-def test_ui_serialize(tracker, reftype):
+def test_ui_dictify(tracker, reftype):
     tracker.deserialize("str",
-        "task: target\n"
+        "task#targt: target\n"
         "    task#abcde: child\n"
-        "%s: <-\n" % reftype
+        "%s#rfrnc: <-\n" % reftype
     )
 
     child = tracker.root.find_one(reftype + " > child")
-    ui_info = child.ui_serialize({
-        "input": True
-    })
-    assert ui_info["input"]
-    assert "options" not in ui_info
-    assert not ui_info.get("active", False)
-    assert not ui_info.get("finished", False)
-    assert ui_info["id"] == "abcde"
-
-
-def test_ui_serialize_finished(tracker, reftype):
-    tracker.deserialize("str",
-        "task: target\n"
-        "    task#abcde: child\n"
-        "        @started\n"
-        "        @finished\n"
-        "%s: <-\n" % reftype
-    )
-
-    child = tracker.root.find_one(reftype + " > child")
-    ui_info = child.ui_serialize({
-        "input": True
-    })
-    assert ui_info["input"]
-    assert 'options' in ui_info
-    assert ui_info["options"][0]["type"] == "finished"
-    assert not ui_info.get("active", False)
-    assert ui_info.get("finished", False)
-    assert ui_info["id"] == "abcde"
+    assert child.ui_dictify() is None
+    assert tracker.root.ui_graph() == {
+        "rfrnc": {
+            "type": reftype,
+            "text": "#targt",
+            "children": ["abcde"],
+            "id": "rfrnc",
+            "active": False,
+            "finished": False,
+            "target": "targt"
+        },
+        "abcde": {
+            "type": "task",
+            "text": "child",
+            "id": "abcde",
+            "active": False,
+            "finished": False,
+        },
+        "targt": {
+            "type": "task",
+            "text": "target",
+            "id": "targt",
+            "active": False,
+            "finished": False,
+            "children": ["abcde"]
+        },
+        "00000": {
+            "type": "life",
+            "text": None,
+            "id": "00000",
+            "children": ["targt", "rfrnc"]
+        }
+    }
 
 
 def test_no_query_finished(tracker, monkeypatch):

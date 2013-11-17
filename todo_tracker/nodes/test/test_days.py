@@ -346,10 +346,10 @@ def test_archiving(setdt):
     ))
 
 
-def test_ui_serialize(setdt, monkeypatch):
+def test_ui_dictify(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root, nodeid="abcde")
+    days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -370,18 +370,18 @@ def test_ui_serialize(setdt, monkeypatch):
 
     Days.make_skeleton(tracker.root)
 
-    assert days_node.ui_serialize() == {
-        "children": [node.ui_serialize() for node in after],
-        "hidden_children": [node.ui_serialize() for node in before],
+    assert days_node.ui_dictify() == {
+        "children": [node.id for node in after],
+        "hidden_children": [node.id for node in before],
         "text": None,
         "type": "days",
-        "id": "abcde",
+        "id": "00001",
     }
 
 
-def test_ui_serialize_existing(setdt):
+def test_ui_dictify_existing(setdt):
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root, nodeid="abcde")
+    days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
     Days.make_skeleton(tracker.root)
 
@@ -393,19 +393,19 @@ def test_ui_serialize_existing(setdt):
         "hidden_children": existing_hidden_children,
     }
 
-    assert days_node.ui_serialize(existing) == {
+    assert days_node.ui_dictify(existing) == {
         "children": existing_children,
         "hidden_children": existing_hidden_children,
         "text": None,
         "type": "days",
-        "id": "abcde",
+        "id": "00001",
     }
 
 
-def test_ui_serialize_rollover(setdt, monkeypatch):
+def test_ui_dictify_rollover(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root, nodeid="abcde")
+    days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -427,19 +427,19 @@ def test_ui_serialize_rollover(setdt, monkeypatch):
     Days.make_skeleton(tracker.root)
     setdt(days, tasks, 2012, 12, 23, 12)
 
-    assert days_node.ui_serialize() == {
-        "children": [node.ui_serialize() for node in after],
-        "hidden_children": [node.ui_serialize() for node in before],
+    assert days_node.ui_dictify() == {
+        "children": [node.id for node in after],
+        "hidden_children": [node.id for node in before],
         "text": None,
         "type": "days",
-        "id": "abcde",
+        "id": "00001",
     }
 
 
-def test_ui_serialize_sleepnode(setdt, monkeypatch):
+def test_ui_dictify_sleepnode(setdt, monkeypatch):
     monkeypatch.setattr(Day, "_post_started", lambda self: None)
     tracker = Tracker(skeleton=False)
-    days_node = Days("days", None, tracker.root, nodeid="abcde")
+    days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
@@ -460,12 +460,12 @@ def test_ui_serialize_sleepnode(setdt, monkeypatch):
     ]
     tracker.root.activate(after[0])
 
-    assert days_node.ui_serialize() == {
-        "children": [node.ui_serialize() for node in after],
-        "hidden_children": [node.ui_serialize() for node in before],
+    assert days_node.ui_dictify() == {
+        "children": [node.id for node in after],
+        "hidden_children": [node.id for node in before],
         "text": None,
         "type": "days",
-        "id": "abcde",
+        "id": "00001",
     }
 
 

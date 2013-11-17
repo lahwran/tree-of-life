@@ -299,16 +299,26 @@ class Node(object):
             yield node
             node = node.parent
 
-    def iter_flat_children(self):
+    def iter_flat_children(self, skipper=False):
         stack = [iter(self.children)]
+
+        def skip():
+            skip.skip = True
+
         while len(stack):
             try:
                 item = next(stack[-1])
             except StopIteration:
                 stack.pop()
             else:
-                yield len(stack), item
-                stack.append(iter(item.children))
+                if skipper:
+                    skip.skip = False
+                    yield len(stack), item, skip
+                    if not skip.skip:
+                        stack.append(iter(item.children))
+                else:
+                    yield len(stack), item
+                    stack.append(iter(item.children))
 
     def iter_forward(self):
         return _NodeListIter(self.parent.children, init_node=self)
@@ -446,7 +456,7 @@ class Node(object):
         else:
             return None
 
-    def ui_serialize(self, result=None):
+    def ui_dictify(self, result=None):
         """
         Called to create a json version of the node, for the ui
         """
@@ -459,13 +469,23 @@ class Node(object):
             if options:
                 result["options"] = options
         if "children" not in result:
-            children = [child.ui_serialize() for child in self.children]
+            children = [child.id for child in self.children]
             if children:
                 result["children"] = children
         result["type"] = self.node_type
         result["text"] = self.text
         result["id"] = self.id
         return result
+
+    def ui_graph(self):
+        nodes = {self.id: self.ui_dictify()}
+        for depth, node, skip in self.iter_flat_children(skipper=True):
+            d = node.ui_dictify()
+            if d is None:
+                skip()
+                continue
+            nodes[node.id] = d
+        return nodes
 
     def search_texts(self):
         """
@@ -756,9 +776,3 @@ class TreeRootNode(Node):
 #        if activate:
 #            self.activate(newnode)
 #        return newnode
-
-    def ui_serialize(self):
-        result = super(TreeRootNode, self).ui_serialize()
-        for child in result["children"]:
-            child["is_toplevel"] = True
-        return result["children"]  # !

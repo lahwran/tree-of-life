@@ -51,7 +51,7 @@ class DateTask(BaseTask):
     def post_started(self):
         pass
 
-    def ui_serialize(self, result=None):
+    def ui_dictify(self, result=None):
         if result is None:
             result = {}
 
@@ -62,7 +62,7 @@ class DateTask(BaseTask):
             delta = self.date - prev.date
             result["prefix_delta"] = delta.days * 4
 
-        return super(DateTask, self).ui_serialize(result)
+        return super(DateTask, self).ui_dictify(result)
 
     def search_texts(self):
         types, texts = BaseTask.search_texts(self)
@@ -296,6 +296,7 @@ class Days(Node):
     ]
 
     def __init__(self, *args, **kwargs):
+        kwargs["nodeid"] = "00001"
         super(Days, self).__init__(*args, **kwargs)
         self.day_children = {}
         self.archive_date = (datetime.now() - timedelta(days=31)).date()
@@ -440,7 +441,7 @@ class Days(Node):
                 self.addchild(Archived.fromnode(child, parent=self),
                         before=next_node, after=prev_node)
 
-    def ui_serialize(self, result=None):
+    def ui_dictify(self, result=None):
         if result is None:
             result = {}
 
@@ -454,10 +455,10 @@ class Days(Node):
             current.append(node)
 
         if "hidden_children" not in result and past_days:
-            hidden = [child.ui_serialize() for child in past_days]
+            hidden = [child.id for child in past_days]
             result["hidden_children"] = hidden
         if "children" not in result and future_days:
-            children = [child.ui_serialize() for child in future_days]
+            children = [child.id for child in future_days]
             result["children"] = children
 
-        return super(Days, self).ui_serialize(result)
+        return super(Days, self).ui_dictify(result)

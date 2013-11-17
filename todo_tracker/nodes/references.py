@@ -100,7 +100,7 @@ class ProxyNode(Node):
 
            load_finished: inherit/stub
                 auto_add: func/stub
-            ui_serialize: attr
+            ui_dictify: attr
             search_texts: attr
              search_tags: attr
            user_creation: attr
@@ -229,22 +229,8 @@ class ProxyNode(Node):
     def children_export(self):
         return []
 
-    def ui_serialize(self, result=None):
-        if result is None:
-            result = {}
-
-        result = self._px_target.ui_serialize(result)
-
-        if getattr(self, "active", False):
-            result["active"] = True
-        if "options" in result:
-            del result["options"]
-
-        return Node.ui_serialize(self, result)
-
-        #self._px_target.ui_serialize()
-
-        #return result
+    def ui_dictify(self):
+        return None
 
     def __getattr__(self, name):
         """
@@ -449,6 +435,12 @@ class Reference(BaseTask):
 
         self.load_finished(temp_target)
         return True
+
+    def ui_dictify(self, result=None):
+        if result is None:
+            result = {}
+        result["target"] = self._px_target.id if self._px_target else None
+        return BaseTask.ui_dictify(self, result)
 
     def __str__(self):
         if self._px_target is None:

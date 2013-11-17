@@ -338,24 +338,40 @@ class TestNode(object):
         tracker.root.createchild("_gennode", "text", nodeid="abcde")
         assert tracker.root.ids["abcde"].node_type == "_gennode"
 
-    def test_ui_serialize(self):
+    def test_ui_dictify(self):
         tracker = self.tracker()
 
         child = tracker.root.createchild("child", "childtext", nodeid="abcde")
         child2 = child.createchild("child2", "child2text", nodeid="12345")
 
-        assert child.ui_serialize() == {
-            "children": [
-                {
-                    "type": "child2",
-                    "text": "child2text",
-                    "id": "12345"
-                }
-            ],
+        assert child.ui_dictify() == {
+            "children": ["12345"],
             "type": "child",
             "text": "childtext",
             "id": "abcde"
         }
+
+    def test_ui_graph(self):
+        tracker = self.tracker()
+
+        child = tracker.root.createchild("child", "childtext", nodeid="abcde")
+        child2 = child.createchild("child2", "child2text", nodeid="12345")
+
+        assert child.ui_graph() == {
+            "abcde": {
+                "children": ["12345"],
+                "type": "child",
+                "text": "childtext",
+                "id": "abcde"
+            },
+            "12345": {
+                "type": "child2",
+                "text": "child2text",
+                "id": "12345"
+            },
+        }
+
+        assert tracker.root.ui_graph()["00000"]["children"] == ["abcde"]
 
 
 def test_get_missing_option():
@@ -675,7 +691,7 @@ class TestRootNode(object):
         setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
-            "days#abcde\n"
+            "days\n"
             "    day#bcdef: today\n"
             "        @started: September 23, 2012 11:00 AM\n"
             "        _genactive#cdefg: something\n"
@@ -687,7 +703,7 @@ class TestRootNode(object):
         today = tracker.root.find_one("days > day: today")
         tracker.root.active_node.started = None
         assert serialize_to_str(tracker.root) == (
-            "days#abcde\n"
+            "days#00001\n"
             "    day#bcdef: {0}\n"
             "        @started: September 23, 2012 11:00:00 AM\n"
             "        _genactive#cdefg: something\n"
@@ -697,4 +713,4 @@ class TestRootNode(object):
             "fitness log#hijkl\n"
         ).format(today.text)
         assert set(tracker.root.ids) == {
-                "abcde", "bcdef", "cdefg", "defgh", "ghijk", "hijkl", "00000"}
+                "00001", "bcdef", "cdefg", "defgh", "ghijk", "hijkl", "00000"}

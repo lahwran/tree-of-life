@@ -108,13 +108,13 @@ class BaseTask(Node):
     def can_activate(self):
         return self.finished is None
 
-    def ui_serialize(self, result=None):
+    def ui_dictify(self, result=None):
         if result is None:
             result = {}
 
         result["active"] = self.active
         result["finished"] = bool(self.finished)
-        return super(BaseTask, self).ui_serialize(result)
+        return super(BaseTask, self).ui_dictify(result)
 
     def search_tags(self):
         tags = Node.search_tags(self)
