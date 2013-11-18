@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from datetime import timedelta, datetime
 import weakref
 
@@ -181,7 +183,7 @@ class TestRootMixin(object):
         monkeypatch.setattr(alarms, "Alarm", DummyAlarm)
         tracker = DummyTracker(MixedRoot, InitAlarmNode)
 
-        tracker.deserialize("str", "node: test")
+        tracker.deserialize("str", u"node: test")
 
         node = tracker.root.children.next_neighbor
         assert node.func_alarm.root is node.root
@@ -190,7 +192,7 @@ class TestRootMixin(object):
     def test_no_support_noop(self, monkeypatch):
         monkeypatch.setattr(alarms, "Alarm", DummyAlarm)
         tracker = SuperDummyTracker(MixedRoot, InitAlarmNode)
-        tracker.deserialize("str", "node: test")
+        tracker.deserialize("str", u"node: test")
 
         node = tracker.root.children.next_neighbor
         assert node.func_alarm.root is node.root
@@ -282,7 +284,7 @@ class TestSetAlarm(object):
         # break the reference loop before throwing it away
         del tracker.root._root
         ref = weakref.ref(tracker.root)
-        tracker.deserialize("str", "node: somenode")
+        tracker.deserialize("str", u"node: somenode")
         import gc; gc.collect()
         assert not ref()
 
@@ -310,7 +312,7 @@ class TestSetAlarm(object):
         root_anchor = tracker.root
         vars(root_anchor).clear()
 
-        tracker.deserialize("str", "node: somenode")
+        tracker.deserialize("str", u"node: somenode")
 
         # to force an error should it not detect it via weakref
         vars(tracker).clear()
@@ -358,7 +360,7 @@ class TestSetAlarm(object):
         # make sure to hold the reference
         old_root = tracker.root
 
-        tracker.deserialize("str", "node: somenode")
+        tracker.deserialize("str", u"node: somenode")
         import gc; gc.collect()
 
         reactortime.advance(31)
@@ -380,7 +382,7 @@ class TestAlarm(object):
                 self.callback_called = True
 
         tracker = MixedTracker(MixedRoot, SomeNode)
-        node = tracker.root.createchild("some", "node")
+        node = tracker.root.createchild(u"some", u"node")
         assert not node.callback_called
 
         reactortime.advance(31)
@@ -400,7 +402,7 @@ class TestAlarm(object):
                 self.callback_called = True
 
         tracker = MixedTracker(MixedRoot, SomeNode)
-        node = tracker.root.createchild("some", "node")
+        node = tracker.root.createchild(u"some", u"node")
         assert not node.callback_called
 
         reactortime.advance(29)
@@ -428,5 +430,5 @@ class TestAlarm(object):
                 self.callback_called = True
 
         tracker = MixedTracker(MixedRoot, SomeNode)
-        node = tracker.root.createchild("some", "node")
+        node = tracker.root.createchild(u"some", u"node")
         assert node.callback_called

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from todo_tracker.nodes.node import _NodeCreatorTracker
 from collections import defaultdict
 from fnmatch import fnmatchcase
@@ -8,7 +10,7 @@ def match(string, pattern):
     matches = fnmatchcase(string, pattern)
     if not matches:
         diff = ndiff(string.splitlines(1), pattern.splitlines(1))
-        print "".join(diff)
+        print("".join(diff))
     return matches
 
 

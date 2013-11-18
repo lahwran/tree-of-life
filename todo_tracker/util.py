@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 import logging
 import os
 import tempfile as _tempfile
@@ -76,7 +78,7 @@ def {0}(self, newvalue):
     logger.debug("writing: %s", newvalue)
     import traceback
     f = "".join(traceback.format_stack())
-    print f
+    print(f)
     self._hack_{0} = newvalue
 """
 

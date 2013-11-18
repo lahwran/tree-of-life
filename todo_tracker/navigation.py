@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from todo_tracker.userinterface import command
 from todo_tracker import searching
 

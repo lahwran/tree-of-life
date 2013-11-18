@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import ometa
 ometa.FAST = True
 import parsley
@@ -128,7 +130,7 @@ class __Grammar(object):  # Funny name for bootstrapping
 
     @classmethod
     def printSource(cls):
-        print sys.modules[cls._grammarClass.__module__].__loader__.source
+        print(sys.modules[cls._grammarClass.__module__].__loader__.source)
 
 
 # de-bootstrap the metaclass

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 # Note: a lot of classes here seem to "not be classes",
 # in the terms of the "stop writing classes" talk. however,
 # almost all of them are *used as data* by other code, hence
@@ -517,13 +519,13 @@ if __name__ == "__main__":
         querytext = raw_input("query: ")
         import subprocess
         subprocess.call(["clear"])
-        print "query:", querytext
+        print("query:", querytext)
         queryer = Query(querytext)
-        print queryer
+        print(queryer)
 
         inittime = time.time()
         results = list(queryer(tracker.root))
         finishtime = time.time()
         for x in results[:1000]:
-            print " > ".join([str(node) for node in x.iter_parents()][::-1])
-        print len(results), finishtime - inittime
+            print( " > ".join([str(node) for node in x.iter_parents()][::-1]))
+        print(len(results), finishtime - inittime)

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from datetime import datetime
 import pytest
 
@@ -25,7 +27,7 @@ def test_task():
             skeleton=False)
 
     tracker.deserialize("str",
-        "task: a task\n"
+        "task: \xfca task\n"
         "    @started: June 7, 2010 7:00 AM"
     )
 
@@ -35,11 +37,11 @@ def test_active_option():
             skeleton=False)
 
     tracker.deserialize("str",
-        "task: a task\n"
+        "task: \xfca task\n"
         "    @active"
     )
 
-    assert tracker.root.active_node.text == "a task"
+    assert tracker.root.active_node.text == "\xfca task"
 
 
 def test_activate_deactivate(monkeypatch):
@@ -50,10 +52,10 @@ def test_activate_deactivate(monkeypatch):
             skeleton=False)
 
     tracker.deserialize("str",
-        "task: 1\n"
+        "task: \xfc1\n"
         "    @active\n"
-        "task: 2\n"
-        "task: 3\n"
+        "task: \xfc2\n"
+        "task: \xfc3\n"
     )
 
     monkeypatch.setattr(tasks, "datetime",
@@ -62,11 +64,11 @@ def test_activate_deactivate(monkeypatch):
     navigation.done(tracker)
 
     assert match(tracker.serialize("str"), (
-        "task#?????: 1\n"
+        "task#?????: \xfc1\n"
         "    @finished: 1d after October 24, 2012 12:00:00 AM\n"
-        "task#?????: 2\n"
+        "task#?????: \xfc2\n"
         "    @finished: 0s after October 25, 2012 12:00:00 AM\n"
-        "task#?????: 3\n"
+        "task#?????: \xfc3\n"
         "    @started: October 25, 2012 12:00:00 AM\n"
         "    @active\n"
     ))

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 import pep8
 import os
 import sys
@@ -40,4 +42,4 @@ def test_pep8():
         report = styleguide.check_files()
         assert not report.total_errors
     else:
-        print "WARNING: did not run test due to pypy"  # pragma: no cover
+        print("WARNING: did not run test due to pypy")  # pragma: no cover

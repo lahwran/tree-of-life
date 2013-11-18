@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 import json
 import sys
 import os
@@ -71,7 +73,7 @@ def osascript(code):
     temp_code = tempfile()
     with open(temp_code, "w") as code_writer:
         code_writer.write(code)
-    subprocess.call(["osascript", temp_code])
+    subprocess.call([b"osascript", temp_code])
     os.unlink(temp_code)
 
 
@@ -81,12 +83,12 @@ class VimRunner(object):
     after vim finishes, the command will send a json message to the main port
     """
 
-    outer_command = 'exec bash -c "%s"\n'
+    outer_command = b'exec bash -c "%s"\n'
 
     # > /dev/null because the initialization message is uninteresting
-    base_inner_command = "vim %s;echo '%s' | base64 --decode | nc 127.0.0.1 %d"
+    base_inner_command = b"vim %s;echo '%s' | base64 --decode| nc 127.0.0.1 %d"
 
-    applescript = """
+    applescript = b"""
         tell application "iTerm"
             activate
             set myterm to (make new terminal)
@@ -111,12 +113,12 @@ class VimRunner(object):
         self.id = str(uuid.uuid4())
         json_data = json.dumps({"vim_finished": self.id}) + "\n"
 
-        args = self.wrap_args(["-o", "--"] + list(filenames))
+        args = self.wrap_args([b"-o", b"--"] + list(filenames))
         b64_data = json_data.encode("base64")
-        b64_data = b64_data.replace(" ", "").replace("\n", "")
+        b64_data = b64_data.replace(b" ", b"").replace(b"\n", b"")
         inner_command = self.base_inner_command % (
-                " ".join(args), b64_data, port)
-        inner_command = inner_command.replace("\\'", "'\"'\"'")
+                b" ".join(args), b64_data, port)
+        inner_command = inner_command.replace(b"\\'", b"'\"'\"'")
         self.command = self.outer_command % inner_command
         logger.info("Starting vim with id %r: %s", self.id, self.command)
 
@@ -136,9 +138,9 @@ class VimRunner(object):
     def wrap_args(self, args):
         wrapped_args = []
         for arg in args:
-            if "'" in arg:
+            if b"'" in arg:
                 raise Exception("Can't put quotes in args! sorry")
-            wrapped_args.append("'%s'" % arg)
+            wrapped_args.append(b"'%s'" % arg)
         return wrapped_args
 
 
@@ -182,9 +184,9 @@ class RemoteInterface(SavingInterface):
 
     def _show_iterm(self):
         osascript(
-            'tell application "iTerm"\n'
-            '    activate\n'
-            'end tell\n'
+            b'tell application "iTerm"\n'
+            b'    activate\n'
+            b'end tell\n'
         )
 
     def errormessage(self, source, message):

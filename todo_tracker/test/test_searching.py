@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 import pytest
 import string
 import time
@@ -112,11 +114,11 @@ def test_id_lookup():
 
 def test_id_lookup_invalid():
     with pytest.raises(Exception):
-        print searching.Query("-> #orign")
+        print(searching.Query("-> #orign"))
     with pytest.raises(Exception):
-        print searching.Query("-> task -> #orign")
+        print(searching.Query("-> task -> #orign"))
     with pytest.raises(Exception):
-        print searching.Query("#orign test")
+        print(searching.Query("#orign test"))
 
 
 def test_pluralities():

@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from todo_tracker.exceptions import LoadError
 from todo_tracker.util import HandlerList
 import string
@@ -6,11 +8,12 @@ import string
 loaders = HandlerList()
 serializers = HandlerList()
 
-nodeidchars = string.letters + string.digits
+# would making this a set speed it up?
+nodeidchars = unicode(string.letters + string.digits)
 
 
 def parse_line(line):
-    # would making this a set speed it up?
+    assert type(line) == unicode
 
     parsing_indent = 0
     parsing_type = 1
@@ -23,16 +26,16 @@ def parse_line(line):
     id = None
     is_metadata = False
 
-    node_type = ""
+    node_type = u""
     text = None
 
-    if line.strip() == "":
-        return 0, False, None, "", None
+    if line.strip() == u"":
+        return 0, False, None, u"", None
 
     for char in line:
         last_parsing = parsing
         if parsing == parsing_indent:
-            if char == " ":
+            if char == u" ":
                 indent += 1
                 continue
             else:
@@ -42,7 +45,7 @@ def parse_line(line):
 
                 parsing += 1
 
-        if char == "\n":  # pragma: no cover
+        if char == u"\n":  # pragma: no cover
             continue
 
         if parsing == parsing_type:
@@ -50,14 +53,14 @@ def parse_line(line):
                 if char == "@":
                     is_metadata = True
                     continue
-                elif char == "-":
-                    node_type = "-"
+                elif char == u"-":
+                    node_type = u"-"
                     parsing = parsing_type_text_sep
                     continue
-            if char == ":":
+            if char == u":":
                 parsing = parsing_type_text_sep
                 continue
-            if char == "#":
+            if char == u"#":
                 parsing = parsing_id
                 continue
 
@@ -66,8 +69,8 @@ def parse_line(line):
 
         if parsing == parsing_id:
             if id is None:
-                id = ""
-            if char == ":":
+                id = u""
+            if char == u":":
                 parsing += 1
                 continue
             elif char not in nodeidchars:
@@ -77,13 +80,13 @@ def parse_line(line):
             continue
 
         if parsing == parsing_type_text_sep:
-            if char != " ":
+            if char != u" ":
                 raise LoadError("must be space separated")
             parsing += 1
             continue
 
         if text is None:
-            text = ""
+            text = u""
 
         text += char
 
@@ -97,23 +100,27 @@ def parse_line(line):
 
 @loaders.add("str")
 def parse_string(string):
-    return FileParser(string.split('\n'))
+    assert type(string) == unicode
+    return FileParser(string.split(u'\n'), decode=False)
 
 
 @loaders.add("file")
 class FileParser(object):
-    def __init__(self, reader):
+    def __init__(self, reader, decode=True):
         self.reader = reader
         self.error_context = None
+        self.decode = decode
 
     def __iter__(self):
-        return parse_file(self.reader, self.error_context)
+        return parse_file(self.reader, self.error_context, decode=self.decode)
 
 
-def parse_file(reader, error_context):
+def parse_file(reader, error_context, decode=True):
     reader = list(reader)
     for index, line in enumerate(reader):
         error_context.line = index
+        if decode:
+            line = line.decode("utf-8")
         if index == len(reader) - 1 and not line:
             continue
         yield parse_line(line)
@@ -122,29 +129,29 @@ def parse_file(reader, error_context):
 def serialize(tree, is_root=False, one_line=False):
     lines = []
     if is_root:
-        indent = ""
+        indent = u""
     else:
-        indent = " " * 4
+        indent = u" " * 4
 
-        if tree.node_type == "":
-            lines.append("")
+        if tree.node_type == u"":
+            lines.append(u"")
         elif tree.text:
             text_lines = tree.text.split("\n")
-            lines.append("%s#%s: %s" % (tree.node_type,
+            lines.append(u"%s#%s: %s" % (tree.node_type,
                 tree.id, text_lines[0]))
             for line in text_lines[1:]:
                 lines.append(indent + "- %s" % line)
         else:
-            lines.append("%s#%s" % (tree.node_type, tree.id))
+            lines.append(u"%s#%s" % (tree.node_type, tree.id))
 
     for name, value, show in tree.option_values():
         if not show:
             continue
 
         if value is None:
-            lines.append("%s@%s" % (indent, name))
+            lines.append(u"%s@%s" % (indent, name))
         else:
-            lines.append("%s@%s: %s" % (indent, name, value))
+            lines.append(u"%s@%s: %s" % (indent, name, value))
 
     for child in tree.children_export():
         for line in serialize(child):
@@ -155,7 +162,7 @@ def serialize(tree, is_root=False, one_line=False):
 @serializers.add("str")
 def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
-    return '\n'.join(lines) + "\n"
+    return u'\n'.join(lines) + u"\n"
 
 
 @serializers.add("file")

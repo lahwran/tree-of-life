@@ -1,6 +1,7 @@
 """
 Nodes for interactive/full integration testing purposes
 """
+from __future__ import unicode_literals, print_function
 
 import datetime
 

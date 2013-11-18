@@ -1,3 +1,5 @@
+from __future__ import unicode_literals, print_function
+
 from weakref import WeakKeyDictionary
 import logging
 
@@ -467,9 +469,7 @@ class Depends(Reference):
         Reference.load_finished(self, target)
         if self._px_dofinish:
             self._px_finish()
-        print "attempting to set finished..."
         self.finished = self.finished
-        print "...done"
 
         if self.finished:
             self._finish_cleanup()
