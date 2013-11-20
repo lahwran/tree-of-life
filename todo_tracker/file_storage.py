@@ -166,5 +166,8 @@ def serialize_to_str(root, is_root=True):
 
 
 @serializers.add("file")
-def serialize_to_file(root, writer):
-    writer.write(serialize_to_str(root))
+def serialize_to_file(root, writer, encode=True):
+    result = serialize_to_str(root)
+    if encode:
+        result = result.encode("utf-8")
+    writer.write(result)

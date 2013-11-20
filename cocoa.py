@@ -243,7 +243,7 @@ class RemoteInterface(SavingInterface):
 
 
 class JSONProtocol(LineOnlyReceiver):
-    delimiter = "\n"
+    delimiter = b"\n"
 
     def __init__(self, commandline):
         self.commandline = commandline
@@ -503,10 +503,10 @@ class NoCacheFile(twisted.web.static.File):
                                               self.contentEncodings,
                                               self.defaultType)
 
-        request.setHeader("Cache-Control",
-                "no-cache, no-store, must-revalidate")
-        request.setHeader("Pragma", "no-cache")
-        request.setHeader("Expires", "0")
+        request.setHeader(str("Cache-Control"),
+                str("no-cache, no-store, must-revalidate"))
+        request.setHeader(str("Pragma"), str("no-cache"))
+        request.setHeader(str("Expires"), str("0"))
 
         if not self.exists():
             return self.ensure_no_cache(self.childNotFound.render(request))
@@ -514,7 +514,7 @@ class NoCacheFile(twisted.web.static.File):
         if self.isdir():
             return self.redirect(request)
 
-        request.setHeader('accept-ranges', 'bytes')
+        request.setHeader(str('accept-ranges'), str('bytes'))
 
         try:
             fileForReading = self.openForReading()
@@ -527,8 +527,8 @@ class NoCacheFile(twisted.web.static.File):
 
         producer = self.makeProducer(request, fileForReading)
 
-        if request.method == 'HEAD':
-            return ''
+        if request.method == str('HEAD'):
+            return str('')
 
         producer.start()
         # and make sure the connection doesn't get closed
@@ -546,9 +546,9 @@ def main(restarter, args):
             return
 
     if config.dev:
-        config.path += "_dev"
-        config.logname += "_dev"
-    config.logfile = "%s.%s" % (config.logname, config.log_ext)
+        config.path += str("_dev")
+        config.logname += str("_dev")
+    config.logfile = str("%s.%s") % (config.logname, config.log_ext)
 
     logfile = init_log(config)
     restarter.to_flush.append(logfile)
@@ -564,10 +564,11 @@ def main(restarter, args):
             WebSocketFactory(factory), interface=config.listen_iface)
 
     # serve ui directory
-    ui_dir = os.path.join(os.path.dirname(__file__), "ui")
+    ui_dir = os.path.join(os.path.dirname(__file__), b"ui")
     resource = NoCacheFile(ui_dir)
     static = twisted.web.server.Site(resource)
-    reactor.listenTCP(config.port + 1, static, interface=config.listen_iface)
+    reactor.listenTCP(config.port + 1, static,
+            interface=str(config.listen_iface))
     try:
         reactor.run()
     finally:
@@ -575,7 +576,7 @@ def main(restarter, args):
 
 
 def _main():
-    print "(pre-logging init note) sys.argv:", sys.argv
+    print("(pre-logging init note) sys.argv:", sys.argv)
     restarter = Restarter()
     restarter.call(main, sys.argv[1:])
 
