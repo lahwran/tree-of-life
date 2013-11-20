@@ -1,4 +1,4 @@
-<div class="node-top" ng-class="{finished: node.finished, active: node.active}">
+<div class="node-top" ng-class="activeclass()">
   <h1> {{ m }} {{ d }} </h1>
   <h2 ng-show="node.type == 'sleep'"> sleep </h2>
   <h2> {{ y }} {{ info }} </h2>

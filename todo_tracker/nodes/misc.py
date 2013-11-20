@@ -30,6 +30,26 @@ class GenericNode(Node):
         return result
 
 
+@nodecreator("_genactive")
+class GenericActivate(Node):
+    options = (
+        ActiveMarker(),
+    )
+    can_activate = True
+
+    def __init__(self, *args, **kwargs):
+        Node.__init__(self, *args, **kwargs)
+
+    def start(self):
+        pass
+
+    def finish(self):
+        pass
+
+    def unfinish(self):
+        pass
+
+
 @nodecreator("archived")
 class Archived(GenericNode):
     def __init__(self, node_type, text, *a, **kw):
@@ -110,44 +130,6 @@ class Unarchiver(GenericNode):
         detached = self.detach()
         parent.addchild(self.unarchive(detached, parent=parent),
                 after=prev_node, before=next_node)
-
-
-@nodecreator("_genactive")
-class GenericActivate(GenericNode):
-    def __init__(self, node_type="_genactive", text=None, parent=None,
-            nodeid=None):
-        super(GenericActivate, self).__init__(node_type, text, parent, nodeid)
-        self.deactivate = False
-
-    def setoption(self, option, value):
-        if option == "active":
-            self.root.activate(self)
-        super(GenericActivate, self).setoption(option, value)
-
-    @property
-    def active(self):
-        return "active" in self.metadata
-
-    @active.setter
-    def active(self, newvalue):
-        if "active" in self.metadata:
-            del self.metadata["active"]
-
-        if newvalue:
-            self.metadata["active"] = None
-
-    def start(self):
-        if "deactivate" in self.metadata:
-            del self.metadata["deactivate"]
-            self.deactivate = True
-
-    def finish(self):
-        if self.deactivate:
-            self.metadata["locked"] = None
-
-    @property
-    def can_activate(self):
-        return not "locked" in self.metadata
 
 
 #######################

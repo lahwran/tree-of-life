@@ -1,3 +1,18 @@
+var pevents = [];
+function profile(message) {
+    pevents.push({time: new Date().getTime(), label: message});
+    console.log("profile:", message);
+}
+profile("init");
+function pprofile() {
+    var lasttime= 0;
+    angular.forEach(pevents, function(pevent) {
+        console.log("Delta:", pevent.time - lasttime, 
+                    "Time:", pevent.time,
+                    "Label:", pevent.label);
+        lasttime = pevent.time;
+    });
+}
 var _handlers = {};
 
 function on_panel_shown()               {return (_handlers.panel_shown           || angular.noop)();}
@@ -28,16 +43,11 @@ function ui_controller($scope, backend, handlers, $timeout) {
     $scope._quit = function() {
         backend.quit = true;
     }
-    $scope.$on("message/graph", function(event, graph) {
-        $scope.pool = graph.pool;
-        $scope.ids = graph.ids;
-        console.log(graph.pool);
-        console.log(graph.pool[graph.ids.days]);
-    });
     $scope.notifications = backend.notifications;
     $scope.removeNotification = function(index) {
         $scope.notifications.splice(index, 1);
     }
+    $scope.test = "abcde";
 
     function whatareyoudoing() {
         $timeout(whatareyoudoing, 30 * 60 * 1000);
@@ -69,10 +79,27 @@ var optiontypes = {
     _default: {templateurl: "partials/option-default.html"}
 }
 
+function activeclass($scope) {
+    $scope.activeclass = function() {
+        var ids = $scope.pool.ids;
+        var ref = ids.active_ref != null;
+        var node = $scope.node;
+        return {
+            started: node.started,
+            finished: node.finished,
+            active: !ref && node.active_id == ids.active,
+            activeref: ref && node.id == ids.active_ref,
+            activewithref: ref && node.active_id == ids.active
+        };
+    }
+}
+
 angular.module("todotracker", [], function($rootScopeProvider) {
+        profile("angular init");
         $rootScopeProvider.digestTtl(200);
     })
     .run(function(backend, handlers) {
+        profile("angular ready, connecting");
         backend.__host__.connect();
     })
     .directive("autofocus", function() {
@@ -235,6 +262,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                         element.addClass(_things.ntype + "-" + type);
                         childscope = scope.$new();
                         childscope.node = _things.nodeobj();
+                        activeclass(childscope);
 
                         // render new html
                         if (angular.isDefined(nodetype.templateurl)) {
@@ -264,6 +292,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         }
     })
     .factory("backend", function($rootScope, $timeout) {
+        profile("backend");
         browser_compat($rootScope);
         var b = $rootScope.$new();
         $rootScope.backend = b;
@@ -289,7 +318,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         reset_menu_text();
 
         function set_menu_text() {
-            var x = $.merge([], b.prompt);
+            var x = $.merge([], promptfunc());
             if (b.notifications.length) {
                 var last = b.notifications[b.notifications.length-1];
                 $.merge(x, [notePrefixes[notePrefix] + last]);
@@ -315,10 +344,27 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             b.__host__.setMaxWidth(x);
         });
 
-        b.$watch("prompt", function(x) {
+        var promptfunc = function() {
+            var result = [];
+            if (b.promptnodes === undefined) return [];
+            if (b.pool === undefined) return [];
+            angular.forEach(b.promptnodes, function(nodeid) {
+                var node = b.pool[nodeid];
+                if (node === undefined) {
+                    result.push("node not found");
+                }
+                var text = "" + node.type;
+                if (node.text !== null && node.text !== undefined) {
+                    text += ": " + node.text;
+                }
+                result.push(text);
+            });
+            return result;
+        }
+        b.$watch(promptfunc, function(x) {
             if (!angular.isDefined(x)) return;
             set_menu_text();
-        })
+        }, true)
 
         b.$watch("notifications", function(ns) {
             if (!angular.isDefined(ns)) return;
@@ -338,6 +384,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         return b;
     })
     .factory("handlers", function($rootScope, backend) {
+        profile("handlers");
         _handlers.panel_shown = function() {
             $rootScope.$broadcast("panel_shown"); $rootScope.$digest();
         };
@@ -385,8 +432,8 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             return 1200;
         }
 
-        $rootScope.$on("message/prompt", function(event, prompt) {
-            backend.prompt = prompt;
+        $rootScope.$on("message/promptnodes", function(event, promptnodes) {
+            backend.promptnodes = promptnodes;
         });
         $rootScope.$on("message/notification", function(event, info) {
             backend.notifications.push(info);
@@ -402,6 +449,10 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         });
         $rootScope.$on("message/should_quit", function(event, should_quit) {
             backend.quit = should_quit;
+        });
+        $rootScope.$on("message/pool", function(event, pool) {
+            backend.pool = pool;
+            $rootScope.pool = pool;
         });
 
 

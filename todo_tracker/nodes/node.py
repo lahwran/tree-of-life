@@ -422,6 +422,10 @@ class Node(object):
     #        hooks for subclasses to override         #
     #-------------------------------------------------#
 
+    @property
+    def active_id(self):
+        return self.id
+
     @classmethod
     def make_skeleton(self, root):
         pass
@@ -690,10 +694,6 @@ class TreeRootNode(Node):
                 logger.warn("Attempted to activate node: %r", node)
                 return
 
-        if self.active_node:
-            self.active_node.active = False
-
-        node.active = True
         self.active_node = node
         for parent_node in list(node.iter_parents())[::-1]:
             try:

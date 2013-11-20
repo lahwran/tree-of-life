@@ -99,6 +99,9 @@ body {
     }
 }
 
+.started {
+    color: @highlight;
+}
 .node, .option {
     position: relative;
     .type, .text, .text-seperator {
@@ -112,6 +115,14 @@ body {
     }
     .active.node-top {
         color: @green;
+    }
+    .activeref.activewithref.node-top,
+    .activeref + .collapseable .activewithref.node-top {
+        color: @green;
+    }
+    .activewithref.node-top,
+    .node-reference .node-top:not(.activeref) + .collapseable .active {
+        color: @blue;
     }
     .finished {
         color: @grey;

@@ -193,45 +193,6 @@ class RemoteInterface(SavingInterface):
         source.error(message)
         logger.error("errormessage from %r: %r", source, message)
 
-    def messages(self):
-        if self.root.todo:
-            messages = [str(child) for child in self.root.todo.children]
-        else:
-            messages = []
-
-        if self.root.fitness_log:
-            today = datetime.now().date()
-            things = defaultdict(int)
-            format_strings = {}
-            for node in reversed(self.root.fitness_log.children):
-                if node.time.date() != today:
-                    break
-                if getattr(node, "value_name", False):
-                    things[node.node_type] += getattr(node, node.value_name)
-                    format_strings[node.node_type] = node.value_format
-            if messages:
-                messages.append("")
-            for thing, value in sorted(things.items()):
-                message = "%s today: " + format_strings[thing]
-                messages.append(message % (thing, value))
-
-        return messages
-
-    def top_messages(self):
-        result = []
-        queue = self.root.find_one("category: queue")
-        if queue is not None:
-            generate_listing(None, queue, result)
-        return result[:30]
-
-    def tree_context(self):
-        result = []
-        result.extend(self.top_messages())
-        if result:
-            result.append("")
-        result.extend(super(RemoteInterface, self).tree_context())
-        return result
-
     def displaychain(self):
         result = super(RemoteInterface, self).displaychain()
         realresult = []
@@ -271,16 +232,19 @@ class JSONProtocol(LineOnlyReceiver):
 
         try:
             reversed_displaychain = self.commandline.displaychain()[::-1]
+            root = self.commandline.root
+            pool = root.ui_graph()
+            active_ref = getattr(root.active_node, "_px_root", None)
+            pool["ids"] = {
+                "root": root.id,
+                "days": "00001",
+                "active": root.active_node.active_id,
+                "active_ref": active_ref.id if active_ref else None,
+                "todo_bucket": root.todo.id
+            }
             self.sendmessage({
-                "prompt": [str(node) for node in reversed_displaychain],
-                "graph": {
-                    "pool": self.commandline.root.ui_graph(),
-                    "ids": {
-                        "root": self.commandline.root.id,
-                        "days": "00001",
-                        "todo_bucket": self.commandline.root.todo.id
-                    },
-                }
+                "promptnodes": [node.id for node in reversed_displaychain],
+                "pool": pool,
             })
             self.commandline.auto_save()
         except Exception:

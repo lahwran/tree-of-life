@@ -536,7 +536,6 @@ class TestRefnode(object):
 
         navigation.done(tracker.root)
         refnode = tracker.root.find_one(u"** > " + reftype)
-        assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -554,11 +553,9 @@ class TestRefnode(object):
         assert _dump([refnode]) == [
             reftype + u": #abcde"
         ]
-        assert not refnode.active
         assert tracker.root.active_node.node_type == u"day"
 
         navigation.forceactivate(u">", tracker.root)
-        assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -585,7 +582,6 @@ class TestRefnode(object):
         assert _dump([refnode]) == [
             reftype + u": " + refnode.text
         ]
-        assert not refnode.active
         assert tracker.root.active_node.node_type == u"day"
         target = tracker.root.find_one(u"task: \xfctarget 1")
         if reftype == u"depends":
@@ -595,7 +591,6 @@ class TestRefnode(object):
 
         navigation.forceactivate(
             searching.Query(u">"), tracker.root)
-        assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -624,14 +619,12 @@ class TestRefnode(object):
         assert _dump([refnode]) == [
             reftype + u": " + refnode.text
         ]
-        assert not refnode.active
         assert tracker.root.active_node.node_type == u"day"
         target = tracker.root.find_one(u"task: \xfctarget 1")
         assert target.finished
 
         navigation.forceactivate(
             searching.Query(u">"), tracker.root)
-        assert refnode.active
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -883,43 +876,58 @@ def test_recursion(tracker, reftype):
 
 def test_ui_dictify(tracker, reftype):
     tracker.deserialize("str",
-        u"task#targt: target\n"
+        (u"task#targt: target\n"
         u"    task#abcde: child\n"
-        u"%s#rfrnc: <-\n" % reftype
+        u"%s#rfrnc: <-\n"
+        u"%s#rfrn2: <-\n"
+        ) % (reftype, reftype)
     )
 
     child = tracker.root.find_one(reftype + u" > child")
     assert child.ui_dictify() is None
     assert tracker.root.ui_graph() == {
+        "rfrn2": {
+            "type": reftype,
+            "text": "#rfrnc",
+            "children": ["abcde"],
+            "id": "rfrn2",
+            "active_id": "targt",
+            "finished": False,
+            "started": False,
+            "target": "rfrnc"
+        },
         "rfrnc": {
             "type": reftype,
             "text": "#targt",
             "children": ["abcde"],
             "id": "rfrnc",
-            "active": False,
+            "active_id": "targt",
             "finished": False,
+            "started": False,
             "target": "targt"
         },
         "abcde": {
             "type": "task",
             "text": "child",
             "id": "abcde",
-            "active": False,
+            "active_id": "abcde",
             "finished": False,
+            "started": False,
         },
         "targt": {
             "type": "task",
             "text": "target",
             "id": "targt",
-            "active": False,
+            "active_id": "targt",
             "finished": False,
+            "started": False,
             "children": ["abcde"]
         },
         "00000": {
             "type": "life",
             "text": None,
             "id": "00000",
-            "children": ["targt", "rfrnc"]
+            "children": ["targt", "rfrnc", "rfrn2"]
         }
     }
 

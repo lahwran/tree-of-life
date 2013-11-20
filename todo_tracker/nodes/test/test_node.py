@@ -328,7 +328,7 @@ class TestNode(object):
         node3, = tracker.root.active_node.create("-> -node3: text")
         navigation.done(tracker)
 
-        assert node3.active
+        assert tracker.root.active_node is node3
 
     def test_cant_activate(self):
         node = Node("herp", None, None)
@@ -497,135 +497,6 @@ class TestNodeList(object):
 
 class TestRootNode(object):
     @pytest.mark.xfail
-    def test_activate_next(self):
-        tracker = Tracker(skeleton=False)
-        sequence = [
-            (
-                "_genactive#00001: 0\n"
-                "    @deactivate\n"
-                "    _genactive#00002: 0.1\n"
-                "        @deactivate\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @deactivate\n"  # note: order matters; must have
-                "            @active\n"      # deactivate before active
-                "    _genactive#00004: 0.2\n"
-                "        @deactivate\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @deactivate\n"
-            ),
-            (
-                "_genactive#00001: 0\n"
-                "    _genactive#00002: 0.1\n"
-                "        @active\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @locked\n"
-                "    _genactive#00004: 0.2\n"
-                "        @deactivate\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @deactivate\n"
-            ),
-            (
-                "_genactive#00001: 0\n"
-                "    _genactive#00002: 0.1\n"
-                "        @locked\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @locked\n"
-                "    _genactive#00004: 0.2\n"
-                "        @active\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @deactivate\n"
-            ),
-            (
-                "_genactive#00001: 0\n"
-                "    _genactive#00002: 0.1\n"
-                "        @locked\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @locked\n"
-                "    _genactive#00004: 0.2\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @active\n"
-            ),
-            (
-                "_genactive#00001: 0\n"
-                "    _genactive#00002: 0.1\n"
-                "        @locked\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @locked\n"
-                "    _genactive#00004: 0.2\n"
-                "        @active\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @locked\n"
-            ),
-            (
-                "_genactive#00001: 0\n"
-                "    @active\n"
-                "    _genactive#00002: 0.1\n"
-                "        @locked\n"
-                "        _genactive#00003: 0.1.2\n"
-                "            @locked\n"
-                "    _genactive#00004: 0.2\n"
-                "        @locked\n"
-                "        _genactive#00005: 0.2.1\n"
-                "            @locked\n"
-            ),
-        ]
-
-        tracker.deserialize("str", sequence[0])
-
-        for num, output_str in enumerate(sequence[1:]):
-            tracker.root.activate_next()
-            asdf = tracker.serialize("str")
-            assert asdf == output_str
-
-    @pytest.mark.xfail
-    def test_random_insertion(self, monkeypatch):
-        tracker = Tracker(skeleton=False)
-
-        input_str = (
-            "_genactive: 0\n"
-            "_genactive: 2\n"
-            "    @active\n"
-            "_genactive: 4\n"
-        )
-
-        tracker.deserialize("str", input_str)
-        root = tracker.root
-
-        root.create_before("_genactive", "1")
-        root.create_after("_genactive", "1.5")
-
-        root.activate_next()
-
-        root.create_after("_genactive", "3")
-
-        directions = (
-            root.activate_next,
-            root.activate_prev,
-            root.activate_next
-        )
-        for move in directions:
-            for i in range(30):
-                active = root.active_node
-                move()
-                if active is root.active_node:
-                    break
-            else:  # pragma: no cover
-                assert False, "failed to reach end in 30 tries"
-
-        expected_str = (
-            "_genactive#?????: 0\n"
-            "_genactive#?????: 1\n"
-            "_genactive#?????: 1.5\n"
-            "_genactive#?????: 2\n"
-            "_genactive#?????: 3\n"
-            "_genactive#?????: 4\n"
-            "    @active\n"
-        )
-
-        serialized = tracker.serialize("str")
-        assert match(serialized, expected_str)
-
-    @pytest.mark.xfail
     def test_create_nonactivate(self):
         tracker = Tracker(skeleton=False)
         node = GenericActivate("herp", None, tracker.root)
@@ -704,7 +575,7 @@ class TestRootNode(object):
         )
         today = tracker.root.find_one("days > day: today")
         tracker.root.active_node.started = None
-        assert serialize_to_str(tracker.root) == (
+        assert match(serialize_to_str(tracker.root), (
             "days#00001\n"
             "    day#bcdef: {0}\n"
             "        @started: September 23, 2012 11:00:00 AM\n"
@@ -713,6 +584,6 @@ class TestRootNode(object):
             "    sleep#defgh: {0}\n"
             "todo bucket#ghijk\n"
             "fitness log#hijkl\n"
-        ).format(today.text)
+        ).format(today.text))
         assert set(tracker.root.ids) == {
                 "00001", "bcdef", "cdefg", "defgh", "ghijk", "hijkl", "00000"}

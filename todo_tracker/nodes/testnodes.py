@@ -16,15 +16,12 @@ class AlarmTestNode(BaseTask, alarms.NodeMixin):
         self.thealarm = self.alarm(self.derp)
         BaseTask.__init__(self, *args, **kwargs)
 
-    @property
-    def active(self):
-        return self._active
-
-    @active.setter
-    def active(self, newvalue):
-        self._active = newvalue
+    def start(self):
         if newvalue:
             self.thealarm.delta = datetime.timedelta(seconds=10)
+
+    def finish(self):
+        pass
 
     def derp(self):
         listeners = self.root.tracker.listeners

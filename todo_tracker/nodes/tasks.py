@@ -11,14 +11,10 @@ class ActiveMarker(BooleanOption):
     name = "active"
 
     def set(self, node, value):
-        super(ActiveMarker, self).set(node, value)
         node.root.activate(node)
 
     def get(self, node):
-        show, value = super(ActiveMarker, self).get(node)
-        if show and node is not node.root.active_node:
-            show = node.active = False
-        return show, value
+        return (node is node.root.active_node), None
 
 
 class _FinishGrammar(Grammar):
@@ -90,7 +86,6 @@ class BaseTask(Node):
 
         self.started = None
         self.finished = None
-        self.active = False
 
     def start(self):
         if self.started:
@@ -114,8 +109,9 @@ class BaseTask(Node):
         if result is None:
             result = {}
 
-        result["active"] = self.active
+        result["started"] = bool(self.started)
         result["finished"] = bool(self.finished)
+        result["active_id"] = self.active_id
         return super(BaseTask, self).ui_dictify(result)
 
     def search_tags(self):
@@ -128,7 +124,7 @@ class BaseTask(Node):
             tags.add("started")
         else:
             tags.add("unstarted")
-        if self.active:
+        if self is self.root.active_node:
             tags.add("active")
         else:
             tags.add("inactive")

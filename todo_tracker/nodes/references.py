@@ -110,14 +110,6 @@ class ProxyNode(Node):
                  __str__: func/indirect
                 _do_repr: func/indirect
                 __repr__: inherit/indirect
-
-
-                -------------------
-
-                  active: nonproxied
-
-
-
     """
     multiline = ProxiedAttr("multiline")
     textless = ProxiedAttr("textless")
@@ -168,7 +160,6 @@ class ProxyNode(Node):
     user_creation = ProxiedAttr("user_creation")
 
     _nonproxied = (
-        "active",
         "children_default",
 
         "_px_target",
@@ -312,6 +303,12 @@ class Reference(BaseTask):
 
         result = self._px_target.addchild(child, before=before, after=after)
         return self._px_root.get_proxy(result)
+
+    @property
+    def active_id(self):
+        if self._px_target is not None:
+            return self._px_target.active_id
+        return self.id
 
     @setter
     def _px_target(self, newvalue):

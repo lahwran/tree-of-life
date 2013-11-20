@@ -32,7 +32,7 @@ class TestGenerateListing(object):
         tracker = Tracker(skeleton=False)
         tracker.root.createchild("_gennode", "herp")
         derp = tracker.root.createchild("_gennode", "derp")
-        active = derp.createchild("_genactive", "honk")
+        active = derp.createchild("task", "honk")
         return tracker, derp, active
 
     def test_simple(self):
@@ -44,5 +44,5 @@ class TestGenerateListing(object):
             "  life",
             "      _gennode: herp",
             "      _gennode: derp",
-            ">         _genactive: honk"
+            ">         task: honk"
         ]
