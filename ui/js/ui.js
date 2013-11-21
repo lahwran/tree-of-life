@@ -1,17 +1,18 @@
 var pevents = [];
 function profile(message) {
     pevents.push({time: new Date().getTime(), label: message});
-    console.log("profile:", message);
 }
 profile("init");
 function pprofile() {
     var lasttime= 0;
     angular.forEach(pevents, function(pevent) {
         console.log("Delta:", pevent.time - lasttime, 
+                    "Total:", pevent.time - pevents[0].time,
                     "Time:", pevent.time,
                     "Label:", pevent.label);
         lasttime = pevent.time;
     });
+    pevents = [];
 }
 var _handlers = {};
 
@@ -37,8 +38,12 @@ function ui_controller($scope, backend, handlers, $timeout) {
     }
     $scope.sidebar = {};
     $scope.sendcommand = function(command) {
-        backend.send({command: command});
         $scope._command = "";
+        if (command === "reload") {
+            location.reload(true);
+            return;
+        }
+        backend.send({command: command});
     }
     $scope._quit = function() {
         backend.quit = true;
@@ -87,9 +92,10 @@ function activeclass($scope) {
         return {
             started: node.started,
             finished: node.finished,
-            active: !ref && node.active_id == ids.active,
-            activeref: ref && node.id == ids.active_ref,
-            activewithref: ref && node.active_id == ids.active
+            active: !ref && node.active_id === ids.active,
+            activeref: ref && node.id === ids.active_ref,
+            activewithref: ref && node.active_id === ids.active,
+            imactive: node.id == ids.active
         };
     }
 }
@@ -115,7 +121,6 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                 setTimeout(function() { ensure(backoff * 5); }, backoff);
             }
             scope.$on("panel_shown", function() {
-                console.log("derp");
                 ensure();
             });
         };
@@ -313,7 +318,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
                 set_menu_text();
             }
             // FIXME: this causes a scope update every second :(
-            $timeout(reset_menu_text, 1000);
+            //$timeout(reset_menu_text, 1000);
         }
         reset_menu_text();
 
@@ -350,10 +355,15 @@ angular.module("todotracker", [], function($rootScopeProvider) {
             if (b.pool === undefined) return [];
             angular.forEach(b.promptnodes, function(nodeid) {
                 var node = b.pool[nodeid];
+                var realnode = node;
                 if (node === undefined) {
-                    result.push("node not found");
+                    result.push("node not found: " + nodeid);
+                    return;
                 }
-                var text = "" + node.type;
+                if (node.active_id !== undefined && node.id !== node.active_id) {
+                    node = b.pool[node.active_id];
+                }
+                var text = "" + realnode.type;
                 if (node.text !== null && node.text !== undefined) {
                     text += ": " + node.text;
                 }
@@ -398,6 +408,7 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         };
 
         _handlers.connected = function() {
+            profile("connected");
             $rootScope.$broadcast("connected");
             backend.send({ui_connected: true});
             $rootScope.$digest();
@@ -453,6 +464,9 @@ angular.module("todotracker", [], function($rootScopeProvider) {
         $rootScope.$on("message/pool", function(event, pool) {
             backend.pool = pool;
             $rootScope.pool = pool;
+        });
+        $rootScope.$watch(function() {
+            profile("rootscope");
         });
 
 

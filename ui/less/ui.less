@@ -16,6 +16,7 @@
 
 @import "cssreset.less";
 @import "browser_compat.less";
+@import "../fontawesome-less/font-awesome.less";
 
 body {
     font-size: 16px;
@@ -99,6 +100,20 @@ body {
     }
 }
 
+.icon(@icon) {
+    content: @icon;
+    font-family: FontAwesome;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+    width: 1em;
+    height: 1em;
+    position: absolute;
+    left: 0px;
+    margin-left: -1.1em;
+}
+
 .started {
     color: @highlight;
 }
@@ -113,16 +128,30 @@ body {
     .type {
         font-style: italic;
     }
-    .active.node-top {
+    .node-top:before {
+        .icon(@fa-var-square);
+        color: transparent;
+    }
+    .active.node-top.imactive {
         color: @green;
+        &:before {
+            .icon(@fa-var-square);
+            color: @green;
+        }
     }
     .activeref.activewithref.node-top,
-    .activeref + .collapseable .activewithref.node-top {
+    .activeref + .collapseable .activewithref.node-top.imactive {
         color: @green;
+        &:before {
+            .icon(@fa-var-square);
+            color: @green;
+        }
     }
-    .activewithref.node-top,
-    .node-reference .node-top:not(.activeref) + .collapseable .active {
-        color: @blue;
+    .activewithref.node-top:before,
+    .node-reference .node-top:not(.activeref) + .collapseable .active:before,
+    .node-reference .node-top.active:before {
+        color: average(@green, @blue);
+        .icon(@fa-var-square-o);
     }
     .finished {
         color: @grey;
