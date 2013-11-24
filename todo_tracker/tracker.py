@@ -13,16 +13,21 @@ class ErrorContext(object):
 
 
 class Tracker(object):
-    def __init__(self, skeleton=True, nodecreator=nodecreator):
+    def __init__(self, skeleton=True, nodecreator=nodecreator,
+            roottype=TreeRootNode):
         self.make_skeleton = skeleton
         self.nodecreator = nodecreator
 
-        self.root = TreeRootNode(self, self.nodecreator)
+        self.roottype = TreeRootNode
+
+        self.root = self.roottype(self, self.nodecreator,
+                loading_in_progress=False)
         if self.make_skeleton:
             self.root.make_skeleton()
 
     def deserialize(self, format, reader):
-        self.root = root = TreeRootNode(self, self.nodecreator)
+        self.root = root = self.roottype(self, self.nodecreator,
+                loading_in_progress=True)
         root.loading_in_progress = True
         stack = []
         lastnode = root

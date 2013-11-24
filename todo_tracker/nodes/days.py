@@ -9,21 +9,77 @@ from todo_tracker.nodes.misc import Archived
 
 task_types = ("day", "sleep")
 
+week_length = 7
+month_length = 365.0 / 12.0
+year_length = 365.25
+
+
+def approx_delta(cur_date, other_date):
+    if other_date == cur_date:
+        return 'today'
+
+    delta = other_date - cur_date
+    days = abs(delta.days)
+    if delta.days == 1:
+        return 'tomorrow'
+    elif delta.days == -1:
+        return 'yesterday'
+    elif days < week_length:
+        value = days
+        unit = 'day'
+    elif days < month_length:
+        value = float(days) / week_length
+        unit = 'week'
+    elif days < year_length:
+        value = days / month_length
+        unit = 'month'
+    else:
+        value = days / year_length
+        unit = 'year'
+
+    value_float = value
+    value = int(value)
+
+    # plurals
+    if value > 1:
+        unit += 's'
+
+    if other_date < cur_date:
+        return '%d %s ago' % (value, unit)
+    elif value_float == value:
+        return '%d %s' % (value, unit)
+    else:
+        return '%d+ %s' % (value, unit)
+
 
 class DateTask(BaseTask):
     chidren_of = ("days",)
     text_required = True
 
+    # creates a property you can (only)read from.
+    # called when you need to get the text for a day.
     @property
     def can_activate(self):
         return super(DateTask, self).can_activate and self.acceptable()
 
     @property
     def text(self):
-        return timefmt.date_to_str(self.date)
+        date_str = timefmt.date_to_str(self.date)
+        delta = approx_delta(datetime.now().date(), self.date)
+        date_str += ' (%s, %s)' % (self.date.strftime('%A'), delta)
+        return date_str
 
+    # take the existing property we just made and make a setter
+    # for it, and then replace it with the new one that has a setter
     @text.setter
     def text(self, new):
+        #"December 12, 2012" -> "December 12, 2012"
+        #"December 22, 2012 (Saturday)" -> "December 22, 2012"
+        #"December 22, 2012(Hawaiian)" -> "December 22, 2012"
+        if "(" in new:
+            new = new[:new.index('(')]
+            new = new.strip()
+
         self.date = timefmt.str_to_date(new)
 
 
@@ -209,12 +265,12 @@ class Days(Node):
         if result is None:
             result = {}
 
-        today_string = timefmt.date_to_str(timefmt.str_to_date("today"))
+        today = self.active_day()
         past_days = []
         future_days = []
         current = past_days
         for node in self.children:
-            if node.text == today_string:
+            if node is today:
                 current = future_days
             current.append(node)
 

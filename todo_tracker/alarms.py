@@ -1,23 +1,45 @@
 import weakref
+import datetime
 
 from twisted.internet.defer import Deferred
+from twisted.internet import reactor
+from twisted.python import log
+import uuid
+
+
+def lazyproperty(func):
+    sentinel = object()
+    f = "_lazyproperty_" + str(uuid.uuid4())
+
+    def prop_get(self):
+        result = getattr(self, f, sentinel)
+        if result is sentinel:
+            result = func()
+            setattr(self, f, result)
+        return result
+
+    def prop_set(self, new):
+        setattr(self, f, new)
+
+    return property(prop_get, prop_set, doc=func.__doc__)
 
 
 class Alarm(object):
     def __init__(self, parent, callback, delta=None, date=None):
         self.twisted_timer = None
         self.timer_deferred = None
+        self.root = None
+        self.ready_root = None
         self.called = False
-
         self.parent = parent
+
         self.callback_func = callback
+        self._date = None
         if delta is not None:
             self.delta = delta
 
-        self.date = date
-
-        self.root = None
-        self.ready_root = None
+        if date is not None:
+            self.date = date
 
     def _node_ready(self, root):
         self.root = root
@@ -26,7 +48,7 @@ class Alarm(object):
 
     @delta.setter
     def delta(self, newdelta):
-        self.date = datetime.now() + delta
+        self.date = datetime.datetime.now() + newdelta
 
     @property
     def date(self):
@@ -34,7 +56,7 @@ class Alarm(object):
 
     @date.setter
     def date(self, newdate):
-        self._date = date
+        self._date = newdate
         self.called = False
         self.update()
 
@@ -47,26 +69,28 @@ class Alarm(object):
     def _is_safe(self):
         return (self.ready_root is self.root
                 and self.root is not None
-                and self.root.tracker.root is self.root)
+                and self.root.tracker.root is self.root
+                and self.parent._next_node is not None
+                and self.parent._next_node._prev_node is self.parent)
 
     def update(self):
         if self.twisted_timer and self.twisted_timer.active():
             self.twisted_timer.cancel()
             self.twisted_timer = None
+            self.timer_deferred = None
 
-        if self.active:
-            self._set_alarm()
-
-    def _set_alarm(self):
         if not self.active:
-            if not self._is_safe():
-                self.warn("tried to set alarm, but was unsafe!")
             return
 
-        timer, deferred = self.root.tracker._set_alarm(callback=self._callback,
-                date=self.date)
-        self.twisted_timer = timer
-        self.timer_deferred = deferred
+        self.parent.alarms.add(self)
+        if self.date < datetime.datetime.now():
+            self._callback(None)
+        else:
+            timer, deferred = self.root.tracker._set_alarm(
+                    callback=self._callback,
+                    date=self.date)
+            self.twisted_timer = timer
+            self.timer_deferred = deferred
 
     def _go_live(self):
         self.ready_root = self.root
@@ -74,65 +98,77 @@ class Alarm(object):
 
     def super_repr(self, obj):
         return {
-            "id": id(obj),
+            "id": str(id(obj)),
             "repr": repr(obj),
             "str": str(obj),
-            "type": type(obj)
+            "type": repr(type(obj))
         }
 
     def warn(self, message):
-        log.msg("WARNING: %s %r" % (message, {
+        nn = self.parent._next_node
+        import pprint
+        data = pprint.pformat({
             "ready_root": self.super_repr(self.ready_root),
             "root": self.super_repr(self.root),
             "tracker_root": self.super_repr(self.root.tracker.root),
             "date": self.super_repr(self.date),
             "called": self.super_repr(self.called),
-        }))
+            "parent": self.parent,
+            "parent_next_node": nn,
+            "parent_rev_link": nn._prev_node if nn is not None else None
+        })
+        log.msg("WARNING: %s %s" % (message, data))
 
     def _callback(self, tracker):
-        self.called = True
         if not self.active:
             self.warn("timer fired but alarm was inactive!")
             return
+        self.called = True
+
+        # allow deallocation - no need to hold the reference once it's called
+        # the callback can re-activate it though, which will pass through
+        # self.update which will re-add it
+        self.parent.alarms.remove(self)
 
         self.callback_func()
 
 
 class NodeMixin(object):
-    def __init__(self):
-        self.alarms = weakref.WeakSet()
+    alarms = lazyproperty(set)
 
     def _insertion_hook(self):
         if self.root is None:
             return
 
-        for alarm in list(getattr(self, "alarms", [])):
+        for alarm in list(self.alarms):
             alarm._node_ready(root=self.root)
             self.root._add_alarm(alarm)
 
     def alarm(self, *args, **kwargs):
         result = Alarm(self, *args, **kwargs)
         self.alarms.add(result)
-        if self.root is not None:
+        if getattr(self, "root", None) is not None:
             result._node_ready(root=self.root)
             self.root._add_alarm(result)
         return result
 
 
 class RootMixin(object):
-    def __init__(self):
-        self.alarms = weakref.WeakSet()
-        self._alarm_ready = False
+    _alarm_ready = lazyproperty(lambda: False)
+    alarms = lazyproperty(weakref.WeakSet)
+
+    def _tracker_support_available(self):
+        return getattr(self.tracker, "_set_alarm", None) is not None
 
     def load_finished(self):
-        if getattr(self.tracker, "_set_alarm", None) is not None:
+        if self._tracker_support_available():
             for alarm in list(self.alarms):
                 alarm._go_live()
             self._alarm_ready = True
 
     def _add_alarm(self, alarm):
         self.alarms.add(alarm)
-        if self._alarm_ready:
+        if self._alarm_ready and self._tracker_support_available():
             alarm._go_live()
 
 
@@ -149,7 +185,7 @@ class ProxyCache(object):
         """
         self.root_ref = weakref.ref(root)
         self.tracker_ref = weakref.ref(tracker)
-        self.timers = []
+        self.timers = weakref.WeakSet()
 
     @property
     def alive(self):
@@ -166,39 +202,33 @@ class ProxyCache(object):
 
         return True
 
-    def make_callback(self, original_callback):
-        return self._make_callback(weakref.ref(original_callback),
-                target_type=repr(type(original_callback)),
-                target_repr=repr(original_callback),
-                target_str=str(original_callback))
+    def make_callback(self, deferred):
+        return self._make_callback(weakref.ref(deferred))
 
-    def _make_callback(self, ref, target_type, target_repr, target_str):
-        def proxy(tracker_ref):
-            tracker = tracker_ref()
+    def _make_callback(self, ref):
+        def proxy():
+            tracker = self.tracker_ref()
             if not self.alive:
                 self.die()
-                return result
+                return
 
-            assert tracker is not None, ("should not have failed to resolve "
-                    "tracker on a live ProxyCache")
+            # won't EVER happen, but in case it does ...
+            assert tracker is not None, "tracker went jesus"
 
-            callback = ref()
+            deferred = ref()
 
-            if callback is None:
-                log.msg("callback fired, target didn't exist: %s %s %s" % (
-                    target_type, target_repr, target_str))
+            if deferred is None:
+                log.msg("deferred fired, target didn't exist")
+                return
 
-            return callback(tracker)
+            deferred.callback(tracker)
         return proxy
 
     def add_timer(self, timer):
-        self.timers.append(weakref.ref(timer))
+        self.timers.add(timer)
 
     def die(self):
-        for timer_ref in self.timers:
-            timer = timer_ref()
-            if timer_ref is None:
-                continue
+        for timer in list(self.timers):
             try:
                 timer.cancel()
             except ValueError:
@@ -206,18 +236,24 @@ class ProxyCache(object):
 
 
 class TrackerMixin(object):
-    def __init__(self):
-        self._alarm_proxy_caches = weakref.WeakKeyDictionary()
+    _alarm_proxy_caches = lazyproperty(weakref.WeakKeyDictionary)
 
     def _set_alarm(self, callback=None, delta=None, date=None):
+        """
+        Set an alarm.
+        IMPORTANT: you *must* retain a reference to the returned deferred!
+        failure to do so can cause the callback to not fire. this function
+        is normally called by an Alarm instance, which also must be held
+        onto to stay live.
+        """
         deferred = Deferred()
         if callback is not None:
             deferred.addCallback(callback)
 
         if delta is None:
-            current_time = datetime.datetime()
+            current_time = datetime.datetime.now()
             if date <= current_time:
-                raise Exception("wat? %r %r" % (date, current_time))
+                raise ValueError("wat? %r %r" % (date, current_time))
             delta = date - current_time
 
         seconds = delta.total_seconds()
@@ -229,8 +265,8 @@ class TrackerMixin(object):
         # this is only relevant if you're worried about reloading of self.root
         proxy = self._alarm_proxy_caches.setdefault(self.root,
                     ProxyCache(self.root, self))
-        callback = proxy.make_callback(deferred.callback)
-        timer = reactor.callLater(seconds, callback, weakref.ref(self))
+        callback = proxy.make_callback(deferred)
+        timer = reactor.callLater(seconds, callback)
         proxy.add_timer(timer)
         # and we return you to your regularly scheduled sanity
 

@@ -185,9 +185,6 @@ class Node(object):
         self._parent = newparent
         if newparent is not None:
             self.root = newparent.root
-        ihook = getattr(self, "_insertion_hook", None)
-        if ihook is not None and not self.__initing:
-            ihook()
 
     @property
     def root(self):
@@ -356,6 +353,11 @@ class Node(object):
             raise LoadError("node %r cannot be after node %r as child of %r" %
                     (child, after, self))
         self.children.insert(child, before, after)
+
+        ihook = getattr(child, "_insertion_hook", None)
+        if ihook is not None:
+            ihook()
+
         return child
 
     def createchild(self, node_type, text=None, *args, **keywords):
@@ -587,10 +589,10 @@ class BooleanOption(object):
 
 
 class TreeRootNode(Node):
-    def __init__(self, tracker, nodecreator):
+    def __init__(self, tracker, nodecreator, loading_in_progress=False):
         self.nodecreator = nodecreator
         self.tracker = tracker
-        self.loading_in_progress = False
+        self.loading_in_progress = loading_in_progress
 
         super(TreeRootNode, self).__init__("life", None, None)
         self.root = self

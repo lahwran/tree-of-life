@@ -2,7 +2,7 @@
 
 dir=$(dirname $0)
 . $dir/../bin/activate
-time `which py.test` --cov-config .coveragerc --cov-report html --cov todo_tracker "$@"
+time `which py.test` --cov-config .coveragerc --cov-report html --cov todo_tracker --weakref "$@"
 res=$?
 deactivate
 

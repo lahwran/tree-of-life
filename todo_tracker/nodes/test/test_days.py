@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from todo_tracker.tracker import Tracker
-from todo_tracker.nodes.days import Day, Sleep, Days
+from todo_tracker.nodes.days import Day, Sleep, Days, approx_delta
 from todo_tracker.nodes.misc import GenericActivate
 from todo_tracker.nodes import days
 
@@ -208,10 +208,10 @@ class TestMakeSkeleton(object):
 
         assert tracker.serialize("str") == (
             "days\n"
-            "    day: December 19, 2012\n"
-            "    day: December 20, 2012\n"
-            "    day: December 21, 2012\n"
-            "    day: December 22, 2012\n"
+            "    day: December 19, 2012 (Wednesday, 3 days ago)\n"
+            "    day: December 20, 2012 (Thursday, 2 days ago)\n"
+            "    day: December 21, 2012 (Friday, yesterday)\n"
+            "    day: December 22, 2012 (Saturday, today)\n"
             "        @started: December 22, 2012 12:00:00 PM\n"
             "        @active\n"
         )
@@ -237,12 +237,12 @@ class TestMakeSkeleton(object):
         print result
         assert result == (
             "days\n"
-            "    day: December 19, 2012\n"
+            "    day: December 19, 2012 (Wednesday, 2 days ago)\n"
             "    archived: herp derp\n"
-            "    day: December 20, 2012\n"
-            "    day: December 21, 2012\n"
+            "    day: December 20, 2012 (Thursday, yesterday)\n"
+            "    day: December 21, 2012 (Friday, today)\n"
             "        @finished: 1h after December 21, 2012 07:00:00 AM\n"
-            "    day: December 21, 2012\n"
+            "    day: December 21, 2012 (Friday, today)\n"
             "        @started: December 21, 2012 12:00:00 PM\n"
             "        @active\n"
         )
@@ -254,7 +254,7 @@ def test_out_of_order(setdt):
     tracker.root.addchild(days_node)
 
     from todo_tracker.nodes import tasks
-    setdt(days, tasks, 2013, 12, 22, 12)
+    setdt(days, tasks, 2013, 12, 29, 12)
 
     days_node.createchild("day", "December 19, 2012")
     days_node.addchild(GenericActivate("archived", "19 a"))
@@ -279,18 +279,18 @@ def test_out_of_order(setdt):
     result = tracker.serialize("str")
     assert result == (
         "days\n"
-        "    day: December 19, 2012\n"
+        "    day: December 19, 2012 (Wednesday, 1 year ago)\n"
         "    archived: 19 a\n"
         "    archived: 19 b\n"
-        "    day: December 20, 2012\n"
-        "    day: December 21, 2012\n"
+        "    day: December 20, 2012 (Thursday, 1 year ago)\n"
+        "    day: December 21, 2012 (Friday, 1 year ago)\n"
         "    archived: 21 a\n"
         "    archived: 21 b\n"
 
         # December 22 was moved back to before 23, leaving
         # its archived nodes behind
-        "    day: December 22, 2012\n"
-        "    day: December 23, 2012\n"
+        "    day: December 22, 2012 (Saturday, 1 year ago)\n"
+        "    day: December 23, 2012 (Sunday, 1 year ago)\n"
         "    archived: 23 a\n"
         "    archived: 23 b\n"
 
@@ -330,11 +330,11 @@ def test_archiving(setdt):
 
     assert all(node.node_type == "archived" for node in days_node.children)
     assert [node.text for node in days_node.children] == [
-        "day: July 19, 2012",
-        "day: July 20, 2012",
-        "day: July 21, 2012",
-        "day: July 22, 2012",
-        "day: July 23, 2012",
+        "day: July 19, 2012 (Thursday, 1 year ago)",
+        "day: July 20, 2012 (Friday, 1 year ago)",
+        "day: July 21, 2012 (Saturday, 1 year ago)",
+        "day: July 22, 2012 (Sunday, 1 year ago)",
+        "day: July 23, 2012 (Monday, 1 year ago)",
     ]
 
 
@@ -373,6 +373,7 @@ def test_ui_serialize_existing(setdt):
     tracker = Tracker(skeleton=False)
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
+    Days.make_skeleton(tracker.root)
 
     existing_children = object()
     existing_hidden_children = object()
@@ -390,7 +391,6 @@ def test_ui_serialize_existing(setdt):
     }
 
 
-@pytest.mark.xfail
 def test_ui_serialize_rollover(setdt):
     tracker = Tracker(skeleton=False)
     days_node = Days("days", None, tracker.root)
@@ -421,3 +421,22 @@ def test_ui_serialize_rollover(setdt):
         "text": None,
         "type": "days"
     }
+
+
+def test_approx_delta():
+    from datetime import date
+    now = date(2012, 12, 26)
+    assert approx_delta(now, date(2012, 12, 31)) == '5 days'
+    assert approx_delta(now, date(2013, 12, 31)) == '1+ year'
+    assert approx_delta(now, date(2013, 1, 31)) == '1+ month'
+    assert approx_delta(now, date(2013, 4, 7)) == '3+ months'
+    assert approx_delta(now, date(2013, 3, 21)) == '2+ months'
+    assert approx_delta(now, date(2013, 1, 15)) == '2+ weeks'
+    assert approx_delta(now, date(2012, 12, 27)) == 'tomorrow'
+    assert approx_delta(now, date(2012, 12, 26)) == 'today'
+    assert approx_delta(now, date(2012, 12, 25)) == 'yesterday'
+    assert approx_delta(now, date(2011, 12, 25)) == '1 year ago'
+    assert approx_delta(now, date(2011, 12, 26)) == '1 year ago'
+    assert approx_delta(now, date(2011, 12, 27)) == '12 months ago'
+    assert approx_delta(now, date(2012, 12, 20)) == '6 days ago'
+    assert approx_delta(now, date(2012, 12, 19)) == '1 week ago'

@@ -158,70 +158,7 @@ class TodoBucket(Node):
     def load_finished(self):
         self.root.todo = self
 
-    @classmethod
-    def make_skeleton(cls, root):
-        root.todo = root.find_node(["todo bucket"])
-        if not root.todo:
-            root.createchild("todo bucket")
-
-    def move_review_task(self):
-        todo_review = self.root.todo_review
-        if not len(self.children):
-            self.root.todo_review = None
-            todo_review.detach()
-            return
-
-        active = self.root.active_node
-        if not active:
-            return  # not much we can do :(
-        newparent = None
-        after_node = None
-        for node in active.iter_parents():
-            after_node = newparent
-            newparent = node
-            if node is self.root or newparent.node_type == "day":
-                break
-
-        if newparent == self or newparent == todo_review:
-            raise Exception("about to have a fit")
-        if todo_review and after_node is todo_review:
-            after_node = after_node.next_neighbor
-
-        if todo_review:
-            todo_review.detach()
-            todo_review = todo_review.copy(parent=newparent)
-            newparent.addchild(todo_review, after=after_node)
-        else:
-            todo_review = newparent.createchild("todo review",
-                    after=after_node)
-
-        self.root.todo_review = todo_review
-
-    def addchild(self, child, *args, **keywords):
-        child = super(TodoBucket, self).addchild(child, *args, **keywords)
-        self.move_review_task()
-        return child
-
 
 class NoActiveMarker(ActiveMarker):
     def get(self, node):
         return False, None
-
-
-@nodecreator("todo review")
-class TodoReview(BaseTask):
-    textless = True
-
-    options = (
-        (NoActiveMarker("active")),
-    )
-
-    def load_finished(self):
-        if self.root.todo_review and self.root.todo_review is not self:
-            self.root.todo_review.detach()
-        self.root.todo_review = self
-        self.root.todo.move_review_task()
-
-    def finish(self):
-        super(TodoReview, self).finish()
-        self.root.todo.move_review_task()
