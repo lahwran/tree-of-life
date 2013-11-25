@@ -3,11 +3,11 @@ from __future__ import unicode_literals, print_function
 from datetime import datetime
 import pytest
 
-from todo_tracker.tracker import Tracker, nodecreator
-from todo_tracker.file_storage import serialize_to_str
-from todo_tracker.test.util import FakeNodeCreator, match
-from todo_tracker import navigation
-from todo_tracker.nodes import tasks
+from treeoflife.tracker import Tracker, nodecreator
+from treeoflife.file_storage import serialize_to_str
+from treeoflife.test.util import FakeNodeCreator, match
+from treeoflife import navigation
+from treeoflife.nodes import tasks
 
 
 class FakeDatetime(object):
@@ -45,7 +45,7 @@ def test_active_option():
 
 
 def test_activate_deactivate(monkeypatch):
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     monkeypatch.setattr(tasks, "datetime",
             FakeDatetime(datetime(2012, 10, 24)))
     tracker = Tracker(nodecreator=FakeNodeCreator(tasks.Task),

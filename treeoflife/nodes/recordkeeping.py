@@ -3,9 +3,9 @@ from __future__ import unicode_literals, print_function
 import re
 from datetime import datetime
 
-from todo_tracker import timefmt
-from todo_tracker.nodes.node import Node, nodecreator
-from todo_tracker.exceptions import LoadError
+from treeoflife import timefmt
+from treeoflife.nodes.node import Node, nodecreator
+from treeoflife.exceptions import LoadError
 
 
 @nodecreator("fitness log")

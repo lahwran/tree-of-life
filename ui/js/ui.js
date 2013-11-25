@@ -100,7 +100,7 @@ function activeclass($scope) {
     }
 }
 
-angular.module("todotracker", [], function($rootScopeProvider) {
+angular.module("treeoflife", [], function($rootScopeProvider) {
         profile("angular init");
         $rootScopeProvider.digestTtl(200);
     })

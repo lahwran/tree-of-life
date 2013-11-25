@@ -7,11 +7,11 @@ import pytest
 from twisted.internet.task import Clock
 from twisted.internet.defer import Deferred
 
-from todo_tracker.nodes.node import TreeRootNode, Node
-from todo_tracker import alarms
-from todo_tracker.test.util import FakeNodeCreator
-from todo_tracker.tracker import Tracker
-from todo_tracker.util import _monitor
+from treeoflife.nodes.node import TreeRootNode, Node
+from treeoflife import alarms
+from treeoflife.test.util import FakeNodeCreator
+from treeoflife.tracker import Tracker
+from treeoflife.util import _monitor
 
 
 @pytest.fixture

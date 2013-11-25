@@ -1,6 +1,6 @@
 from __future__ import unicode_literals, print_function
 
-from todo_tracker.tracker import Tracker
+from treeoflife.tracker import Tracker
 
 
 def test_archival():

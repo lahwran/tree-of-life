@@ -19,9 +19,9 @@ import twisted.web.static
 import twisted.web.server
 from txws import WebSocketFactory
 
-from todo_tracker.userinterface import (SavingInterface, command,
+from treeoflife.userinterface import (SavingInterface, command,
     generate_listing)
-from todo_tracker.util import tempfile, Profile
+from treeoflife.util import tempfile, Profile
 
 logger = logging.getLogger(__name__)
 
@@ -359,7 +359,7 @@ class JSONFactory(Factory):
 argparser = argparse.ArgumentParser(description="run server")
 argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
         const="true", type=lambda s: s.lower() == "true")
-argparser.add_argument("-d", "--dir-path", default="~/.todo_tracker",
+argparser.add_argument("-d", "--dir-path", default="~/.treeoflife",
         dest="path")
 argparser.add_argument("-p", "--port", default=18081, dest="port")
 argparser.add_argument("-l", "--log", default="cocoa", dest="logname")

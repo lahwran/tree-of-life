@@ -1,7 +1,7 @@
 from __future__ import unicode_literals, print_function
 
-from todo_tracker.exceptions import LoadError
-from todo_tracker.util import HandlerList
+from treeoflife.exceptions import LoadError
+from treeoflife.util import HandlerList
 import string
 
 

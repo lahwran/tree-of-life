@@ -6,11 +6,11 @@ import logging
 import weakref
 import random
 
-from todo_tracker.ordereddict import OrderedDict
-from todo_tracker.exceptions import (ListIntegrityError, LoadError,
+from treeoflife.ordereddict import OrderedDict
+from treeoflife.exceptions import (ListIntegrityError, LoadError,
         CantStartNodeError)
-from todo_tracker.util import HandlerList
-from todo_tracker import file_storage
+from treeoflife.util import HandlerList
+from treeoflife import file_storage
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class _NodeCreatorTracker(HandlerList):
     autodetect = False
 
     def create(self, node_type, text, parent, validate=True, nodeid=None):
-        from todo_tracker.nodes import import_all
+        from treeoflife.nodes import import_all
         try:
             creator = self.creators[node_type]
         except KeyError:
@@ -342,12 +342,12 @@ class Node(object):
         return self._prev_node
 
     def find(self, query):
-        from todo_tracker import searching
+        from treeoflife import searching
         query = searching.Query(query)
         return query([self])
 
     def find_one(self, query):
-        from todo_tracker import searching
+        from treeoflife import searching
         return searching.first(self.find(query))
 
     #-------------------------------------------------#
@@ -355,7 +355,7 @@ class Node(object):
     #-------------------------------------------------#
 
     def create(self, query):
-        from todo_tracker import searching
+        from treeoflife import searching
         creator = searching.Creator(query)
         return creator([self])
 

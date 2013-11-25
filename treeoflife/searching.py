@@ -4,9 +4,9 @@ from __future__ import unicode_literals, print_function
 # in the terms of the "stop writing classes" talk. however,
 # almost all of them are *used as data* by other code, hence
 # why there are classes that look like they're used as functions.
-from todo_tracker import parseutil
-from todo_tracker.util import HandlerList, memoize
-from todo_tracker import file_storage
+from treeoflife import parseutil
+from treeoflife.util import HandlerList, memoize
+from treeoflife import file_storage
 
 from collections import namedtuple
 
@@ -52,7 +52,7 @@ retrievers = HandlerList()
 
 
 def make_segment(separator, nodeid, pattern, tags):
-    from todo_tracker.nodes.node import nodecreator
+    from treeoflife.nodes.node import nodecreator
 
     if separator == "default":
         if nodeid is None:
@@ -508,8 +508,8 @@ def list_ignore_overflow(query):
 
 
 if __name__ == "__main__":
-    todofile = "/Users/lahwran/.todo_tracker/life"
-    from todo_tracker.tracker import Tracker
+    todofile = "/Users/lahwran/.treeoflife/life"
+    from treeoflife.tracker import Tracker
     import time
     tracker = Tracker()
     with open(todofile, "r") as reader:

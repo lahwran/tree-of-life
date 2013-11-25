@@ -2,9 +2,9 @@ from __future__ import unicode_literals, print_function
 
 import pytest
 
-from todo_tracker import userinterface
-from todo_tracker import exceptions
-from todo_tracker.tracker import Tracker
+from treeoflife import userinterface
+from treeoflife import exceptions
+from treeoflife.tracker import Tracker
 
 
 class Test_makenode(object):

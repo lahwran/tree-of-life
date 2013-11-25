@@ -3,9 +3,9 @@ from __future__ import unicode_literals, print_function
 from weakref import WeakKeyDictionary
 import logging
 
-from todo_tracker.nodes.node import Node, nodecreator, _NodeListRoot
-from todo_tracker.nodes.tasks import BaseTask
-from todo_tracker.util import setter
+from treeoflife.nodes.node import Node, nodecreator, _NodeListRoot
+from treeoflife.nodes.tasks import BaseTask
+from treeoflife.util import setter
 
 logger = logging.getLogger(__name__)
 

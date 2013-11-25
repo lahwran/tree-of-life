@@ -1,8 +1,8 @@
 from __future__ import unicode_literals, print_function
 
-from todo_tracker.userinterface import Event
-from todo_tracker.tracker import Tracker
-from todo_tracker import navigation
+from treeoflife.userinterface import Event
+from treeoflife.tracker import Tracker
+from treeoflife import navigation
 
 
 def test_createauto_todo_integration():

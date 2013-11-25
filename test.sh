@@ -6,7 +6,7 @@ if [ "$1" == "--pypy-only" ]; then
     res="0"
 else
     . $dir/../bin/activate
-    time `which py.test` --cov-config .coveragerc --cov-report html --cov todo_tracker --weakref "$@"
+    time `which py.test` --cov-config .coveragerc --cov-report html --cov treeoflife --weakref "$@"
     res=$?
     deactivate
 fi

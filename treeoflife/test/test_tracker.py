@@ -4,13 +4,13 @@ import itertools
 
 import pytest
 
-from todo_tracker.nodes.misc import GenericNode, GenericActivate
-from todo_tracker.nodes.node import TreeRootNode
-from todo_tracker.file_storage import serialize_to_str
-from todo_tracker.test.util import FakeNodeCreator, match
-from todo_tracker import exceptions
+from treeoflife.nodes.misc import GenericNode, GenericActivate
+from treeoflife.nodes.node import TreeRootNode
+from treeoflife.file_storage import serialize_to_str
+from treeoflife.test.util import FakeNodeCreator, match
+from treeoflife import exceptions
 
-from todo_tracker.tracker import Tracker
+from treeoflife.tracker import Tracker
 
 
 class TestTracker(object):

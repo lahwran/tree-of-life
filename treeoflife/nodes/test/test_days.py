@@ -4,11 +4,11 @@ from datetime import datetime, time, timedelta
 
 import pytest
 
-from todo_tracker.test.util import match
-from todo_tracker.tracker import Tracker
-from todo_tracker.nodes.days import Day, Sleep, Days
-from todo_tracker.nodes.misc import GenericActivate
-from todo_tracker.nodes import days
+from treeoflife.test.util import match
+from treeoflife.tracker import Tracker
+from treeoflife.nodes.days import Day, Sleep, Days
+from treeoflife.nodes.misc import GenericActivate
+from treeoflife.nodes import days
 
 
 def test_ordering(setdt):
@@ -205,7 +205,7 @@ class TestMakeSkeleton(object):
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
 
-        from todo_tracker.nodes import tasks
+        from treeoflife.nodes import tasks
         setdt(days, tasks, 2012, 12, 22, 12)
 
         days_node.createchild("day", "December 19, 2012 (This should be "
@@ -232,7 +232,7 @@ class TestMakeSkeleton(object):
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
 
-        from todo_tracker.nodes import tasks
+        from treeoflife.nodes import tasks
         setdt(days, tasks, 2012, 12, 21, 12)
 
         days_node.createchild("day", "December 19, 2012")
@@ -263,7 +263,7 @@ def test_out_of_order(setdt):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     setdt(days, tasks, 2013, 12, 29, 12)
 
     days_node.createchild("day", "December 19, 2012")
@@ -326,7 +326,7 @@ def test_archiving(setdt):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     setdt(days, tasks, 2013, 12, 22, 12)
 
     days_node.createchild("day", "July 19, 2012")
@@ -354,7 +354,7 @@ def test_ui_dictify(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     setdt(days, tasks, 2012, 12, 22, 12)
 
     before = [
@@ -410,7 +410,7 @@ def test_ui_dictify_rollover(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     setdt(days, tasks, 2012, 12, 22, 12)
 
     before = [
@@ -444,7 +444,7 @@ def test_ui_dictify_sleepnode(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from todo_tracker.nodes import tasks
+    from treeoflife.nodes import tasks
     setdt(days, tasks, 2012, 12, 21, 23)
 
     before = [

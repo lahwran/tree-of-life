@@ -4,13 +4,13 @@ from itertools import izip_longest
 
 import pytest
 
-from todo_tracker.test.util import FakeNodeCreator, match
-from todo_tracker.tracker import Tracker
-from todo_tracker.nodes.node import Node, _NodeListRoot, Option
-from todo_tracker.nodes.misc import GenericNode, GenericActivate
-from todo_tracker.file_storage import serialize_to_str
-from todo_tracker import exceptions
-from todo_tracker import navigation
+from treeoflife.test.util import FakeNodeCreator, match
+from treeoflife.tracker import Tracker
+from treeoflife.nodes.node import Node, _NodeListRoot, Option
+from treeoflife.nodes.misc import GenericNode, GenericActivate
+from treeoflife.file_storage import serialize_to_str
+from treeoflife import exceptions
+from treeoflife import navigation
 
 
 class TestNode(object):
@@ -532,7 +532,7 @@ class TestRootNode(object):
         assert tracker.root.active_node is node
 
     def test_skeleton_load_integration(self, setdt):
-        from todo_tracker.nodes import days
+        from treeoflife.nodes import days
         setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
@@ -560,7 +560,7 @@ class TestRootNode(object):
             assert tracker.root.ids[node.id] is node
 
     def test_skeleton_day_active(self, setdt):
-        from todo_tracker.nodes import days
+        from treeoflife.nodes import days
         setdt(days, 2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",

@@ -2,9 +2,9 @@ from __future__ import unicode_literals, print_function
 
 from datetime import datetime
 
-from todo_tracker.parseutil import Grammar
-from todo_tracker.nodes.node import Node, Option, BooleanOption, nodecreator
-from todo_tracker import timefmt
+from treeoflife.parseutil import Grammar
+from treeoflife.nodes.node import Node, Option, BooleanOption, nodecreator
+from treeoflife import timefmt
 
 
 class ActiveMarker(BooleanOption):

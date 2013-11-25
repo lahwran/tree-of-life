@@ -10,14 +10,14 @@ import time
 import logging
 import itertools
 
-from todo_tracker.file_storage import parse_line
-from todo_tracker.nodes.node import nodecreator, TreeRootNode
-from todo_tracker.tracker import Tracker
-from todo_tracker.exceptions import InvalidInputError
-from todo_tracker.util import tempfile, HandlerList, Profile
-from todo_tracker.parseutil import Grammar
-from todo_tracker import timefmt
-from todo_tracker import alarms
+from treeoflife.file_storage import parse_line
+from treeoflife.nodes.node import nodecreator, TreeRootNode
+from treeoflife.tracker import Tracker
+from treeoflife.exceptions import InvalidInputError
+from treeoflife.util import tempfile, HandlerList, Profile
+from treeoflife.parseutil import Grammar
+from treeoflife import timefmt
+from treeoflife import alarms
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ global_commands = HandlerList()
 command = global_commands.add
 
 
-import todo_tracker.navigation
+import treeoflife.navigation
 
 
 @command()

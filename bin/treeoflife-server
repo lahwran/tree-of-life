@@ -6,6 +6,6 @@ try:
 except ImportError:
     sys.exc_clear()
 
-import todo_tracker.tracker # primary module entry point
+import treeoflife.tracker # primary module entry point
 import cocoa
 cocoa._main()

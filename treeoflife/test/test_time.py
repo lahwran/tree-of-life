@@ -5,7 +5,7 @@ import datetime
 from ometa.runtime import ParseError
 import pytest
 
-from todo_tracker import timefmt
+from treeoflife import timefmt
 
 
 def test_string_date():

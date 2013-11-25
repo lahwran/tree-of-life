@@ -3,12 +3,12 @@ from __future__ import unicode_literals, print_function
 from datetime import datetime, date, time, timedelta
 import logging
 
-from todo_tracker.nodes.node import Node, nodecreator, BooleanOption
-from todo_tracker import timefmt
-from todo_tracker.nodes.tasks import BaseTask
-from todo_tracker.nodes.misc import Archived
-from todo_tracker import alarms
-from todo_tracker import alarmclock
+from treeoflife.nodes.node import Node, nodecreator, BooleanOption
+from treeoflife import timefmt
+from treeoflife.nodes.tasks import BaseTask
+from treeoflife.nodes.misc import Archived
+from treeoflife import alarms
+#from treeoflife import alarmclock
 
 logger = logging.getLogger(__name__)
 

@@ -28,7 +28,7 @@ import sys, os
 
 path = os.path.abspath(os.path.realpath(sys.argv[0]))
 while os.path.dirname(path) != path:
-    if os.path.exists(os.path.join(path, 'todo_tracker', '__init__.py')):
+    if os.path.exists(os.path.join(path, 'treeoflife', '__init__.py')):
         sys.path.insert(0, path)
         break
     path = os.path.dirname(path)

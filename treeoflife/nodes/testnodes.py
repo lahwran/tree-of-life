@@ -5,9 +5,9 @@ from __future__ import unicode_literals, print_function
 
 import datetime
 
-from todo_tracker.nodes.node import Node, nodecreator, BooleanOption
-from todo_tracker.nodes.tasks import BaseTask
-from todo_tracker import alarms
+from treeoflife.nodes.node import Node, nodecreator, BooleanOption
+from treeoflife.nodes.tasks import BaseTask
+from treeoflife import alarms
 
 
 @nodecreator("_test_alarm")

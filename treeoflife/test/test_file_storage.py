@@ -2,8 +2,8 @@ from __future__ import unicode_literals, print_function
 
 import pytest
 
-from todo_tracker.file_storage import parse_line
-from todo_tracker.tracker import LoadError
+from treeoflife.file_storage import parse_line
+from treeoflife.tracker import LoadError
 
 
 class TestParseLine(object):

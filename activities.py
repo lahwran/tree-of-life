@@ -3,8 +3,8 @@ import xtraceback
 
 from twisted.python import log
 
-from todo_tracker.tracker import Tracker
-from todo_tracker.activity import CommandInterface, command
+from treeoflife.tracker import Tracker
+from treeoflife.activity import CommandInterface, command
 
 
 class CommandLineInterface(CommandInterface):

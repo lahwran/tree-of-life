@@ -2,10 +2,10 @@ from __future__ import unicode_literals, print_function
 
 import re
 
-from todo_tracker.tracker import Tracker
-from todo_tracker.file_storage import serialize_to_str
+from treeoflife.tracker import Tracker
+from treeoflife.file_storage import serialize_to_str
 
-from todo_tracker.nodes.recordkeeping import (FitnessLog, Weight,
+from treeoflife.nodes.recordkeeping import (FitnessLog, Weight,
         Waist, Measurement, full_match)
 
 

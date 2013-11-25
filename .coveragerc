@@ -10,4 +10,4 @@ exclude_lines =
 
 [run]
 branch = True
-omit = todo_tracker/ordereddict.py,todo_tracker/alarmclock.py,ve
+omit = treeoflife/ordereddict.py,treeoflife/alarmclock.py,ve

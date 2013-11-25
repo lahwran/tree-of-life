@@ -1,6 +1,6 @@
 from __future__ import unicode_literals, print_function
 
-from todo_tracker.exceptions import LoadError, ErrorContext
+from treeoflife.exceptions import LoadError, ErrorContext
 
 
 def test_loaderror():

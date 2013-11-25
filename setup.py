@@ -9,7 +9,7 @@ setup(
         license='MIT',
         author="lahwran",
         author_email="lahwran0@gmail.com",
-        scripts=["bin/todo-tracker"],
+        scripts=["bin/treeoflife-server"],
         install_requires=["twisted", "parsley", "pytest", "pep8", "txws",
             "raven"],
         classifiers=[

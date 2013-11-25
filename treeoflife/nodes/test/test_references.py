@@ -1,10 +1,10 @@
 from __future__ import unicode_literals, print_function
 
-from todo_tracker.tracker import Tracker, nodecreator
-from todo_tracker import navigation
-from todo_tracker import searching
-from todo_tracker.nodes import references
-from todo_tracker.nodes import node
+from treeoflife.tracker import Tracker, nodecreator
+from treeoflife import navigation
+from treeoflife import searching
+from treeoflife.nodes import references
+from treeoflife.nodes import node
 
 import pytest
 
@@ -484,7 +484,7 @@ class TestProxynode(object):
             u"%s: <-" % reftype
         )
 
-        from todo_tracker.file_storage import serialize
+        from treeoflife.file_storage import serialize
 
         result = serialize(tracker.root.find_one(reftype + u" > \xfcparent"))
         assert result == [

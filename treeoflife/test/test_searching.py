@@ -6,12 +6,12 @@ import time
 from itertools import izip_longest
 from random import Random
 
-from todo_tracker import searching
-from todo_tracker.tracker import Tracker
-from todo_tracker.parseutil import ParseError
-from todo_tracker.test.util import FakeNodeCreator, match
-from todo_tracker.nodes.misc import GenericActivate
-from todo_tracker.file_storage import serialize
+from treeoflife import searching
+from treeoflife.tracker import Tracker
+from treeoflife.parseutil import ParseError
+from treeoflife.test.util import FakeNodeCreator, match
+from treeoflife.nodes.misc import GenericActivate
+from treeoflife.file_storage import serialize
 
 
 def test_tags_parsing():
