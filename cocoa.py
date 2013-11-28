@@ -66,7 +66,7 @@ def quit_popup(event):
 
 @command()
 def update(event):
-    event.source.update()
+    event.source.update_all()
 
 
 def osascript(code):
@@ -224,10 +224,14 @@ class JSONProtocol(LineOnlyReceiver):
     def sendmessage(self, message):
         self.sendLine(json.dumps(message))
 
+    def update_all(self):
+        for listener in self.commandline.listeners:
+            listener.update()
+
     def update(self):
         if self.update_timeout is not None and self.update_timeout.active():
             self.update_timeout.cancel()
-        self.update_timeout = reactor.callLater(60, self.update)
+        self.update_timeout = reactor.callLater(600, self.update)
         self.update_editor_running()
 
         try:
@@ -328,7 +332,7 @@ class JSONProtocol(LineOnlyReceiver):
                 formatted = name
             self.error(formatted)
         else:
-            self.update()
+            self.update_all()
 
     def message_display(self, is_displayed):
         pass
