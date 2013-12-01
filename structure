@@ -1,0 +1,65 @@
+x root is a node
+|   root has other nodes as children
+|
+|   nodes are instances of treeoflife.nodes.node.Node, or one
+|   of its various subclasses. They have a .children attribute
+|   which allows them to contain other nodes.
+|
+|   root is an instance of treeoflife.nodes.node.TreeRootNode.
+|
+x tracker is more or less an instance of the treeoflife app;
+|   it keeps track of the current root node, and gets to
+|   unload/reload it, etc.
+|
+|   x treeoflife.tracker.Tracker class provides basic load/unload
+|   |    and keeping track of a root node
+|   |
+|   x treeoflife.userinterface.CommandInterface provides
+|   |    alarm functionality and simple commandline use
+|   |
+|   x treeoflife.userinterface.SavingInterface provides
+|   |    saving to ~/.treeoflife and committing the internal
+|   |    git repository; this class is in charge of autosaving
+|   |
+|   x cocoa.RemoteInterface provides a few things that
+|   |    JSONProtocol needs to work, notably a way to open
+|   |    an editor automatically (currently only vim)
+|   |
+x cocoa.JSONProtocol provides a simple network protocol
+|   for communicating with the frontend's javascript code.
+|   it provides a way for the frontend to run commands that
+|   the CommandInterface class will understand, as well as a
+|   way to take a dump of the root node and send it over.
+|   
+|   There is one instance of JSONProtocol for each open webclient,
+|   so if you open a web browser to ui.html at the same time Popup
+|   is open, there will be two instances of JSONProtocol.
+|
+x twisted stuff here - twisted provides 1. a server that hosts
+|   ui.html and its resources (ui.less, ui.js, etc)
+|   and 2. a network link between JSONProtocol and ui.js.
+|   
+~
+
+~network stuff that the nice operating system does for us~
+
+~
+|
+x Popup.app (which embeds a webbrowser in the osx menu bar) or 
+|    a web browser. Popup.app is a (very heavily) modified version
+|    of an example app.
+|
+x ui.html is loaded from the backend; by default, the backend listens
+|    on port 18081 for JSONProtocol connections, 18082 for web
+|    connections (go to http://localhost:18082/ for a listing of
+|    files, or that url +/ui.html for the webclient) and
+|    port 18083 for a websocket interface to JSONProtocol (which
+|    is used when you open ui.html outside of popup.app).
+|
+|    x node rendering stuff
+|    |
+|    x networking code
+|    |
+|    x angularjs
+|
+|    todo: need a more detailed explanation of the ui code
