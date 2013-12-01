@@ -370,7 +370,7 @@ argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
         const="true", type=lambda s: s.lower() == "true")
 argparser.add_argument("-d", "--dir-path", default="~/.treeoflife",
         dest="path")
-argparser.add_argument("-p", "--port", default=18081, dest="port")
+argparser.add_argument("-p", "--port", default=18081, dest="port", type=int)
 argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
 argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")

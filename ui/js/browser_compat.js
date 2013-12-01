@@ -8,7 +8,7 @@ tracker_api_browser = {
         ui_console.log("COMPAT: connecting");
         _handlers.browser_compat_mode();
 
-        tracker_api.socket = new WebSocket("ws://localhost:18083");
+        tracker_api.socket = new WebSocket("ws://" + location.hostname + ":" + (parseInt(location.port) + 1));
 
         tracker_api.socket.onopen = function(event) {
             tracker_api._data = "";
