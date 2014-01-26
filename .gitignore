@@ -14,3 +14,4 @@ pudb_stringifier.py
 /ve
 /*.txt
 /*.egg-info
+/docs/_build

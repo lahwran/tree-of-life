@@ -10,8 +10,15 @@ setup(
         author="lahwran",
         author_email="lahwran0@gmail.com",
         scripts=["bin/treeoflife-server"],
-        install_requires=["twisted", "parsley", "pytest", "pep8", "txws",
-            "raven"],
+        install_requires=[
+            "twisted",
+            "parsley",
+            "pytest",
+            "pep8",
+            "txws",
+            "raven",
+            "sphinx",
+        ],
         classifiers=[
             'Development Status :: 4 - Beta',
             'Environment :: Web Environment',
@@ -28,6 +35,5 @@ setup(
             'Programming Language :: Objective C',
             'Topic :: Office/Business :: Scheduling',
             'Topic :: Software Development :: Bug Tracking'
-        ],
-        keywords=['todo', 'planning', 'scheduling', 'task', 'concentration']
+        ]
 )
