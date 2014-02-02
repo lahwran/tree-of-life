@@ -304,6 +304,7 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
 
         b.prompt = [];
         b.notifications = [];
+        b.errors = [];
         b.__host__ = tracker_api;
 
         b.send = function(obj) {
@@ -389,6 +390,12 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
             if (!angular.isDefined(x)) return;
             b.__host__.setPanelShown(x);
         })
+        b.addError = function(error) {
+            b.errors.push(error);
+            $timeout(function() {
+                b.errors.shift();
+            }, 30000);
+        };
     
 
         return b;
@@ -464,6 +471,9 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
         $rootScope.$on("message/pool", function(event, pool) {
             backend.pool = pool;
             $rootScope.pool = pool;
+        });
+        $rootScope.$on("message/error", function(event, err) {
+            backend.addError(err);
         });
         $rootScope.$watch(function() {
             profile("rootscope");

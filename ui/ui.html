@@ -40,6 +40,9 @@
           <nodes pool="pool" nodes="pool[pool.ids.todo_bucket].children"></nodes>
         </collapseable>
         <div class="content-inner">
+          <div ng-repeat="error in backend.errors" class="error">
+            Error: {{ error }}
+          </div>
           <node pool="pool" node="pool.ids.days" toplevel></node>
         </div>
       </div>
