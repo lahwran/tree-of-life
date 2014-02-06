@@ -394,7 +394,7 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
             b.errors.push(error);
             $timeout(function() {
                 b.errors.shift();
-            }, 30000);
+            }, 3000);
         };
     
 
