@@ -8,6 +8,7 @@ from functools import partial
 from datetime import datetime, timedelta
 import time
 import logging
+import inspect
 import itertools
 
 from treeoflife.file_storage import parse_line
@@ -71,6 +72,14 @@ class Event(object):
         self.command_name = command_name
         self.text = text
         self.ui = ui
+        self.event = self
+
+    def _inject(self, function):
+        func_args = inspect.getargs(function.__code__).args
+        call = {}
+        for arg in func_args:
+            call[arg] = getattr(self, arg)
+        return function(**call)
 
 
 class MixedAlarmRoot(TreeRootNode, alarms.RootMixin):
@@ -93,7 +102,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
             self.errormessage(source, "no such command %r" % command_name)
         else:
             event = Event(source, self.root, command_name, text, self)
-            target(event)
+            event._inject(target)
 
     def command(self, source, line):
         if not line.strip():
@@ -180,7 +189,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
 
     def tree_context(self, max_lines=55):
         active = self.root.active_node
-        current = active.find_one("<day")
+        current = active.find("<day").one()
         days = current.parent
         root = self.root
 

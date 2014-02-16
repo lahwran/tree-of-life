@@ -5,6 +5,7 @@ from treeoflife import navigation
 from treeoflife import searching
 from treeoflife.nodes import references
 from treeoflife.nodes import node
+from treeoflife.file_storage import serialize_to_str
 
 import pytest
 
@@ -45,7 +46,7 @@ def test_reference(tracker, reftype):
         u"%s#aaaaa: <- \xfctarget\n" % reftype
     )
 
-    assert len(tracker.root.find_one(reftype).children) == 2
+    assert len(tracker.root.find(reftype).one().children) == 2
 
     assert _dump(tracker.root.find(reftype), ids=True) == [
         u"%s#aaaaa: #11111" % reftype,
@@ -94,12 +95,14 @@ def test_nested_createchild(tracker, reftype):
         u"%s: <- task\n" % reftype
     )
 
-    somechild = tracker.root.find_one(u"%s > task > "
-                u"reference > \xfcsomechild" % reftype)
+    somechild = tracker.root.find(u"%s > task > "
+                u"reference > \xfcsomechild" % reftype).one()
     node = somechild.createchild(u"task", u"\xfctest")
-    node2 = tracker.root.find_one(u"task > task > reference > task > \xfctest")
+    node2 = tracker.root.find(u"task > task > reference > "
+                u"task > \xfctest").one()
     assert node._px_target is node2
-    assert node2._px_target is tracker.root.find_one(u"task > task > \xfctest")
+    assert node2._px_target is tracker.root.find(
+                u"task > task > \xfctest").one()
 
     assert _dump(tracker.root.find("*")) == [
         u"task: \xfctarget",
@@ -135,7 +138,7 @@ def test_createchild(tracker, reftype):
         u"%s: <- \xfctarget\n" % reftype
     )
 
-    somechild = tracker.root.find_one(u"%s > \xfcsomechild" % reftype)
+    somechild = tracker.root.find(u"%s > \xfcsomechild" % reftype).one()
     somechild.createchild(u"task", u"\xfctest")
 
     assert _dump(tracker.root.find("*")) == [
@@ -160,9 +163,9 @@ def test_parent(tracker, reftype):
         u"%s: <-" % reftype
     )
 
-    proxy_3 = tracker.root.find_one(u"%s > * > \xfctarget 3" % reftype)
-    proxy_2 = tracker.root.find_one(u"%s > \xfctarget 2" % reftype)
-    reference = tracker.root.find_one(reftype)
+    proxy_3 = tracker.root.find(u"%s > * > \xfctarget 3" % reftype).one()
+    proxy_2 = tracker.root.find(u"%s > \xfctarget 2" % reftype).one()
+    reference = tracker.root.find(reftype).one()
     assert proxy_3.parent is proxy_2
     assert proxy_2.parent is reference
 
@@ -182,26 +185,33 @@ class TestProxynode(object):
 
         root = tracker.root
 
-        navigation.done(tracker)
-        assert root.active_node is root.find_one(
-                u"days > day > reference > task")
-        navigation.done(tracker)
-        assert root.active_node is root.find_one(
-                u"days > day > reference > task > task")
-        navigation.done(tracker)
-        assert root.active_node is root.find_one(
-                u"days > day > reference > task")
-        navigation.done(tracker)
-        assert root.active_node is root.find_one(
-                u"days > day > reference")
-        navigation.done(tracker)
-        assert root.active_node is root.find_one(
-                u"days > day")
+        # manual search just in case
+        days = tracker.root.children.prev_neighbor
+        day = days.children.next_neighbor
+        ref = day.children.prev_neighbor
 
-        reference = tracker.root.find_one(u"days > day > reference")
-        target_3 = tracker.root.find_one(u"** > \xfctarget 3")
-        target_2 = tracker.root.find_one(u"** > \xfctarget 2")
-        target_1 = tracker.root.find_one(u"\xfctarget 1")
+        assert root.active_node is ref
+
+        navigation.done(tracker.root)
+        assert root.active_node is root.find(
+                u"days > day > reference > task").one()
+        navigation.done(tracker.root)
+        assert root.active_node is root.find(
+                u"days > day > reference > task > task").one()
+        navigation.done(tracker.root)
+        assert root.active_node is root.find(
+                u"days > day > reference > task").one()
+        navigation.done(tracker.root)
+        assert root.active_node is root.find(
+                u"days > day > reference").one()
+        navigation.done(tracker.root)
+        assert root.active_node is root.find(
+                u"days > day").one()
+
+        reference = tracker.root.find(u"days > day > reference").one()
+        target_3 = tracker.root.find(u"** > \xfctarget 3").one()
+        target_2 = tracker.root.find(u"** > \xfctarget 2").one()
+        target_1 = tracker.root.find(u"\xfctarget 1").one()
 
         assert reference.started
         assert target_1.started
@@ -221,11 +231,12 @@ class TestProxynode(object):
             u"%s: <- \xfctarget 1\n" % reftype
         )
 
-        target_3 = tracker.root.find_one(u"task > task > \xfctarget 3")
-        target_4 = tracker.root.find_one(u"task > \xfctarget 4")
+        target_3 = tracker.root.find(u"task > task > \xfctarget 3").one()
+        target_4 = tracker.root.find(u"task > \xfctarget 4").one()
 
-        proxy_3 = tracker.root.find_one(u"%s > task > \xfctarget 3" % reftype)
-        proxy_4 = tracker.root.find_one(u"%s > \xfctarget 4" % reftype)
+        proxy_3 = tracker.root.find(u"%s > task > \xfctarget 3"
+                                    % reftype).one()
+        proxy_4 = tracker.root.find(u"%s > \xfctarget 4" % reftype).one()
 
         proxy_3 = proxy_3.detach()
         proxy_3.parent = proxy_4
@@ -253,17 +264,17 @@ class TestProxynode(object):
             u"reference: <-\n" % reftype
         )
 
-        target_3 = tracker.root.find_one(u"task > task > \xfctarget 3")
-        target_4 = tracker.root.find_one(u"task > \xfctarget 4")
+        target_3 = tracker.root.find(u"task > task > \xfctarget 3").one()
+        target_4 = tracker.root.find(u"task > \xfctarget 4").one()
 
-        proxy_3 = tracker.root.find_one(u"%s -> "
-                u"reference > task > \xfctarget 3" % reftype)
+        proxy_3 = tracker.root.find(u"%s -> "
+                u"reference > task > \xfctarget 3" % reftype).one()
 
         detached = proxy_3.detach()
         detached.parent = target_4
 
         target_4.addchild(detached)
-        assert target_4.find_one(u"*") is target_3
+        assert target_4.find(u"*").one() is target_3
 
         assert _dump(tracker.root.find(u"*")) == [
             u"task: \xfctarget 1",
@@ -288,16 +299,16 @@ class TestProxynode(object):
             u"%s: <- \xfctarget 1\n" % reftype
         )
 
-        target_2 = tracker.root.find_one(u"task > \xfctarget 2")
-        target_3 = tracker.root.find_one(u"task > \xfctarget 3")
+        target_2 = tracker.root.find(u"task > \xfctarget 2").one()
+        target_3 = tracker.root.find(u"task > \xfctarget 3").one()
 
-        proxy_2 = tracker.root.find_one(u"%s > \xfctarget 2" % reftype)
+        proxy_2 = tracker.root.find(u"%s > \xfctarget 2" % reftype).one()
 
         detached = proxy_2.detach()
         detached.parent = target_3
 
         target_3.addchild(detached)
-        assert target_3.find_one(u"*") is target_2
+        assert target_3.find(u"*").one() is target_2
 
         assert _dump(tracker.root.find(u"*")) == [
             u"task: \xfctarget 1",
@@ -317,11 +328,11 @@ class TestProxynode(object):
             u"%s: <- \xfctarget 1\n" % reftype
         )
 
-        target_3 = tracker.root.find_one(u"task > task > \xfctarget 3")
-        target_4 = tracker.root.find_one(u"task > \xfctarget 4")
+        target_3 = tracker.root.find(u"task > task > \xfctarget 3").one()
+        target_4 = tracker.root.find(u"task > \xfctarget 4").one()
 
-        proxy_3 = tracker.root.find_one(reftype + u" > task > \xfctarget 3")
-        proxy_4 = tracker.root.find_one(reftype + u" > \xfctarget 4")
+        proxy_3 = tracker.root.find(reftype + u" > task > \xfctarget 3").one()
+        proxy_4 = tracker.root.find(reftype + u" > \xfctarget 4").one()
 
         target_3_new = proxy_3.copy()
         target_3_new.parent = proxy_4
@@ -350,11 +361,11 @@ class TestProxynode(object):
             u"%s: <- \xfctarget 1\n" % reftype
         )
 
-        target_3 = tracker.root.find_one(u"task > task > \xfctarget 3")
-        target_4 = tracker.root.find_one(u"task > \xfctarget 4")
+        target_3 = tracker.root.find(u"task > task > \xfctarget 3").one()
+        target_4 = tracker.root.find(u"task > \xfctarget 4").one()
 
-        proxy_3 = tracker.root.find_one(reftype + u"> task > \xfctarget 3")
-        proxy_4 = tracker.root.find_one(reftype + u"> \xfctarget 4")
+        proxy_3 = tracker.root.find(reftype + u"> task > \xfctarget 3").one()
+        proxy_4 = tracker.root.find(reftype + u"> \xfctarget 4").one()
 
         target_3_new = proxy_3.copy(parent=proxy_4)
 
@@ -380,7 +391,7 @@ class TestProxynode(object):
             u"%s: <-" % reftype
         )
 
-        target_2 = tracker.root.find_one(reftype + u" > ")
+        target_2 = tracker.root.find(reftype + u" > ").one()
 
         target_2.createchild(u"task", u"\xfctest")
 
@@ -402,8 +413,8 @@ class TestProxynode(object):
             u"%s: <- \xfcto reference\n" % reftype
         )
 
-        proxy = tracker.root.find_one(reftype + u" > task > \xfcmove me")
-        parent = tracker.root.find_one(reftype + u"> task: \xfcparent")
+        proxy = tracker.root.find(reftype + u" > task > \xfcmove me").one()
+        parent = tracker.root.find(reftype + u"> task: \xfcparent").one()
         move_me = proxy._px_target
 
         move_me.detach()
@@ -434,8 +445,8 @@ class TestProxynode(object):
             u"%s: <- \xfcto reference\n" % reftype
         )
 
-        proxy = tracker.root.find_one(reftype + u"> task > \xfcmove me")
-        parent = tracker.root.find_one(reftype + u"> task: \xfcparent")
+        proxy = tracker.root.find(reftype + u"> task > \xfcmove me").one()
+        parent = tracker.root.find(reftype + u"> task: \xfcparent").one()
         move_me = proxy._px_target
 
         move_me.detach()
@@ -464,7 +475,7 @@ class TestProxynode(object):
             u"%s: <-" % reftype
         )
 
-        to_rename = tracker.root.find_one(reftype + u' > \xfcto rename')
+        to_rename = tracker.root.find(reftype + u' > \xfcto rename').one()
         to_rename.text = u"\xfcrenamed"
 
         assert _dump(tracker.root.children) == [
@@ -486,7 +497,7 @@ class TestProxynode(object):
 
         from treeoflife.file_storage import serialize
 
-        result = serialize(tracker.root.find_one(reftype + u" > \xfcparent"))
+        result = serialize(tracker.root.find(reftype + u" > \xfcparent").one())
         assert result == [
             u"task#aaaaa: \xfcparent"
         ]
@@ -498,7 +509,7 @@ class TestProxynode(object):
             u"%s: <-" % reftype
         )
 
-        target = tracker.root.find_one(reftype + u"> \xfctarget")
+        target = tracker.root.find(reftype + u"> \xfctarget").one()
 
         with pytest.raises(AttributeError) as excinfo:
             target.options
@@ -513,7 +524,7 @@ class TestRefnode(object):
             u"{}: <-".format(reftype)
         )
 
-        ref = tracker.root.find_one(reftype)
+        ref = tracker.root.find(reftype).one()
 
         ref.createchild(u"task", u"\xfctest")
 
@@ -535,7 +546,7 @@ class TestRefnode(object):
         )
 
         navigation.done(tracker.root)
-        refnode = tracker.root.find_one(u"** > " + reftype)
+        refnode = tracker.root.find(u"** > " + reftype).one()
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -544,7 +555,7 @@ class TestRefnode(object):
             u"    proxy: task: \xfctarget 2"
         ]
         navigation.finish(u"<", tracker.root)
-        target = tracker.root.find_one(u"task: \xfctarget 1")
+        target = tracker.root.find(u"task: \xfctarget 1").one()
         if reftype == u"depends":
             assert target.finished
         else:
@@ -577,20 +588,19 @@ class TestRefnode(object):
             u"            @finished\n".format(reftype)
         )
 
-        refnode = tracker.root.find_one(u"** > " + reftype)
+        refnode = tracker.root.find(u"** > " + reftype).one()
         assert refnode.finished
         assert _dump([refnode]) == [
             reftype + u": " + refnode.text
         ]
         assert tracker.root.active_node.node_type == u"day"
-        target = tracker.root.find_one(u"task: \xfctarget 1")
+        target = tracker.root.find(u"task: \xfctarget 1").one()
         if reftype == u"depends":
             assert target.finished
         else:
             assert not target.finished
 
-        navigation.forceactivate(
-            searching.Query(u">"), tracker.root)
+        navigation.forceactivate(u">", tracker.root)
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -614,17 +624,16 @@ class TestRefnode(object):
             u"            @finished\n".format(reftype)
         )
 
-        refnode = tracker.root.find_one(u"** > " + reftype)
+        refnode = tracker.root.find(u"** > " + reftype).one()
         assert refnode.finished
         assert _dump([refnode]) == [
             reftype + u": " + refnode.text
         ]
         assert tracker.root.active_node.node_type == u"day"
-        target = tracker.root.find_one(u"task: \xfctarget 1")
+        target = tracker.root.find(u"task: \xfctarget 1").one()
         assert target.finished
 
-        navigation.forceactivate(
-            searching.Query(u">"), tracker.root)
+        navigation.forceactivate(u">", tracker.root)
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -648,7 +657,7 @@ class TestRefnode(object):
 
         tracker.root.addchild(ref)
 
-        assert ref._px_target is tracker.root.find_one(u"task")
+        assert ref._px_target is tracker.root.find(u"task").one()
 
     def test_export(self, tracker, reftype):
         tree = (
@@ -668,9 +677,9 @@ class TestRefnode(object):
             u"    task: \xfctoremove\n"
             u"{}: <-\n".format(reftype)
         )
-        reference = tracker.root.find_one(reftype)
+        reference = tracker.root.find(reftype).one()
 
-        toremove = reference.find_one(u"task")
+        toremove = reference.find(u"task").one()
         reference.removechild(toremove)
         assert _dump(tracker.root.children) == [
             u"task: \xfcreferenced",
@@ -690,13 +699,13 @@ def test_child_loop(tracker, reftype):
         u"%s: <-" % reftype
     )
 
-    a = tracker.root.find_one(reftype)
-    b = a.find_one(u"b")
-    c = a.find_one(u"c")
-    d = a.find_one(u"d")
-    e = a.find_one(u"b > e")
-    f = a.find_one(u"b > f")
-    g = a.find_one(u"b > g")
+    a = tracker.root.find(reftype).one()
+    b = a.find(u"b").one()
+    c = a.find(u"c").one()
+    d = a.find(u"d").one()
+    e = a.find(u"b > e").one()
+    f = a.find(u"b > f").one()
+    g = a.find(u"b > g").one()
 
     assert a.children._next_node is b
     assert a.children is b._prev_node
@@ -723,11 +732,9 @@ class TestSearchCreateIntegration(object):
             u"task: target\n"
             u"%s: <-" % reftype
         )
-        creator = searching.Creator(reftype + u" > task: test")
-        nodes = creator(tracker.root)
-        assert len(nodes) == 1
-        node = nodes[0]
-        proxy = tracker.root.find_one(reftype + u"> test")
+        creator = searching.parse_create(reftype + u" > task: test")
+        node = creator(tracker.root)
+        proxy = tracker.root.find(reftype + u"> test").one()
         assert node is proxy
 
     def test_mini_child_loop(self, tracker, reftype):
@@ -735,14 +742,14 @@ class TestSearchCreateIntegration(object):
             "task: target\n"
             "%s: <-" % reftype
         )
-        creator = searching.Creator(reftype + u"> task: test")
-        nodes = creator(tracker.root)
-        assert len(nodes) == 1
+        creator = searching.parse_create(reftype + u"> task: test")
+        node = creator(tracker.root)
+        assert node
 
-        proxy_task = tracker.root.find_one(reftype + u"> test")
-        target_task = tracker.root.find_one(u"target > test")
-        reference = tracker.root.find_one(reftype)
-        target = tracker.root.find_one(u"target")
+        proxy_task = tracker.root.find(reftype + u"> test").one()
+        target_task = tracker.root.find(u"target > test").one()
+        reference = tracker.root.find(reftype).one()
+        target = tracker.root.find(u"target").one()
 
         unwrap = reference.unwrap
         wrap = reference.get_proxy
@@ -771,19 +778,19 @@ def test_simple_interaction(tracker, reftype):
         u"            @active\n" % reftype
     )
 
-    navigation.createauto(u"task: test", tracker)
+    navigation.createauto(u"task: test", tracker.root)
 
     active_node = tracker.root.active_node
-    proxy = tracker.root.find_one(u"days > today > " + reftype + u" > test")
-    target = tracker.root.find_one(u"target > test")
+    proxy = tracker.root.find(u"days > today > " + reftype + u" > test").one()
+    target = tracker.root.find(u"target > test").one()
     assert active_node is proxy
     assert proxy is not target
     assert proxy._px_target is target
     assert proxy._px_root.get_proxy(target) is proxy
 
-    navigation.createfinish(u"-> task: test 2", tracker)
+    navigation.createfinish(u"-> task: test 2", tracker.root)
 
-    target = tracker.root.find_one(u"target")
+    target = tracker.root.find(u"target").one()
     assert target.started
     first_child = target.children.next_neighbor
     assert first_child.started
@@ -792,8 +799,8 @@ def test_simple_interaction(tracker, reftype):
     assert second_child.started
     assert not second_child.finished
 
-    proxy_active = tracker.root.find_one(u"days > day > "
-            + reftype + u"> test 2")
+    proxy_active = tracker.root.find(u"days > day > "
+            + reftype + u"> test 2").one()
     assert proxy_active is tracker.root.active_node
 
 
@@ -807,10 +814,10 @@ def test_another_interaction(tracker, reftype):
         u"            @active\n" % reftype
     )
 
-    navigation.createauto(u"task: test 1", tracker)
-    navigation.createfinish(u"< > +task: test 2", tracker)
+    navigation.createauto(u"task: test 1", tracker.root)
+    navigation.createfinish(u"< > +task: test 2", tracker.root)
 
-    target = tracker.root.find_one(u"target")
+    target = tracker.root.find(u"target").one()
 
     assert target.started
     first_child = target.children.next_neighbor
@@ -820,8 +827,8 @@ def test_another_interaction(tracker, reftype):
     assert second_child.started
     assert not second_child.finished
 
-    proxy_active = tracker.root.find_one(u"days > day > "
-            + reftype + u" > test 2")
+    proxy_active = tracker.root.find(u"days > day > "
+            + reftype + u" > test 2").one()
     assert proxy_active is tracker.root.active_node
 
 
@@ -832,11 +839,11 @@ def test_str(tracker, reftype):
         u"%s: <-\n" % reftype
     )
 
-    proxy = tracker.root.find_one(reftype + u" > comment")
+    proxy = tracker.root.find(reftype + u" > comment").one()
     proxy_target = proxy._px_target
     assert str(proxy) == str(proxy_target)
 
-    ref = tracker.root.find_one(reftype)
+    ref = tracker.root.find(reftype).one()
     assert str(ref) == reftype + u": target"
 
     if reftype == u"reference":
@@ -883,7 +890,7 @@ def test_ui_dictify(tracker, reftype):
         ) % (reftype, reftype)
     )
 
-    child = tracker.root.find_one(reftype + u" > child")
+    child = tracker.root.find(reftype + u" > child").one()
     assert child.ui_dictify() is None
     assert tracker.root.ui_graph() == {
         "rfrn2": {
@@ -935,7 +942,7 @@ def test_ui_dictify(tracker, reftype):
 def test_no_query_finished(tracker, monkeypatch):
     # this one does _not_ apply to depends, hence no reftype
     # depends has to do a query to make sure the target is marked
-    monkeypatch.setattr(references.Reference, "find_one", None)
+    monkeypatch.setattr(references.Reference, "find", None)
     tracker.deserialize("str",
         u"reference: <-\n"
         u"    @started\n"
@@ -951,7 +958,7 @@ def test_reference_finished(tracker, reftype):
         u"%s: <-" % reftype
     )
 
-    reference = tracker.root.find_one(reftype)
+    reference = tracker.root.find(reftype).one()
     assert not reference.started
     assert reference.finished
 
@@ -965,8 +972,8 @@ def test_depends_finished_node(tracker, reftype):
         u"    @finished: June 2, 2013 2:00 am" % reftype
     )
 
-    reference = tracker.root.find_one(reftype)
-    target = tracker.root.find_one(u"task")
+    reference = tracker.root.find(reftype).one()
+    target = tracker.root.find(u"task").one()
     assert not reference.started
     assert reference.finished
     assert reference.finished > target.finished
@@ -979,7 +986,7 @@ def test_reference_started(tracker, reftype):
         u"    @started: June 1, 2013 1:00 am\n" % reftype
     )
 
-    reference = tracker.root.find_one(reftype)
+    reference = tracker.root.find(reftype).one()
     target = reference._px_target
     assert reference.started == target.started
     assert not reference._px_didstart
@@ -993,8 +1000,8 @@ def test_depends_propogate_finished(tracker):
         u"    @finished: June 2, 2013 1:00 am\n"
     )
 
-    dep = tracker.root.find_one(u"depends")
-    target = tracker.root.find_one(u"task")
+    dep = tracker.root.find(u"depends").one()
+    target = tracker.root.find(u"task").one()
     assert dep._px_target is None
     assert dep.finished == target.finished
     assert not dep._px_didfinish
@@ -1009,7 +1016,7 @@ def test_reference_category(tracker, reftype):
         u"        %s: << > category" % reftype
     )
 
-    ref = tracker.root.find_one(u'** > ' + reftype)
+    ref = tracker.root.find(u'** > ' + reftype).one()
     tracker.root.activate(ref)
 
     assert ref.started
@@ -1025,7 +1032,7 @@ def test_reference_category_existingtime(tracker, reftype):
         u"            @started: December 19, 1994 11:55 PM" % reftype
     )
 
-    ref = tracker.root.find_one(u'** > ' + reftype)
+    ref = tracker.root.find(u'** > ' + reftype).one()
 
     assert ref.started
 
@@ -1054,7 +1061,7 @@ def test_unwriteable_started(tracker, monkeypatch, reftype):
         u"            @started\n" % reftype
     )
 
-    ref = tracker.root.find_one(u"days > day > " + reftype)
+    ref = tracker.root.find(u"days > day > " + reftype).one()
 
     assert called[0]
     assert ref.started
@@ -1086,7 +1093,7 @@ def test_unwriteable_finished(tracker, monkeypatch):
         u"            @finished\n"
     )
 
-    ref = tracker.root.find_one(u"days > day > depends")
+    ref = tracker.root.find(u"days > day > depends").one()
 
     assert called[0]
     assert ref.finished

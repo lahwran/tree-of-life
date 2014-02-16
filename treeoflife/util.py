@@ -61,8 +61,8 @@ def memoize(obj):
         try:
             return cache[a, fs_kw]
         except KeyError:
-            cache[a, fs_kw] = obj(*a, **kw)
-            return cache[a, fs_kw]
+            z = cache[a, fs_kw] = obj(*a, **kw)
+            return z
     wrapper.cache = cache
     return wrapper
 

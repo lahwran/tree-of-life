@@ -14,6 +14,11 @@ from treeoflife.nodes.misc import GenericActivate
 from treeoflife.file_storage import serialize
 
 
+@pytest.fixture(params=[searching.parse_single, searching.parse])
+def makequery(request):
+    return request.param
+
+
 def test_tags_parsing():
     assert searching.SearchGrammar("around, the, world").tag_texts() == (
             "around", "the", "world")
@@ -54,13 +59,13 @@ def test_derp():
         "task", 'do \'something\' with "something"'),
 ])
 def test_quoting(querytext, node_type, text):
-    q = searching.Query(querytext)
+    q = searching.parse_single(querytext)
     assert q.segments[0].pattern.type == node_type
     assert q.segments[0].pattern.text == text
     assert len(q.segments) == 1
 
 
-def test_search():
+def test_search(makequery):
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
     origin = tracker.root.createchild("task", "origin")
@@ -70,16 +75,16 @@ def test_search():
     peer = tracker.root.createchild("task", "peer")
     target2 = peer.createchild("task", "Target2")
 
-    query1 = searching.Query("task: target1")
-    assert list(query1([origin])) == [target1]
+    query1 = makequery("task: target1")
+    assert query1(origin).list() == [target1]
     assert repr(query1)
 
-    query2 = searching.Query("-> task: PEER > task: tarGet2")
-    assert list(query2([origin])) == [target2]
+    query2 = makequery("-> task: PEER > task: tarGet2")
+    assert query2(origin).list() == [target2]
     assert repr(query2)
 
 
-def test_id_lookup():
+def test_id_lookup(makequery):
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
     origin = tracker.root.createchild("task", "origin", nodeid="orign")
@@ -92,33 +97,33 @@ def test_id_lookup():
     targetlist = [
         target2.createchild("task") for x in range(10)]
 
-    query1 = searching.Query("#abcde")
-    assert list(query1([origin])) == [target1]
-    assert list(query1([target2])) == [target1]
+    query1 = makequery("#abcde")
+    assert query1(origin).list() == [target1]
+    assert query1(target2).list() == [target1]
     assert repr(query1)
 
-    query2 = searching.Query("#orign -> task: peer > task: target2")
-    assert list(query2([ignoreme])) == [target2]
-    assert list(query2([tracker.root])) == [target2]
+    query2 = searching.parse_single("#orign -> task: peer > task: target2")
+    assert query2(ignoreme).list() == [target2]
+    assert query2(tracker.root).list() == [target2]
     assert repr(query2)
 
-    query3 = searching.Query("#trgt2>")
-    assert list(query3([ignoreme])) == targetlist
-    assert list(query3([tracker.root])) == targetlist
+    query3 = makequery("#trgt2>")
+    assert query3(ignoreme).list() == targetlist
+    assert query3(tracker.root).list() == targetlist
     assert repr(query3)
 
-    query4 = searching.Query("*: #abcde")
-    assert list(query4([origin])) == [target3]
+    query4 = makequery("*: #abcde")
+    assert query4(origin).list() == [target3]
     assert repr(query4)
 
 
 def test_id_lookup_invalid():
     with pytest.raises(Exception):
-        print(searching.Query("-> #orign"))
+        print(makequery("-> #orign"))
     with pytest.raises(Exception):
-        print(searching.Query("-> task -> #orign"))
+        print(makequery("-> task -> #orign"))
     with pytest.raises(Exception):
-        print(searching.Query("#orign test"))
+        print(makequery("#orign test"))
 
 
 def test_pluralities():
@@ -131,20 +136,20 @@ def test_pluralities():
     for i in range(10):
         targets.append(tracker.root.createchild("task", "target %d" % i))
 
-    query1 = searching.Query("-> * :{first}")
-    assert list(query1([origin])) == [targets[0]]
+    query1 = searching.parse_single("-> * :{first}")
+    assert query1(origin).list() == [targets[0]]
     assert repr(query1)
 
-    query1 = searching.Query("-> * :{last}")
-    assert list(query1([origin])) == [targets[-1]]
+    query1 = searching.parse_single("-> * :{last}")
+    assert query1(origin).list() == [targets[-1]]
     assert repr(query1)
 
-    query1 = searching.Query("-> * :{many}")
-    assert list(query1([origin])) == targets
+    query1 = searching.parse_single("-> * :{many}")
+    assert query1(origin).list() == targets
     assert repr(query1)
 
 
-def test_flatten():
+def test_flatten(makequery):
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
     origin = tracker.root.createchild("task", "origin")
@@ -170,13 +175,13 @@ def test_flatten():
     targets.append(nodes[-1])
     nodes.append(nodes[-2].createchild("task", "k"))
 
-    query1 = searching.Query("**")
+    query1 = makequery("**")
 
-    assert list(query1(origin)) == nodes
+    assert query1(origin).list() == nodes
     assert repr(query1)
 
-    query2 = searching.Query("** > task: target")
-    a = list(query2(origin))
+    query2 = makequery("** > task: target")
+    a = query2(origin).list()
     assert a == targets
     assert repr(query2)
 
@@ -195,16 +200,16 @@ def test_flat_text():
     target2 = origin.createchild("task", "target2")
     targets.append(target2)
 
-    query1 = searching.Query("task")
-    assert list(query1(origin)) == targets
+    query1 = searching.parse_single("task")
+    assert query1(origin).list() == targets
     assert repr(query1)
 
-    query2 = searching.Query("target1")
-    assert list(query2(origin)) == [target1]
+    query2 = searching.parse_single("target1")
+    assert query2(origin).list() == [target1]
     assert repr(query2)
 
-    query3 = searching.Query("target2")
-    assert list(query3(origin)) == [target2]
+    query3 = searching.parse_single("target2")
+    assert query3(origin).list() == [target2]
     assert repr(query3)
 
 
@@ -218,22 +223,17 @@ def test_prev_peer():
     target2 = tracker.root.createchild("task", "target2")
     origin = tracker.root.createchild("task", "origin")
 
-    query1 = searching.Query("<- target1")
-    assert list(query1(origin)) == [target1]
+    query1 = searching.parse_single("<- target1")
+    assert query1(origin).list() == [target1]
     assert repr(query1)
 
-    query2 = searching.Query("<- target2")
-    assert list(query2(origin)) == [target2]
+    query2 = searching.parse_single("<- target2")
+    assert query2(origin).list() == [target2]
     assert repr(query2)
 
 
 def test_parents():
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
-
-    parent6 = tracker.root.createchild("task", "parent6")
-    parent5 = parent6.createchild("task", "parent5")
-    parent4 = parent5.createchild("task", "parent4")
-    origin2 = parent4.createchild("task", "origin2")
 
     parent3 = tracker.root.createchild("task", "parent3")
     parent2 = parent3.createchild("task", "parent2")
@@ -241,12 +241,11 @@ def test_parents():
     origin1 = parent1.createchild("task", "origin1")
 
     expected = [
-        parent1, parent2, parent3, tracker.root,
-        parent4, parent5, parent6, tracker.root
+        parent1, parent2, parent3, tracker.root
     ]
 
-    query = searching.Query("<")
-    assert list(query([origin1, origin2])) == expected
+    query = searching.parse_single("<")
+    assert query(origin1).list() == expected
     assert repr(query)
 
 
@@ -266,18 +265,12 @@ def test_tags_filtering():
     targets.append(origin1.createchild("task", "target node"))
     nontargets.append(origin1.createchild("task", "nontarget node"))
 
-    origin2 = tracker.root.createchild("task", "origin")
-    targets.append(origin2.createchild("task", "target node"))
-    nontargets.append(origin2.createchild("task", "nontarget node"))
-    targets.append(origin2.createchild("task", "target node"))
-    nontargets.append(origin2.createchild("task", "nontarget node"))
-
-    query1 = searching.Query("task :{target}")
-    assert list(query1([origin1, origin2])) == targets
+    query1 = searching.parse_single("task :{target}")
+    assert query1(origin1).list() == targets
     assert repr(query1)
 
-    query1 = searching.Query("task :{nontarget}")
-    assert list(query1([origin1, origin2])) == nontargets
+    query1 = searching.parse_single("task :{nontarget}")
+    assert query1(origin1).list() == nontargets
     assert repr(query1)
 
 
@@ -286,8 +279,8 @@ def test_node_with_colon():
     origin = tracker.root.createchild("task", 'origin')
     target = tracker.root.createchild("task", 'target: with colon')
 
-    query = searching.Query("-> task: target: with colon")
-    assert list(query(origin)) == [target]
+    query = searching.parse_single("-> task: target: with colon")
+    assert query(origin).list() == [target]
     assert repr(query)
 
 
@@ -297,7 +290,7 @@ class TestCreate(object):
 
         origin = tracker.root.createchild("task", "origin")
 
-        creator = searching.Creator("task: Target")
+        creator = searching.parse_create("task: Target")
         creator(origin)
 
         assert match("\n".join(serialize(origin)), (
@@ -323,26 +316,24 @@ class TestCreate(object):
         nodes.append(origin.createchild("task", "untouched"))
         nodes.append(origin.createchild("task", "untouched 2"))
 
-        creator = searching.Creator("task: target")
-        #import pytest; pytest.set_trace()
-        #import pudb; pudb.set_trace()
+        creator = searching.parse_create("task: target")
         created = creator(origin)
 
         results = list(origin.children)
         assert (results[:2] + results[3:]) == nodes
         assert results[2].node_type == "task"
         assert results[2].text == "target"
-        assert created == [results[2]]
+        assert created == results[2]
         assert repr(creator)
 
-    def test_existing_joinedsearch(self):
+    def test_existing_query(self):
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
         origin = tracker.root.createchild("task", "origin")
 
-        selector = searching.Query("task: target")
+        selector = searching.parse_single("task: target")
 
-        creator = searching.Creator(joinedsearch=selector)
+        creator = searching.parse_create(query=selector)
         creator(origin)
 
         assert match("\n".join(serialize(origin)), (
@@ -351,45 +342,47 @@ class TestCreate(object):
         ))
         assert repr(creator)
 
-    def test_multi_create(self):
-        tracker = Tracker(False)
+    # removed this functionality
 
-        nodes = []
+    #def test_multi_create(self):
+    #    tracker = Tracker(False)
 
-        origin = tracker.root.createchild("task", "origin")
-        nodes.append(origin.createchild("task", "finished"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(origin.createchild("task", "finished 2"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(origin.createchild("task", "started"))
-        nodes[-1].start()
-        nodes.append(origin.createchild("task", "untouched"))
-        nodes.append(origin.createchild("task", "untouched 2"))
+    #    nodes = []
 
-        selector = searching.Query("task: target :{many}")
-        #import pudb; pudb.set_trace()
-        creator = searching.Creator(joinedsearch=selector)
-        #import pytest; pytest.set_trace()
-        created = creator(origin)
+    #    origin = tracker.root.createchild("task", "origin")
+    #    nodes.append(origin.createchild("task", "finished"))
+    #    nodes[-1].start()
+    #    nodes[-1].finish()
+    #    nodes.append(origin.createchild("task", "finished 2"))
+    #    nodes[-1].start()
+    #    nodes[-1].finish()
+    #    nodes.append(origin.createchild("task", "started"))
+    #    nodes[-1].start()
+    #    nodes.append(origin.createchild("task", "untouched"))
+    #    nodes.append(origin.createchild("task", "untouched 2"))
 
-        results = list(origin.children)
-        assert [
-            results[0],
-            results[1],
-            results[3],
-            results[5],
-            results[7],
-        ] == nodes
-        assert results[2].node_type == "task"
-        assert results[2].text == "target"
-        assert results[4].node_type == "task"
-        assert results[4].text == "target"
-        assert results[6].node_type == "task"
-        assert results[6].text == "target"
-        assert created == [results[2], results[4], results[6]]
-        assert repr(creator)
+    #    selector = searching.parse_single("task: target :{many}")
+    #    #import pudb; pudb.set_trace()
+    #    creator = searching.parse_create(query=selector)
+    #    #import pytest; pytest.set_trace()
+    #    created = creator(origin)
+
+    #    results = list(origin.children)
+    #    assert [
+    #        results[0],
+    #        results[1],
+    #        results[3],
+    #        results[5],
+    #        results[7],
+    #    ] == nodes
+    #    assert results[2].node_type == "task"
+    #    assert results[2].text == "target"
+    #    assert results[4].node_type == "task"
+    #    assert results[4].text == "target"
+    #    assert results[6].node_type == "task"
+    #    assert results[6].text == "target"
+    #    assert created == [results[2], results[4], results[6]]
+    #    assert repr(creator)
 
     def test_after_create(self):
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
@@ -401,7 +394,7 @@ class TestCreate(object):
         origin.createchild("task", "4")
         origin.createchild("task", "5")
 
-        creator = searching.Creator("task: target :{first, after}")
+        creator = searching.parse_create_single("task: target :{first, after}")
         creator(origin)
 
         assert match("\n".join(serialize(origin)), (
@@ -432,19 +425,19 @@ class TestCreate(object):
         nodes.append(origin.createchild("task", "untouched"))
         nodes.append(origin.createchild("task", "untouched 2"))
 
-        creator = searching.Creator("task: target :{after, last, finished}")
-        #import pytest; pytest.set_trace()
+        creator = searching.parse_create_single(
+                "task: target :{after, last, finished}")
         created = creator(origin)
 
         results = list(origin.children)
         assert (results[:2] + results[3:]) == nodes
         assert results[2].node_type == "task"
         assert results[2].text == "target"
-        assert created == [results[2]]
+        assert created == results[2]
         assert repr(creator)
 
     def test_last(self):
-        creator = searching.Creator("+task: last")
+        creator = searching.parse_create_single("+task: last")
         assert not creator.is_before
         assert creator.last_segment.tags == set()
         assert creator.last_segment.plurality == "last"
@@ -475,7 +468,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_early(self):
-        creator = searching.Creator("-task: first")
+        creator = searching.parse_create_single("-task: first")
         assert creator.is_before
         assert creator.last_segment.tags == set()
         assert creator.last_segment.plurality == "first"
@@ -506,7 +499,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_early_reversed(self):
-        creator = searching.Creator("<- +task: first")
+        creator = searching.parse_create_single("<- +task: first")
         assert creator.is_before
         assert creator.last_segment.tags == set()
         assert creator.last_segment.plurality == "last"
@@ -539,7 +532,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_last_reversed(self):
-        creator = searching.Creator("<- -task: first")
+        creator = searching.parse_create_single("<- -task: first")
         assert not creator.is_before
         assert creator.last_segment.tags == set()
         assert creator.last_segment.plurality == "first"
@@ -572,7 +565,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_default_reversed(self):
-        creator = searching.Creator("<- task: mid")
+        creator = searching.parse_create_single("<- task: mid")
         assert not creator.is_before
         assert creator.last_segment.tags == set(["can_activate"])
         assert creator.last_segment.plurality == "first"
@@ -605,7 +598,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_reversed_no_match(self):
-        creator = searching.Creator("<- task: mid")
+        creator = searching.parse_create_single("<- task: mid")
         assert not creator.is_before
         assert creator.last_segment.tags == set(["can_activate"])
         assert creator.last_segment.plurality == "first"
@@ -634,7 +627,8 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_before_explicit(self):
-        creator = searching.Creator("<- task: first :{before, last}")
+        creator = searching.parse_create_single(
+                "<- task: first :{before, last}")
         assert creator.is_before
         assert creator.last_segment.tags == set()
         assert creator.last_segment.plurality == "last"
@@ -667,7 +661,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_after_match(self):
-        creator = searching.Creator("-> task: mid")
+        creator = searching.parse_create_single("-> task: mid")
         assert creator.is_before
         assert creator.last_segment.tags == set(["can_activate"])
         assert creator.last_segment.plurality == "first"
@@ -699,7 +693,8 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_other_tag(self):
-        creator = searching.Creator("<- task: target :{first, started}")
+        creator = searching.parse_create_single(
+                "<- task: target :{first, started}")
         assert not creator.is_before
         assert creator.last_segment.tags == set(["started"])
         assert creator.last_segment.plurality == "first"
@@ -708,7 +703,7 @@ class TestCreate(object):
     def test_empty_prev_peer(self):
         tracker = Tracker(False)
         origin = tracker.root.createchild("task", "origin")
-        creator = searching.Creator("<- task: derp")
+        creator = searching.parse_create("<- task: derp")
         creator(origin)
         assert match("\n".join(serialize(tracker.root, is_root=True)), (
             "task#?????: derp\n"
@@ -719,7 +714,7 @@ class TestCreate(object):
     def test_empty_next_peer(self):
         tracker = Tracker(False)
         origin = tracker.root.createchild("task", "origin")
-        creator = searching.Creator("-> task: derp")
+        creator = searching.parse_create("-> task: derp")
         creator(origin)
         assert match("\n".join(serialize(tracker.root, is_root=True)), (
             "task#?????: origin\n"
@@ -728,7 +723,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_default_first(self):
-        creator = searching.Creator("-> > task: target")
+        creator = searching.parse_create("-> > task: target")
 
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
@@ -751,7 +746,7 @@ class TestCreate(object):
         assert repr(creator)
 
     def test_last_2(self):
-        creator = searching.Creator("-> :{last} > task: target")
+        creator = searching.parse_create("-> :{last} > task: target")
 
         tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
@@ -773,28 +768,26 @@ class TestCreate(object):
         ))
         assert repr(creator)
 
-    def test_many(self):
-        creator = searching.Creator("-> :{many} > task: TARGET")
+    #def test_many(self):
+    #    creator = searching.parse_create("-> :{many} > task: TARGET")
 
-        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    #    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
 
-        origin = tracker.root.createchild("task", "origin")
-        tracker.root.createchild("task", "expected 1")
-        tracker.root.createchild("task", "expected 2")
-        tracker.root.createchild("task", "expected 3")
+    #    origin = tracker.root.createchild("task", "origin")
+    #    tracker.root.createchild("task", "expected 1")
+    #    tracker.root.createchild("task", "no longer expected 2")
+    #    tracker.root.createchild("task", "no longer expected 3")
 
-        creator(origin)
+    #    creator(origin)
 
-        assert match("\n".join(serialize(tracker.root, is_root=True)), (
-            "task#?????: origin\n"
-            "task#?????: expected 1\n"
-            "    task#?????: TARGET\n"
-            "task#?????: expected 2\n"
-            "    task#?????: TARGET\n"
-            "task#?????: expected 3\n"
-            "    task#?????: TARGET"
-        ))
-        assert repr(creator)
+    #    assert match("\n".join(serialize(tracker.root, is_root=True)), (
+    #        "task#?????: origin\n"
+    #        "task#?????: expected 1\n"
+    #        "    task#?????: TARGET\n"
+    #        "task#?????: no longer expected 2\n"
+    #        "task#?????: no longer expected 3\n"
+    #    ))
+    #    assert repr(creator)
 
 
 # crashers
@@ -803,18 +796,55 @@ class TestCreate(object):
 # < :{last}
 # derp :{ derp
 
-def test_massive():
+def test_massive(makequery):
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
-    for x in range(10):
+    for x in range(10):  # 10 nodes ....
         tracker.root.createchild("node")
 
-    massive_query = searching.Query("><><><><><><>")
+    # this loop is to warm up the jit.
+    for _ in range(3):
+        initial = time.time()
+        explosive = "><><><><><><><><><><><><><><><><><><>"
+        # ... to the power of len([x for x in explosive if x == ">"]) ...
+        massive_query = makequery(explosive)
+        for x in range(3):
+            with pytest.raises(searching.TooManyMatchesError):
+                # ... should abort after a fixed number of ticks
+                results = massive_query(tracker.root).list()
+        final = time.time()
+        delta = final - initial
+        print(delta)
 
-    initial = time.time()
-    for x in range(3):
-        with pytest.raises(searching.TooManyMatchesError):
-            results = list(massive_query(tracker.root))
-    final = time.time()
-    delta = final - initial
+    # and said aborting of the search should be nice and early,
+    # so the user doesn't see any performance issues
+    if makequery is searching.parse_single:
+        assert delta < 0.3
+    else:
+        assert delta < 0.6
 
-    assert delta < 0.3
+
+def test_queries_structure():
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+    query = searching.parse_single("> task: 'rigidly defined node'")
+    queries = searching.Queries(query)
+
+    origin = tracker.root.createchild("task", "origin")
+    target1 = origin.createchild("task", "rigidly defined node")
+
+    assert queries.queries == (query,)
+
+    assert queries(origin).nodes().list() == [target1]
+    assert queries(origin).list() == queries(origin).nodes().list()
+    # assert list(queries(origin).results)
+    # assert list(queries(origin).actions)
+    assert queries(origin).first() is target1
+    assert queries(origin).first() is queries(origin).one()
+
+    with pytest.raises(searching.NoMatchesError):
+        queries(target1).one()
+    assert queries(target1).first() is None
+
+
+# to test: filters. create obeys filters. create only creates one node.
+# create only uses first filter.

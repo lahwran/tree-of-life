@@ -325,8 +325,8 @@ class TestNode(object):
                 nodecreator=FakeNodeCreator(SimpleActivateNode))
         tracker.root.activate(tracker.root.createchild("node1"))
         tracker.root.active_node.create("-> -node2: text")
-        node3, = tracker.root.active_node.create("-> -node3: text")
-        navigation.done(tracker)
+        node3 = tracker.root.active_node.create("-> -node3: text")
+        navigation.done(tracker.root)
 
         assert tracker.root.active_node is node3
 
@@ -573,7 +573,7 @@ class TestRootNode(object):
             "todo bucket#ghijk\n"
             "fitness log#hijkl"
         )
-        today = tracker.root.find_one("days > day: today")
+        today = tracker.root.find("days > day: today").one()
         tracker.root.active_node.started = None
         assert match(serialize_to_str(tracker.root), (
             "days#00001\n"

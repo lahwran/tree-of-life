@@ -85,7 +85,6 @@ class ProxyNode(Node):
            next_neighbor: inherit/indirect
            prev_neighbor: inherit/indirect
                     find: inherit/indirect
-                find_one: inherit/indirect
                   create: inherit/indirect
 
                 addchild: func/indirect
@@ -175,7 +174,6 @@ class ProxyNode(Node):
         "next_neighbor",
         "prev_neighbor",
         "find",
-        "find_one",
         "create",
         "createchild",
         "removechild",
@@ -336,7 +334,7 @@ class Reference(BaseTask):
         self._prev_node = None
 
     def _find_target(self):
-        _px_target = self.find_one(self.text)
+        _px_target = self.find(self.text).one()
         assert _px_target is not None, "No target found for %r" % self
         return _px_target
 

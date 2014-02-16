@@ -341,23 +341,22 @@ class Node(object):
             return None
         return self._prev_node
 
-    def find(self, query):
+    def find(self, query, rigid=False):
         from treeoflife import searching
-        query = searching.Query(query)
-        return query([self])
-
-    def find_one(self, query):
-        from treeoflife import searching
-        return searching.first(self.find(query))
+        if rigid:
+            query = searching.parse_single(query)
+        else:
+            query = searching.parse(query)
+        return query(self)
 
     #-------------------------------------------------#
     #          adding and removing children           #
     #-------------------------------------------------#
 
-    def create(self, query):
+    def create(self, *a, **kw):
         from treeoflife import searching
-        creator = searching.Creator(query)
-        return creator([self])
+        creator = searching.parse_create(*a, **kw)
+        return creator(self)
 
     def addchild(self, child, before=None, after=None):
         if (self.allowed_children is not None and
@@ -456,7 +455,7 @@ class Node(object):
     def auto_add(self, creator, root):
         self.root = root
         if self.preferred_parent is not None:
-            parent = creator.find_one(self.preferred_parent)
+            parent = creator.find(self.preferred_parent).one()
             parent.addchild(self)
             return parent
         else:

@@ -4,64 +4,18 @@ from treeoflife.userinterface import command
 from treeoflife import searching
 
 
-def _eventquery(eventorquery):
-    if getattr(eventorquery, "command_name", None) is not None:
-        return searching.Query(eventorquery.text), eventorquery.root
-    else:
-        query, root = eventorquery
-        if isinstance(query, basestring):
-            query = searching.Query(query)
-        return query, root.root
+def _create(query, root, auto=False):
+    creator = searching.parse_create(query=query, do_auto_add=auto)
+    node = creator(root.active_node)
+    node.user_creation()
 
-
-def eventquery(firstarg, *args):
-    args = (firstarg,) + args
-    if hasattr(args[0], "command_name"):
-        prefix = _eventquery(args[0])
-    else:
-        prefix = _eventquery(args[:2])
-    return prefix
-
-
-@command()
-@command("next")
-def done(event):
-    root = getattr(event, "root", event)
-    if activate(":{can_activate}", root):
-        return
-    finish(searching.chain(
-        searching.Query("-> :{can_activate}"),
-        searching.Query("< :{can_activate}")
-    ), root)
-
-
-@command()
-def createauto(*args):
-    query, root = eventquery(*args)
-    if getattr(query.segments[-1].matcher, "is_rigid", False):
-        return createactivate(query, root, auto=True)
-    else:
-        return activate(query, root)
-
-
-@command()
-@command("c")
-def create(arg1, arg2=None, auto=False):
-    query, root = eventquery(arg1, arg2)
-    creator = searching.Creator(joinedsearch=query,
-            do_auto_add=auto)
-    nodes = creator(root.active_node)
-    for node in nodes:
-        node.user_creation()
-    return nodes
+    return node
 
 
 def _activate(nodes, root, force=False):
     if not force:
-        nodes = searching.tag_filter(nodes, set(["can_activate"]))
-    node = searching.first(nodes)
-    if node is None:
-        return  # no notification...?
+        nodes = searching.tag_filter(nodes, {"can_activate"})
+    node = searching.one(nodes)
 
     active = root.active_node
     root.activate(node, force=force)
@@ -69,44 +23,86 @@ def _activate(nodes, root, force=False):
 
 
 @command()
-@command("a")
-def activate(arg1, arg2=None, force=False):
-    query, root = eventquery(arg1, arg2)
+@command("next")
+def done(root):
+    query = searching.parse_single("> * :{can_activate}")
+    to_activate = query(root.active_node).first()
+
+    if to_activate is not None:
+        _activate([to_activate], root)
+        return
+
+    query = searching.chain(
+        searching.parse_single("-> :{can_activate}"),
+        searching.parse_single("< :{can_activate}")
+    )
     nodes = query(root.active_node)
-    return _activate(nodes, root, force=force)
+
+    try:
+        prev_active = _activate(nodes, root)
+    except searching.NoMatchesError:
+        return
+    else:
+        prev_active.finish()
+
+
+@command()
+def createauto(text, root):
+    query = searching.parse_single(text)
+    try:
+        createactivate(text, root)
+    except searching.NodeNotCreated:
+        activate(text, root)
+
+
+@command()
+@command("c")
+def create(text, root):
+    query = searching.parse_single(text)
+    return _create(query, root)
+
+
+@command()
+@command("a")
+def activate(text, root):
+    query = searching.parse(text)
+    nodes = query(root.active_node)
+    return _activate(nodes, root)
 
 
 @command()
 @command("fa")
-def forceactivate(*args):
-    query, root = eventquery(*args)
-    return activate(query, root, force=True)
+def forceactivate(text, root):
+    query = searching.parse(text)
+    nodes = query(root.active_node)
+    return _activate(nodes, root, force=True)
 
 
 @command()
 @command("f")
-def finish(*args):
-    query, root = eventquery(*args)
-    prev_active = activate(query, root)
-    if prev_active is None:
-        return
-
+def finish(text, root):
+    query = searching.parse(text)
+    nodes = query(root.active_node)
+    prev_active = _activate(nodes, root)
     prev_active.finish()
-    return prev_active
 
 
 @command("ca")
-def createactivate(arg1, arg2=None, auto=False):
-    query, root = eventquery(arg1, arg2)
-    nodes = create(query, root, auto=auto)
-    return _activate(nodes, root)
+def createactivate(text, root):
+    query = searching.parse_single(text)
+    node = _create(query, root, auto=True)
+
+    try:
+        prev = _activate([node], root)
+    except searching.NoMatchesError:
+        # couldn't find activate tag on node. create, but do nothing
+        return
+
+    return prev
 
 
 @command("cf")
-def createfinish(*args):
-    query, root = eventquery(*args)
-    prev_active = createactivate(query, root)
-    if prev_active is None:
-        return
-
-    prev_active.finish()
+def createfinish(text, root):
+    prev_active = createactivate(text, root)
+    if prev_active is not None:
+        prev_active.finish()

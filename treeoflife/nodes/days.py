@@ -354,7 +354,7 @@ class Days(Node):
 
         for node in warn_skip:
             message = "WARNING: skipped %r" % node
-            if not sleep_node.find_one("comment: %s" % message):
+            if not sleep_node.find("comment: %s" % message).first():
                 sleep_node.createchild("comment", message)
 
         return sleep_node
@@ -377,7 +377,7 @@ class Days(Node):
 
     @classmethod
     def make_skeleton(cls, root):
-        root.days = root.find_one("days") or root.createchild('days')
+        root.days = root.find("days", True).first() or root.createchild('days')
 
         do_activate = False
         if root.active_node is None:
