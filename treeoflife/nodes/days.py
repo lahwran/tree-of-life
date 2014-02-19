@@ -8,6 +8,8 @@ from treeoflife import timefmt
 from treeoflife.nodes.tasks import BaseTask
 from treeoflife.nodes.misc import Archived
 from treeoflife import alarms
+from treeoflife import searching
+from treeoflife import parseutil
 #from treeoflife import alarmclock
 
 logger = logging.getLogger(__name__)
@@ -464,3 +466,73 @@ class Days(Node):
             result["children"] = children
 
         return super(Days, self).ui_dictify(result)
+
+
+class _DayMatcher(searching.Matcher):
+    def __init__(self, text, date=None):
+        if date is None:
+            self.date = timefmt.str_to_date(text)
+        else:
+            self.date = date
+        self.text = text
+        self.type = "day"
+        self.create_relationship = "default"
+        self.is_rigid = True
+
+    def __call__(self, nodes, counter=None):
+        for node in nodes:
+            searching.tick(counter)
+            if node.node_type != "day":
+                continue
+            if node.date != self.date:
+                continue
+            yield node
+
+    def __repr__(self):
+        return "_DayMatcher(%r, %r, rel=%r)" % (self.type, self.text,
+                self.create_relationship)
+
+    def copy(self):
+        return _DayMatcher(self.text, self.date)
+
+
+@searching.parsecreatefilters.append
+def _parsehook_dayparse(queries):
+    result = []
+    for query in queries:
+        firstseg = query.segments[0]
+        if not firstseg.matcher or firstseg.separator != "children":
+            continue
+        matcher = firstseg.matcher
+        if matcher.type is not None or matcher.text is None:
+            continue
+        text = matcher.text
+        try:
+            matcher = _DayMatcher(text)
+        except (parseutil.ParseError, parseutil.EOFError):
+            continue
+
+        days_seg = searching.Segment(
+                separator="self",
+                pattern=None,
+                matcher=None,
+                tags=set(),
+                plurality=None,
+                nodeid="00001"
+        )
+        day_seg = searching.Segment(
+                separator="children",
+                pattern=('default', 'day', text),
+                matcher=matcher,
+                tags=set(),
+                plurality=None
+        )
+        query = searching.Query(
+                days_seg,
+                day_seg,
+                *[seg.copy() for seg in query.segments[1:]]
+        )
+        result.append(query)
+
+    result.extend(queries)
+    return result

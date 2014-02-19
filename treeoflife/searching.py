@@ -28,6 +28,10 @@ class Queries(object):
     def __eq__(self, other):
         return self.queries == getattr(other, "queries", None)
 
+    def __repr__(self):
+        joined = "\n".join(("    " + repr(q)) for q in self.queries)
+        return "<queries\n%s\n>" % (joined,)
+
 
 class Query(object):
     def __init__(self, *segments):
@@ -85,10 +89,8 @@ def make_segment(separator, nodeid, pattern, tags):
     else:
         matcher = Matcher(type, text, rel=rel)
 
-    retriever = retrievers.handlers["retriever_" + separator]
-
     return Segment(separator, pattern,
-            retriever, matcher, tags, plurality, nodeid=nodeid)
+            matcher, tags, plurality, nodeid=nodeid)
 
 
 class SearchGrammar(parseutil.Grammar):
@@ -151,6 +153,7 @@ class SearchGrammar(parseutil.Grammar):
 
 parse_single = memoize(SearchGrammar.wraprule("query"))
 
+
 parsecreatefilters = []
 parseonlyfilters = []
 
@@ -191,8 +194,20 @@ def parse_create_single(string=None, query=None, do_auto_add=False):
 class _Creators(object):
     def __init__(self, queries, do_auto_add=False):
         self.creators = []
+        errors = []
         for query in queries:
-            self.creators.append(_Creator(query, do_auto_add=do_auto_add))
+            try:
+                creator = _Creator(query, do_auto_add=do_auto_add)
+            except _CantCreateError as e:
+                errors.append(e)
+            else:
+                self.creators.append(creator)
+        if not self.creators:
+            raise _CantCreateError(
+                "Can't create multi, do to all being errors:\n%s" % (
+                    "\n".join(str(x) for x in errors),
+                )
+            )
 
     def __call__(self, basenode):
         assert basenode.node_type, "Please provide a single node"
@@ -202,6 +217,15 @@ class _Creators(object):
                 return node
         raise NodeNotCreated
 
+    def __repr__(self):
+        return "<creators\n%s\n>" % (
+            "\n".join(("    " + repr(q)) for q in self.creators),
+        )
+
+
+class _CantCreateError(Exception):
+    pass
+
 
 class _Creator(object):
     def __init__(self, query, do_auto_add=False):
@@ -209,13 +233,12 @@ class _Creator(object):
         segment = self.query.segments[-1]
         self.query.segments = self.query.segments[:-1]
 
-        if not segment.matcher is not None:
-            assert False, (
-                "cannot create node without full node")
+        if segment.matcher is None:
+            raise _CantCreateError("cannot create node without full node")
         if not segment.matcher.is_rigid:
-            assert False, "cannot create node without full node"
+            raise _CantCreateError("cannot create node without full node")
         if segment.separator == "parents":
-            assert False, "cannot create parent node"
+            raise _CantCreateError("cannot create parent node")
 
         rel = segment.matcher.create_relationship
         if rel == "default":
@@ -313,6 +336,9 @@ class _Creator(object):
             raise
 
         return new_node
+
+    def __repr__(self):
+        return "<creator %r -> %r>" % (self.query, self.last_segment)
 
 
 class TickCounter(object):
@@ -443,10 +469,11 @@ class Matcher(object):
 
 class Segment(object):
     def __init__(self, separator, pattern,
-            retriever, matcher, tags, plurality, nodeid=None):
-        self.separator = separator  # string
-        self.pattern = pattern  # instance of _Node
+            matcher, tags, plurality, nodeid=None):
+        self.separator = separator  # string (informational only)
+        self.pattern = pattern  # instance of _Node (informational only)
 
+        retriever = retrievers.handlers["retriever_" + separator]
         self.retriever = retriever  # function
         self.matcher = matcher  # instance of Matcher
         self.tags = tags  # set
@@ -490,7 +517,6 @@ class Segment(object):
         return Segment(
             self.separator,
             self.pattern,
-            self.retriever,
             self.matcher.copy() if self.matcher is not None else None,
             set(self.tags) if self.tags is not None else None,
             self.plurality,
@@ -673,27 +699,3 @@ def ignore_overflow(iterator):
 
 def list_ignore_overflow(query):
     return list(ignore_overflow(query))
-
-
-if __name__ == "__main__":
-    todofile = "/Users/lahwran/.treeoflife/life"
-    from treeoflife.tracker import Tracker
-    import time
-    tracker = Tracker()
-    with open(todofile, "r") as reader:
-        tracker.deserialize("file", reader)
-
-    while True:
-        querytext = raw_input("query: ")
-        import subprocess
-        subprocess.call(["clear"])
-        print("query:", querytext)
-        queryer = parse(querytext)
-        print(queryer)
-
-        inittime = time.time()
-        results = list(queryer(tracker.root))
-        finishtime = time.time()
-        for x in results[:1000]:
-            print( " > ".join([str(node) for node in x.iter_parents()][::-1]))
-        print(len(results), finishtime - inittime)
