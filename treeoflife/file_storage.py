@@ -1,12 +1,12 @@
 from __future__ import unicode_literals, print_function
 
 from treeoflife.exceptions import LoadError
-from treeoflife.util import HandlerList
+from treeoflife.util import HandlerDict
 import string
 
 
-loaders = HandlerList()
-serializers = HandlerList()
+loaders = HandlerDict()
+serializers = HandlerDict()
 
 # would making this a set speed it up?
 nodeidchars = unicode(string.letters + string.digits)

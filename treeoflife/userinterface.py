@@ -15,7 +15,7 @@ from treeoflife.file_storage import parse_line
 from treeoflife.nodes.node import nodecreator, TreeRootNode
 from treeoflife.tracker import Tracker
 from treeoflife.exceptions import InvalidInputError
-from treeoflife.util import tempfile, HandlerList, Profile
+from treeoflife.util import tempfile, HandlerDict, Profile
 from treeoflife.parseutil import Grammar
 from treeoflife import timefmt
 from treeoflife import alarms
@@ -32,7 +32,7 @@ def _makenode(string):
     return node_type, text
 
 
-global_commands = HandlerList()
+global_commands = HandlerDict()
 command = global_commands.add
 
 
@@ -95,7 +95,8 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         Tracker.__init__(self, *args, **kwargs)
 
     def _command(self, source, command_name, text):
-        logger.info("command executed: %r, %r, %r", source, command_name, text)
+        logger.info("command begin: %r, %r, %r", source, command_name, text)
+        initial = time.time()
         try:
             target = global_commands.handlers[command_name]
         except KeyError:
@@ -103,6 +104,8 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         else:
             event = Event(source, self.root, command_name, text, self)
             event._inject(target)
+            final = time.time()
+            logger.info("command took: %r", final - initial)
 
     def command(self, source, line):
         if not line.strip():

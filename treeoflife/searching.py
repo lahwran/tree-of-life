@@ -9,7 +9,7 @@ from collections import deque, namedtuple
 # almost all of them are *used as data* by other code, hence
 # why there are classes that look like they're used as functions.
 from treeoflife import parseutil
-from treeoflife.util import HandlerList, memoize
+from treeoflife.util import HandlerDict, HandlerList, memoize
 from treeoflife import file_storage
 from treeoflife.exceptions import LoadError
 
@@ -64,7 +64,7 @@ def split_tags(orig_tags):
             tags.add(tag)
     return tags, plurality
 
-retrievers = HandlerList()
+retrievers = HandlerDict()
 
 
 def make_segment(separator, nodeid, pattern, tags):
@@ -154,8 +154,8 @@ class SearchGrammar(parseutil.Grammar):
 parse_single = memoize(SearchGrammar.wraprule("query"))
 
 
-parsecreatefilters = []
-parseonlyfilters = []
+parsecreatefilters = HandlerList()
+parseonlyfilters = HandlerList()
 
 
 @memoize
@@ -192,18 +192,25 @@ def parse_create_single(string=None, query=None, do_auto_add=False):
 
 
 class _Creators(object):
-    def __init__(self, queries, do_auto_add=False):
+    def __init__(self, queries=None, creators=None, do_auto_add=False):
+        if creators is not None:
+            self.creators = list(creators)
+            return
+
         self.creators = []
         errors = []
         for query in queries:
             try:
                 creator = _Creator(query, do_auto_add=do_auto_add)
-            except _CantCreateError as e:
+            except CantCreateError as e:
                 errors.append(e)
             else:
                 self.creators.append(creator)
         if not self.creators:
-            raise _CantCreateError(
+            if len(errors) == 1:
+                raise errors[0]
+
+            raise CantCreateError(
                 "Can't create multi, do to all being errors:\n%s" % (
                     "\n".join(str(x) for x in errors),
                 )
@@ -222,8 +229,11 @@ class _Creators(object):
             "\n".join(("    " + repr(q)) for q in self.creators),
         )
 
+    def __eq__(self, other):
+        return self.creators == getattr(other, "creators", None)
 
-class _CantCreateError(Exception):
+
+class CantCreateError(Exception):
     pass
 
 
@@ -234,11 +244,11 @@ class _Creator(object):
         self.query.segments = self.query.segments[:-1]
 
         if segment.matcher is None:
-            raise _CantCreateError("cannot create node without full node")
+            raise CantCreateError("cannot create node without full node")
         if not segment.matcher.is_rigid:
-            raise _CantCreateError("cannot create node without full node")
+            raise CantCreateError("cannot create node without full node")
         if segment.separator == "parents":
-            raise _CantCreateError("cannot create parent node")
+            raise CantCreateError("cannot create parent node")
 
         rel = segment.matcher.create_relationship
         if rel == "default":
@@ -295,6 +305,16 @@ class _Creator(object):
         # is this really the right place to put auto add?
         # probably not, but where does it belong then?
         self.do_auto_add = do_auto_add
+
+    def __eq__(self, other):
+        return (
+                self.do_auto_add == getattr(other, "do_auto_add", None)
+            and self.query == getattr(other, "query", None)
+            and self.is_before == getattr(other, "is_before", None)
+            and self.node_type == getattr(other, "node_type", None)
+            and self.text == getattr(other, "text", None)
+            and self.last_segment == getattr(other, "last_segment", None)
+        )
 
     def __call__(self, basenode):
         assert basenode.node_type, "Please provide a single node"
@@ -565,7 +585,15 @@ class _FancyIterator(object):
         return _FancyIterator(itertools.islice(self, length))
 
     def ignore_overflow(self):
-        return _FancyIterator(ignore_overflow(self.__iter__()))
+        return _FancyIterator(_ignore_overflow(self.__iter__()))
+
+
+def _ignore_overflow(iterator):
+    try:
+        for x in iterator:
+            yield x
+    except TooManyMatchesError:
+        return
 
 
 def fancify(func):
@@ -658,10 +686,6 @@ class QueriesResults(_FancyIterator):
         return iter(self.nodes())
 
 
-def first(iterator):
-    return _FancyIterator(iterator).first()
-
-
 def one(iterator):
     return _FancyIterator(iterator).one()
 
@@ -687,15 +711,3 @@ class NodeNotCreated(NoMatchesError):
 
 class TooManyMatchesError(Exception):
     pass
-
-
-def ignore_overflow(iterator):
-    try:
-        for x in iterator:
-            yield x
-    except TooManyMatchesError:
-        return
-
-
-def list_ignore_overflow(query):
-    return list(ignore_overflow(query))

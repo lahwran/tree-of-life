@@ -496,7 +496,7 @@ class _DayMatcher(searching.Matcher):
         return _DayMatcher(self.text, self.date)
 
 
-@searching.parsecreatefilters.append
+@searching.parsecreatefilters.add
 def _parsehook_dayparse(queries):
     result = []
     for query in queries:
@@ -512,14 +512,6 @@ def _parsehook_dayparse(queries):
         except (parseutil.ParseError, parseutil.EOFError):
             continue
 
-        days_seg = searching.Segment(
-                separator="self",
-                pattern=None,
-                matcher=None,
-                tags=set(),
-                plurality=None,
-                nodeid="00001"
-        )
         day_seg = searching.Segment(
                 separator="children",
                 pattern=('default', 'day', text),
@@ -528,7 +520,6 @@ def _parsehook_dayparse(queries):
                 plurality=None
         )
         query = searching.Query(
-                days_seg,
                 day_seg,
                 *[seg.copy() for seg in query.segments[1:]]
         )
@@ -536,3 +527,29 @@ def _parsehook_dayparse(queries):
 
     result.extend(queries)
     return result
+
+
+@searching.parsecreatefilters.add
+def _parsehook_dayabs(queries):
+    for query in queries:
+        firstseg = query.segments[0]
+        if not firstseg.matcher or firstseg.separator != "children":
+            continue
+        matcher = firstseg.matcher
+        if matcher.type != "day" or matcher.text is None:
+            continue
+
+        if type(matcher) != _DayMatcher:
+            firstseg.pattern = ('default', 'day', matcher.text)
+            firstseg.matcher = _DayMatcher(matcher.text)
+
+        days_seg = searching.Segment(
+                separator="self",
+                pattern=None,
+                matcher=None,
+                tags=set(),
+                plurality=None,
+                nodeid="00001"
+        )
+        query.segments = (days_seg,) + tuple(query.segments)
+    return queries

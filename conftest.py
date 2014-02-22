@@ -1,7 +1,9 @@
 
 import pytest
+import time
 import datetime
 import functools
+import pudb
 real_datetime = datetime.datetime
 
 try:
@@ -39,6 +41,9 @@ def setdt(monkeypatch):
         @directcall
         def now():
             return _now
+
+        monkeypatch.setattr(time, "time",
+                lambda: time.mktime(_now.timetuple()))
 
         if running_on_pypy:
             for patch in patches:

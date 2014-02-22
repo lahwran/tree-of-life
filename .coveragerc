@@ -5,8 +5,11 @@ exclude_lines =
 #    def __repr__
     class [^ ]+\(((zope\.)?interface\.)?Interface\)
 #    if __name__ == .__main__.
+    assert False
     should_never_run\(\)
     DEBUG
+    MAX_TICKS = 
+    continue
 
 [run]
 branch = True

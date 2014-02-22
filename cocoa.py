@@ -278,8 +278,8 @@ class JSONProtocol(LineOnlyReceiver):
         try:
             document = json.loads(line)
         except ValueError:
-            logger.exception("Error loading line")
-            self.error("exception")
+            logger.exception("Error loading line: %r", line)
+            self.error("exception, see console")
             return
 
         for key, value in document.items():
@@ -287,13 +287,13 @@ class JSONProtocol(LineOnlyReceiver):
                 handler = getattr(self, "message_%s" % key)
             except AttributeError:
                 logger.info("unrecognized message: %s = %s", key, value)
-                self.error("exception")
+                self.error("exception, see console")
                 continue
             try:
                 handler(value)
             except Exception:
                 logger.exception("error running handler")
-                self.error("exception")
+                self.error("exception, see console")
 
     def message_input(self, text_input):
         self.command_history[self.command_index] = text_input
@@ -326,8 +326,10 @@ class JSONProtocol(LineOnlyReceiver):
             logger.exception("Error running command")
             stred = str(e)
             name = type(e).__name__
-            if stred:
+            if name != "Exception" and stred:
                 formatted = "%s: %s" % (name, stred)
+            elif stred:
+                formatted = stred
             else:
                 formatted = name
             self.error(formatted)

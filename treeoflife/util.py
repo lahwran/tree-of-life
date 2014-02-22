@@ -16,7 +16,7 @@ def tempfile():
     return tmp
 
 
-class HandlerList(object):
+class HandlerDict(object):
     name = "handlers"
     autodetect = True
 
@@ -38,6 +38,12 @@ class HandlerList(object):
         return _inner
 
 
+class HandlerList(list):
+    def add(self, func):
+        self.append(func)
+        return func
+
+
 class Profile(object):
     def __init__(self, name):
         self.name = name
@@ -53,10 +59,15 @@ class Profile(object):
 
 def memoize(obj):
     cache = {}
+    invalidate = [0]
 
     @functools.wraps(obj)
     def wrapper(*a, **kw):
         fs_kw = frozenset(kw.items())
+        extra = int(time.time()) / 20
+        if invalidate[0] != extra:
+            cache.clear()
+            invalidate[0] = extra
 
         try:
             return cache[a, fs_kw]

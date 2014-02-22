@@ -50,9 +50,19 @@ def done(root):
 def createauto(text, root):
     query = searching.parse_single(text)
     try:
-        createactivate(text, root)
-    except searching.NodeNotCreated:
         activate(text, root)
+        return
+    except searching.NoMatchesError:
+        message = "no existing node to activate"
+
+    try:
+        createactivate(text, root)
+        return
+    except searching.NodeNotCreated:
+        message += ", and parent node to create under not found"
+    except searching.CantCreateError as e:
+        message += "; " + str(e)
+    raise Exception(message)
 
 
 @command()

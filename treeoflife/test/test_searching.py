@@ -12,6 +12,7 @@ from treeoflife.parseutil import ParseError
 from treeoflife.test.util import FakeNodeCreator, match
 from treeoflife.nodes.misc import GenericActivate
 from treeoflife.file_storage import serialize
+from treeoflife.exceptions import LoadError
 
 
 @pytest.fixture(params=[searching.parse_single, searching.parse])
@@ -114,6 +115,10 @@ def test_id_lookup(makequery):
 
     query4 = makequery("*: #abcde")
     assert query4(origin).list() == [target3]
+    assert repr(query4)
+
+    query5 = makequery("#nonex")
+    assert query5(origin).first() is None
     assert repr(query4)
 
 
@@ -768,6 +773,15 @@ class TestCreate(object):
         ))
         assert repr(creator)
 
+    def test_create_invalid_day(self):
+        creator = searching.parse_create_single("day: September 5, 2020")
+        tracker = Tracker(False)
+
+        with pytest.raises(LoadError):
+            creator(tracker.root)
+
+        assert tracker.root.find("day").first() is None
+
     #def test_many(self):
     #    creator = searching.parse_create("-> :{many} > task: TARGET")
 
@@ -802,7 +816,7 @@ def test_massive(makequery):
         tracker.root.createchild("node")
 
     # this loop is to warm up the jit.
-    for _ in range(3):
+    for _ in range(5):
         initial = time.time()
         explosive = "><><><><><><><><><><><><><><><><><><>"
         # ... to the power of len([x for x in explosive if x == ">"]) ...
@@ -821,6 +835,19 @@ def test_massive(makequery):
         assert delta < 0.3
     else:
         assert delta < 0.6
+
+
+def test_massive_ignore_overflow(makequery):
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    for x in range(10):
+        tracker.root.createchild("node")
+
+    explosive = "><><><><><><><><><><><><><><><><><><>"
+    massive_query = makequery(explosive)
+
+    results = massive_query(tracker.root).ignore_overflow().list()
+    assert len(results) > 10
+    assert len(results) < searching.MAX_TICKS
 
 
 def test_queries_structure():
@@ -844,6 +871,126 @@ def test_queries_structure():
     with pytest.raises(searching.NoMatchesError):
         queries(target1).one()
     assert queries(target1).first() is None
+
+
+def test_limit(makequery):
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    for x in range(10):  # 10 nodes ....
+        tracker.root.createchild("node")
+
+    query = makequery("> *")
+
+    assert len(query(tracker.root).list()) == 10
+    assert len(query(tracker.root).limit(5).list()) == 5
+    assert len(query(tracker.root).ignore_overflow().limit(5).list()) == 5
+
+
+def test_parse_filters(monkeypatch):
+    def _hook1(queries):
+        queries.append(searching.parse_single("comment: derp derp"))
+        return queries
+
+    def _hook2(queries):
+        queries.append(searching.parse_single("task: some random query"))
+        return queries
+
+    def _hook3(queries):
+        return queries * 2
+
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _hook1,
+        _hook2
+    ])
+    monkeypatch.setattr(searching, "parseonlyfilters", [
+        _hook3
+    ])
+
+    assert searching.parse("around the world") == searching.Queries(
+            searching.parse_single("around the world"),
+            searching.parse_single("comment: derp derp"),
+            searching.parse_single("task: some random query"),
+
+            searching.parse_single("around the world"),
+            searching.parse_single("comment: derp derp"),
+            searching.parse_single("task: some random query")
+    )
+
+    assert (searching.parse_create("comment: hoop doop") ==
+        searching._Creators(creators=(
+            searching.parse_create_single("comment: hoop doop"),
+            searching.parse_create_single("comment: derp derp"),
+            searching.parse_create_single("task: some random query")
+        ))
+    )
+
+
+def test_create_errors(monkeypatch):
+    with pytest.raises(searching.CantCreateError) as e:
+        searching.parse_create("asdfsdgsdg")
+    a = str(e).split("\n")
+    assert len(a) == 1
+    assert "full node" in a[0]
+
+    with pytest.raises(searching.CantCreateError):
+        searching.parse_create_single("sgdfgdf")
+
+    with pytest.raises(searching.CantCreateError):
+        searching.parse_create_single("< task: derp")
+
+    with pytest.raises(searching.CantCreateError):
+        searching.parse_create_single("*")
+
+    def _hook3(queries):
+        return queries * 2
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _hook3
+    ])
+
+    with pytest.raises(searching.CantCreateError) as e:
+        searching.parse_create("asdfsdgsdg")
+    a = str(e.value).split("\n")
+    assert len(a) >= 2
+    assert "full node" in a[-1]
+    assert "full node" in a[-2]
+
+
+def test_not_found_creates(monkeypatch):
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+    def _hook2(queries):
+        return [searching.parse_single("herp > task: derp")] + queries
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _hook2
+    ])
+
+    creator = searching.parse_create("task: herpity derpity")
+
+    node = creator(tracker.root)
+    assert node.text == "herpity derpity"
+    assert tracker.root.find("*").one() is node
+
+    tracker.root.createchild("task", "herp")
+
+    assert len(tracker.root.children) == 2
+    node = creator(tracker.root)
+    assert node.text == "derp"
+    assert len(tracker.root.children) == 2
+    assert tracker.root.find("herp > derp").one() is node
+
+
+def test_failed_create(monkeypatch):
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+    def _hook2(queries):
+        return [searching.parse_single("herp > task: derp")] + queries
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _hook2
+    ])
+
+    creator = searching.parse_create("herk derk > task: herk")
+
+    with pytest.raises(searching.NodeNotCreated):
+        creator(tracker.root)
 
 
 # to test: filters. create obeys filters. create only creates one node.

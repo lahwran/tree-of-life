@@ -1,14 +1,16 @@
 from __future__ import unicode_literals, print_function
 
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, date
 
 import pytest
 
 from treeoflife.test.util import match
 from treeoflife.tracker import Tracker
-from treeoflife.nodes.days import Day, Sleep, Days
+from treeoflife.nodes.days import (Day, Sleep, Days,
+        _parsehook_dayparse, _parsehook_dayabs)
 from treeoflife.nodes.misc import GenericActivate
 from treeoflife.nodes import days
+from treeoflife import searching
 
 
 def test_ordering(setdt):
@@ -572,4 +574,35 @@ class TestSleepNode(object):
 
         tracker.root.activate_next()
 
-#    def test_
+
+def test_searchhooks(setdt, monkeypatch):
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _parsehook_dayparse,
+        _parsehook_dayabs
+    ])
+    monkeypatch.setattr(searching, "parseonlyfilters", [])
+    setdt(days, 2014, 2, 19, 12)
+    tracker = Tracker(skeleton=False)
+
+    tracker.deserialize("str",
+        "task: something\n"
+        "days\n"
+        "    day: today\n"
+        "    day: tomorrow\n"
+        "    day: September 20, 2014\n"
+    )
+
+    something = tracker.root.find("something").one()
+    assert something.find("today").one().date == date(2014, 2, 19)
+    assert something.find("tomorrow").one().date == date(2014, 2, 20)
+    assert something.find("sept 20, 2014").one().date == date(2014, 9, 20)
+    assert not something.find("invalid date sept 20, 1995").first()
+
+    # subject to change
+    assert not something.find("sept 21, 2014").first()
+
+    assert (searching.parse("day: today")
+            == searching.Queries(searching.parse("today").queries[0]))
+
+    setdt(days, 2014, 2, 20, 12)
+    assert something.find("today").one().date == date(2014, 2, 20)

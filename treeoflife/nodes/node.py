@@ -9,13 +9,13 @@ import random
 from treeoflife.ordereddict import OrderedDict
 from treeoflife.exceptions import (ListIntegrityError, LoadError,
         CantStartNodeError)
-from treeoflife.util import HandlerList
+from treeoflife.util import HandlerDict
 from treeoflife import file_storage
 
 logger = logging.getLogger(__name__)
 
 
-class _NodeCreatorTracker(HandlerList):
+class _NodeCreatorTracker(HandlerDict):
     name = "creators"
     autodetect = False
 
