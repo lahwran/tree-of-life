@@ -21,11 +21,11 @@ x tracker is more or less an instance of the treeoflife app;
 |   |    saving to ~/.treeoflife and committing the internal
 |   |    git repository; this class is in charge of autosaving
 |   |
-|   x cocoa.RemoteInterface provides a few things that
+|   x treeoflife.main.RemoteInterface provides a few things that
 |   |    JSONProtocol needs to work, notably a way to open
 |   |    an editor automatically (currently only vim)
 |   |
-x cocoa.JSONProtocol provides a simple network protocol
+x treeoflife.main.JSONProtocol provides a simple network protocol
 |   for communicating with the frontend's javascript code.
 |   it provides a way for the frontend to run commands that
 |   the CommandInterface class will understand, as well as a

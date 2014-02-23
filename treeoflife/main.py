@@ -373,7 +373,7 @@ argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
 argparser.add_argument("-d", "--dir-path", default="~/.treeoflife",
         dest="path")
 argparser.add_argument("-p", "--port", default=18081, dest="port", type=int)
-argparser.add_argument("-l", "--log", default="cocoa", dest="logname")
+argparser.add_argument("-l", "--log", default="server", dest="logname")
 argparser.add_argument("--log-ext", default="log", dest="log_ext")
 argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
@@ -512,7 +512,10 @@ class NoCacheFile(twisted.web.static.File):
 
 
 def main(restarter, args):
-    os.chdir(os.path.abspath(os.path.dirname(__file__)))
+    projectroot = os.path.os.path.abspath(os.path.join(
+        os.path.dirname(__file__), b".."
+    ))
+    os.chdir(projectroot)
     config = argparser.parse_args(args)
 
     if not config.ignore_tests:
@@ -539,7 +542,7 @@ def main(restarter, args):
             WebSocketFactory(factory), interface=config.listen_iface)
 
     # serve ui directory
-    ui_dir = os.path.join(os.path.dirname(__file__), b"ui")
+    ui_dir = os.path.join(projectroot, b"ui")
     resource = NoCacheFile(ui_dir)
     static = twisted.web.server.Site(resource)
     reactor.listenTCP(config.port + 1, static,

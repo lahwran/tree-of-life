@@ -7,5 +7,5 @@ except ImportError:
     sys.exc_clear()
 
 import treeoflife.tracker # primary module entry point
-import cocoa
-cocoa._main()
+from treeoflife import main
+main._main()

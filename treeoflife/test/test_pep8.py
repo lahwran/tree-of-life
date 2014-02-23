@@ -9,7 +9,6 @@ root_package = os.path.dirname(parent_dir)
 root = os.path.dirname(root_package)
 files = [os.path.join(root, filename) for filename in [
     "activities.py",
-    "cocoa.py"
 ]]
 paths = [
     os.path.relpath(filename) for filename in
