@@ -137,19 +137,19 @@ def approx_delta(cur_date, other_date):
         value = days / year_length
         unit = 'year'
 
-    value_float = value
-    value = int(value)
-
     # plurals
     if value > 1:
         unit += 's'
 
+    inted = value * 10
+    derped = int(inted + 0.9999)
+    herped = float(derped) / 10.0
+    value = ("%.1f" % herped).rstrip("0").rstrip(".")
+
     if other_date < cur_date:
-        return '%d %s ago' % (value, unit)
-    elif value_float == value:
-        return '%d %s' % (value, unit)
+        return '%s %s ago' % (value, unit)
     else:
-        return '%d+ %s' % (value, unit)
+        return '%s %s' % (value, unit)
 
 
 class DatetimeOption(Option):

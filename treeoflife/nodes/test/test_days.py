@@ -291,18 +291,18 @@ def test_out_of_order(setdt):
     result = tracker.serialize("str")
     assert match(result, (
         "days#?????\n"
-        "    day#?????: December 19, 2012 (Wednesday, 1 year ago)\n"
+        "    day#?????: December 19, 2012 (Wednesday, *)\n"
         "    archived#?????: 19 a\n"
         "    archived#?????: 19 b\n"
-        "    day#?????: December 20, 2012 (Thursday, 1 year ago)\n"
-        "    day#?????: December 21, 2012 (Friday, 1 year ago)\n"
+        "    day#?????: December 20, 2012 (Thursday, *)\n"
+        "    day#?????: December 21, 2012 (Friday, *)\n"
         "    archived#?????: 21 a\n"
         "    archived#?????: 21 b\n"
 
         # December 22 was moved back to before 23, leaving
         # its archived nodes behind
-        "    day#?????: December 22, 2012 (Saturday, 1 year ago)\n"
-        "    day#?????: December 23, 2012 (Sunday, 1 year ago)\n"
+        "    day#?????: December 22, 2012 (Saturday, *)\n"
+        "    day#?????: December 23, 2012 (Sunday, *)\n"
         "    archived#?????: 23 a\n"
         "    archived#?????: 23 b\n"
 
@@ -342,11 +342,11 @@ def test_archiving(setdt):
 
     assert all(node.node_type == "archived" for node in days_node.children)
     assert match("\n".join(node.text for node in days_node.children), (
-        "day#?????: July 19, 2012 (Thursday, 1 year ago)\n"
-        "day#?????: July 20, 2012 (Friday, 1 year ago)\n"
-        "day#?????: July 21, 2012 (Saturday, 1 year ago)\n"
-        "day#?????: July 22, 2012 (Sunday, 1 year ago)\n"
-        "day#?????: July 23, 2012 (Monday, 1 year ago)"
+        "day#?????: July 19, 2012 (Thursday, *)\n"
+        "day#?????: July 20, 2012 (Friday, *)\n"
+        "day#?????: July 21, 2012 (Saturday, *)\n"
+        "day#?????: July 22, 2012 (Sunday, *)\n"
+        "day#?????: July 23, 2012 (Monday, *)"
     ))
 
 
