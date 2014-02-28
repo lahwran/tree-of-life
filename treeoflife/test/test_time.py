@@ -121,7 +121,7 @@ def test_approx_delta():
     assert approx_delta(now, datetime.date(2012, 12, 25)) == 'yesterday'
     assert approx_delta(now, datetime.date(2011, 12, 25)) == '1.1 years ago'
     assert approx_delta(now, datetime.date(2011, 12, 26)) == '1.1 years ago'
-    # can't get 1 year because 356.25
+    # can't get 1 year because 365.25
     assert approx_delta(now, datetime.date(2011, 12, 27)) == '12 months ago'
     assert approx_delta(now, datetime.date(2012, 12, 20)) == '6 days ago'
     assert approx_delta(now, datetime.date(2012, 12, 19)) == '1 week ago'

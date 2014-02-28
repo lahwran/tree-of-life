@@ -45,7 +45,7 @@ some commands to get you started:
 
 
 - `task: something` creates a task called something and activates it
-- `vim` opens up vim in iterm (depends on osx, vim, and iterm; need to make this more flexible)
+- `edit` opens up vim in iterm (depends on osx, vim, and iterm; working on making this more flexible)
 - `save` saves the backend, so you can see the current tree in ~/.treeoflife/life
 - `next` goes to the next task (need to make this more logically sensible)
 - `stop` will shut down the backend (shutting down the backend includes saving and committing the life file.)

@@ -3,7 +3,6 @@ from __future__ import unicode_literals, print_function
 import json
 import sys
 import os
-import subprocess
 import argparse
 import uuid
 import shlex
@@ -13,7 +12,6 @@ from collections import defaultdict
 
 from twisted.internet.protocol import Factory, ProcessProtocol
 from twisted.protocols.basic import LineOnlyReceiver
-from twisted.internet import reactor
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -21,127 +19,46 @@ from txws import WebSocketFactory
 
 from treeoflife.userinterface import (SavingInterface, command,
     generate_listing)
-from treeoflife.util import tempfile, Profile
+from treeoflife.util import Profile, setter
+import treeoflife.editor_launch
 
 logger = logging.getLogger(__name__)
 
 
 @command()
-def error(event):
+def error():
     raise Exception("test")
 
 
 @command()
-def restart(event):
-    if event.text:
-        logger.debug("restart request: %r - %s", event.text, event.text)
-        args = shlex.split(str(event.text))
+def restart(text, ui):
+    if text:
+        logger.debug("restart request: %r - %s", text, text)
+        args = shlex.split(str(text))
         logger.debug("restart request args: %r", args)
     else:
         args = None
-    event.ui.restarter.restart(args)
+    ui.restarter.restart(args)
 
 
 @command()
-def stop(event):
-    event.ui.restarter.stop()
+def stop(ui):
+    ui.restarter.stop()
 
 
 @command()
-def vimpdb(event):
-    import pdb
-    pdb.set_trace()
-    event.ui.vim(event.source, debug=True)
+def save(ui):
+    ui.full_save()
 
 
 @command()
-def save(event):
-    event.ui.full_save()
+def quit_popup(source):
+    source.sendmessage({"should_quit": True})
 
 
 @command()
-def quit_popup(event):
-    event.source.sendmessage({"should_quit": True})
-
-
-@command()
-def update(event):
-    event.source.update_all()
-
-
-def osascript(code):
-    temp_code = tempfile()
-    with open(temp_code, "w") as code_writer:
-        code_writer.write(code)
-    subprocess.call([b"osascript", temp_code])
-    os.unlink(temp_code)
-
-
-class VimRunner(object):
-    """
-    Tell iterm2 to open a new window, then run a command that runs vim
-    after vim finishes, the command will send a json message to the main port
-    """
-
-    outer_command = b'exec bash -c "%s"\n'
-
-    # > /dev/null because the initialization message is uninteresting
-    base_inner_command = b"vim %s;echo '%s' | base64 --decode| nc 127.0.0.1 %d"
-
-    applescript = b"""
-        tell application "iTerm"
-            activate
-            set myterm to (make new terminal)
-            tell myterm
-                set number of columns to 140
-                set number of rows to 150
-
-                launch session "Default Session"
-
-                tell the last session
-                    write contents of file "{tempfile}"
-                end tell
-            end tell
-        end tell
-    """
-
-    def __init__(self, originator, master, port, callback, filenames):
-        self.master = master
-        self.callback = callback
-        self.originator = originator
-
-        self.id = str(uuid.uuid4())
-        json_data = json.dumps({"vim_finished": self.id}) + "\n"
-
-        args = self.wrap_args([b"-o", b"--"] + list(filenames))
-        b64_data = json_data.encode("base64")
-        b64_data = b64_data.replace(b" ", b"").replace(b"\n", b"")
-        inner_command = self.base_inner_command % (
-                b" ".join(args), b64_data, port)
-        inner_command = inner_command.replace(b"\\'", b"'\"'\"'")
-        self.command = self.outer_command % inner_command
-        logger.info("Starting vim with id %r: %s", self.id, self.command)
-
-        self.tempfile = tempfile()
-        with open(self.tempfile, "w") as temp_writer:
-            temp_writer.write(self.command)
-
-    def run(self):
-        osascript(self.applescript.format(tempfile=self.tempfile))
-
-    def done(self):
-        if self.callback():
-            for listener in self.master.listeners:
-                listener.update()
-            self.originator.sendmessage({"display": True})
-
-    def wrap_args(self, args):
-        wrapped_args = []
-        for arg in args:
-            if b"'" in arg:
-                raise Exception("Can't put quotes in args! sorry")
-            wrapped_args.append(b"'%s'" % arg)
-        return wrapped_args
+def update(ui):
+    ui.update_all()
 
 
 class RemoteInterface(SavingInterface):
@@ -152,42 +69,44 @@ class RemoteInterface(SavingInterface):
         self.listeners = []
         self.run_config = config
         self.restarter = restarter
-        self._vim_instances = {}
+        self.edit_session = None
 
-    def command(self, source, line):
-        if self._vim_instances:
-            self._show_iterm()
-            return
-        super(RemoteInterface, self).command(source, line)
+    def deserialize(self, *a, **kw):
+        SavingInterface.deserialize(self, *a, **kw)
+        for listener in self.listeners:
+            listener.update()
 
-    def _run_vim(self, originator, callback, *filenames):
+    def hide_all_clients(self):
         for listener in self.listeners:
             listener.sendmessage({"display": False})
 
-        runner = VimRunner(originator, self, self.run_config.port, callback,
-                filenames)
-        runner.run()
+    def update_all(self):
+        for listener in self.listeners:
+            listener.update()
 
-        self._vim_instances[runner.id] = runner
+    @setter
+    def edit_session(self, session):
+        self._realedit_session = session
         for listener in self.listeners:
             listener.update_editor_running()
 
-    def _vim_finished(self, identifier):
-        if identifier not in self._vim_instances:
-            logger.error("can't finish nonexistant vim invocation: %r",
+    def show_client(self, client):
+        client.sendmessage({"display": True})
+
+    def command(self, source, line):
+        if self.edit_session:
+            self.edit_session.editor.command_attempted()
+            return
+        super(RemoteInterface, self).command(source, line)
+
+    def _editor_finished(self, identifier):
+        if identifier != self.edit_session.editor.identifier:
+            logger.error("editor id mismatches, doing nothing: %r",
                             identifier)
             return
-        logger.info("finishing vim invocation: %r", identifier)
-        instance = self._vim_instances[identifier]
-        del self._vim_instances[identifier]
-        instance.done()
-
-    def _show_iterm(self):
-        osascript(
-            b'tell application "iTerm"\n'
-            b'    activate\n'
-            b'end tell\n'
-        )
+        logger.info("finishing edit instance: %r", identifier)
+        with Profile("editor finished"):
+            self.edit_session.editor.done()
 
     def errormessage(self, source, message):
         source.error(message)
@@ -206,15 +125,16 @@ class RemoteInterface(SavingInterface):
 class JSONProtocol(LineOnlyReceiver):
     delimiter = b"\n"
 
-    def __init__(self, commandline):
+    def __init__(self, commandline, reactor):
         self.commandline = commandline
-        self._is_vim_connection = False
+        self._is_transient_connection = False
         self.command_history = [""]
         self.command_index = 0
         self.update_timeout = None
+        self.reactor = reactor
 
     def connectionLost(self, reason):
-        if not self._is_vim_connection:
+        if not self._is_transient_connection:
             try:
                 self.commandline.listeners.remove(self)
             except ValueError:
@@ -224,38 +144,35 @@ class JSONProtocol(LineOnlyReceiver):
     def sendmessage(self, message):
         self.sendLine(json.dumps(message))
 
-    def update_all(self):
-        for listener in self.commandline.listeners:
-            listener.update()
-
     def update(self):
         if self.update_timeout is not None and self.update_timeout.active():
             self.update_timeout.cancel()
-        self.update_timeout = reactor.callLater(600, self.update)
+        self.update_timeout = self.reactor.callLater(600, self.update)
         self.update_editor_running()
 
         try:
-            reversed_displaychain = self.commandline.displaychain()[::-1]
-            root = self.commandline.root
-            pool = root.ui_graph()
-            active_ref = getattr(root.active_node, "_px_root", None)
-            todo = getattr(root, "todo", None)
-            if todo is not None:
-                todo_id = todo.id
-            else:
-                todo_id = None
-            pool["ids"] = {
-                "root": root.id,
-                "days": "00001",
-                "active": root.active_node.active_id,
-                "active_ref": active_ref.id if active_ref else None,
-                "todo_bucket": todo_id
-            }
-            self.sendmessage({
-                "promptnodes": [node.id for node in reversed_displaychain],
-                "pool": pool,
-            })
-            self.commandline.auto_save()
+            with Profile("update"):
+                reversed_displaychain = self.commandline.displaychain()[::-1]
+                root = self.commandline.root
+                pool = root.ui_graph()
+                active_ref = getattr(root.active_node, "_px_root", None)
+                todo = getattr(root, "todo", None)
+                if todo is not None:
+                    todo_id = todo.id
+                else:
+                    todo_id = None
+                pool["ids"] = {
+                    "root": root.id,
+                    "days": "00001",
+                    "active": root.active_node.active_id,
+                    "active_ref": active_ref.id if active_ref else None,
+                    "todo_bucket": todo_id
+                }
+                self.sendmessage({
+                    "promptnodes": [node.id for node in reversed_displaychain],
+                    "pool": pool,
+                })
+                self.commandline.auto_save()
         except Exception:
             logger.exception("Error updating")
             try:
@@ -268,7 +185,7 @@ class JSONProtocol(LineOnlyReceiver):
 
     def update_editor_running(self):
         self.sendmessage({
-            "editor_running": len(self.commandline._vim_instances)
+            "editor_running": self.commandline.edit_session is not None
         })
 
     def error(self, new_error):
@@ -291,9 +208,9 @@ class JSONProtocol(LineOnlyReceiver):
                 continue
             try:
                 handler(value)
-            except Exception:
+            except Exception as e:
                 logger.exception("error running handler")
-                self.error("exception, see console")
+                self.capture_error(e, "UNEXPECTED, SEE CONSOLE")
 
     def message_input(self, text_input):
         self.command_history[self.command_index] = text_input
@@ -324,28 +241,34 @@ class JSONProtocol(LineOnlyReceiver):
             self.commandline.command(self, command)
         except Exception as e:
             logger.exception("Error running command")
-            stred = str(e)
-            name = type(e).__name__
-            if name != "Exception" and stred:
-                formatted = "%s: %s" % (name, stred)
-            elif stred:
-                formatted = stred
-            else:
-                formatted = name
-            self.error(formatted)
+            self.capture_error(e)
         else:
-            self.update_all()
+            self.commandline.update_all()
+
+    def capture_error(self, e, message=None):
+        stred = str(e)
+        name = type(e).__name__
+        if name != "Exception" and stred:
+            formatted = "%s: %s" % (name, stred)
+        elif stred:
+            formatted = stred
+        else:
+            formatted = name
+        if message is not None:
+            formatted = message + " " + formatted
+        self.error(formatted)
 
     def message_display(self, is_displayed):
         pass
 
-    def message_vim_finished(self, identifier):
-        self._is_vim_connection = True
-        with Profile("vim finished"):
-            self.commandline._vim_finished(identifier)
+    def message_file_editor_finished(self, identifier):
+        self._is_transient_connection = True
+        self.reactor.callLater(0, self.commandline._editor_finished,
+                identifier=identifier)
+        self.transport.loseConnection()
 
     def message_ui_connected(self, ignoreme):
-        self._is_vim_connection = False
+        self._is_transient_connection = False
         try:
             self.sendmessage({
                 "max_width": self.commandline.config["max_width"]
@@ -360,11 +283,12 @@ class JSONProtocol(LineOnlyReceiver):
 
 
 class JSONFactory(Factory):
-    def __init__(self, interface):
+    def __init__(self, interface, reactor):
         self.interface = interface
+        self.reactor = reactor
 
     def buildProtocol(self, addr):
-        return JSONProtocol(self.interface)
+        return JSONProtocol(self.interface, self.reactor)
 
 
 argparser = argparse.ArgumentParser(description="run server")
@@ -379,6 +303,7 @@ argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
+argparser.add_argument("-e", "--editor", default="builtin", dest="editor")
 
 
 class Restarter(object):
@@ -512,6 +437,8 @@ class NoCacheFile(twisted.web.static.File):
 
 
 def main(restarter, args):
+    from twisted.internet import reactor
+
     projectroot = os.path.os.path.abspath(os.path.join(
         os.path.dirname(__file__), b".."
     ))
@@ -531,12 +458,13 @@ def main(restarter, args):
     logfile = init_log(config)
     restarter.to_flush.append(logfile)
 
-    ui = RemoteInterface(config, restarter, config.path, config.mainfile)
+    ui = RemoteInterface(config, restarter, config.path, config.mainfile,
+            reactor=reactor)
     ui.load()
     ui.config.setdefault("max_width", 500)
     logger.info("ui config: %r", ui.config)
 
-    factory = JSONFactory(ui)
+    factory = JSONFactory(ui, reactor=reactor)
     reactor.listenTCP(config.port, factory, interface=config.listen_iface)
     reactor.listenTCP(config.port + 2,
             WebSocketFactory(factory), interface=config.listen_iface)

@@ -34,7 +34,7 @@ function ui_controller($scope, backend, handlers, $timeout) {
         children: []
     }
     $scope.show_editor = function() {
-        backend.send({command: "vim"});
+        backend.send({command: "edit"});
     }
     $scope.sidebar = {};
     $scope.sendcommand = function(command) {

@@ -3,12 +3,13 @@ from setuptools import setup, find_packages
 
 setup(
         name="treeoflife",
-        description="A Tree of Life",
+        description="A Tree of your Life (end-user application)",
         version="1",
         packages=find_packages(),
         license='MIT',
         author="lahwran",
         author_email="lahwran0@gmail.com",
+        url="https://github.com/lahwran/tree-of-life",
         scripts=["bin/treeoflife-server"],
         install_requires=[
             "twisted",

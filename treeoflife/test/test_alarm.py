@@ -17,7 +17,6 @@ from treeoflife.util import _monitor
 @pytest.fixture
 def reactortime(monkeypatch):
     clock = Clock()
-    monkeypatch.setattr(alarms, "reactor", clock)
     return clock
 
 #-------------------------------------------------------#
@@ -74,7 +73,9 @@ class SuperDummyTracker(_PresetTracker):
 
 
 class MixedTracker(alarms.TrackerMixin, _PresetTracker):
-    pass
+    def __init__(self, *a, **kw):
+        self._reactor = kw.pop("reactor")
+        _PresetTracker.__init__(self, *a, **kw)
 
 
 class AlarmCollectorRoot(TreeRootNode):
@@ -220,7 +221,8 @@ class TestRootMixin(object):
 
 class TestSetAlarm(object):
     def test_calling(self, reactortime):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
 
         calls = []
 
@@ -239,7 +241,8 @@ class TestSetAlarm(object):
         assert calls == [1]
 
     def test_delta_calculation(self, reactortime, setdt):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
         setdt(2012, 12, 21)
         target = datetime(2012, 12, 21, 23, 59, 59)
         day_seconds = 60 * 60 * 24
@@ -260,7 +263,8 @@ class TestSetAlarm(object):
         assert calls == [1]
 
     def test_negative_delta(self, reactortime, setdt):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
         setdt(2012, 12, 21)
         target = datetime(2012, 12, 20)
         day_seconds = 60 * 60 * 24
@@ -270,7 +274,8 @@ class TestSetAlarm(object):
 
     @pytest.mark.weakref
     def test_deleted_root(self, reactortime):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
 
         def callback(passed_tracker):  # pragma: no cover
             assert False, "shouldn't have been called"
@@ -297,7 +302,8 @@ class TestSetAlarm(object):
 
     @pytest.mark.weakref
     def test_deleted_tracker(self, reactortime):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
 
         def callback(passed_tracker):  # pragma: no cover
             assert False, "shouldn't have been called"
@@ -326,7 +332,8 @@ class TestSetAlarm(object):
 
     @pytest.mark.weakref
     def test_abandoned_deferred(self, reactortime):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
 
         def callback(passed_tracker):  # pragma: no cover
             assert False, "shouldn't have been called"
@@ -346,7 +353,8 @@ class TestSetAlarm(object):
         assert reactortime.getDelayedCalls() == [timer_2]
 
     def test_deterministic_fallback(self, reactortime):
-        tracker = MixedTracker(TreeRootNode, Node)
+        tracker = MixedTracker(TreeRootNode, Node,
+                reactor=reactortime)
 
         def callback(passed_tracker):  # pragma: no cover
             assert False, "shouldn't have been called"
@@ -381,7 +389,8 @@ class TestAlarm(object):
             def callback(self):
                 self.callback_called = True
 
-        tracker = MixedTracker(MixedRoot, SomeNode)
+        tracker = MixedTracker(MixedRoot, SomeNode,
+                reactor=reactortime)
         node = tracker.root.createchild(u"some", u"node")
         assert not node.callback_called
 
@@ -401,7 +410,8 @@ class TestAlarm(object):
             def callback(self):
                 self.callback_called = True
 
-        tracker = MixedTracker(MixedRoot, SomeNode)
+        tracker = MixedTracker(MixedRoot, SomeNode,
+                reactor=reactortime)
         node = tracker.root.createchild(u"some", u"node")
         assert not node.callback_called
 
@@ -429,6 +439,7 @@ class TestAlarm(object):
             def callback(self):
                 self.callback_called = True
 
-        tracker = MixedTracker(MixedRoot, SomeNode)
+        tracker = MixedTracker(MixedRoot, SomeNode,
+                reactor=reactortime)
         node = tracker.root.createchild(u"some", u"node")
         assert node.callback_called

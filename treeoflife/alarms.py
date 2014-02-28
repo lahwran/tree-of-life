@@ -6,7 +6,6 @@ import logging
 import uuid
 
 from twisted.internet.defer import Deferred
-from twisted.internet import reactor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -349,7 +348,7 @@ class TrackerMixin(object):
         proxy = self._alarm_proxy_caches.setdefault(self.root,
                     ProxyCache(self.root, self))
         callback = proxy.make_callback(deferred)
-        timer = reactor.callLater(seconds, callback)
+        timer = self._reactor.callLater(seconds, callback)
         proxy.add_timer(timer)
         # and we return you to your regularly scheduled sanity
 

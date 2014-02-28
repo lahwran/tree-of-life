@@ -28,12 +28,6 @@ class CommandLineInterface(CommandInterface):
     def prompt(self):
         return "[%s] > " % self._format_active()
 
-    def _run_vim(self, source, callback, *filenames):
-        import subprocess
-        process = subprocess.Popen(["vim", "-o", "--"] + list(filenames))
-        process.wait()
-        callback()
-
     def display_lines(self, lines):
         print "\n".join(lines)
 

@@ -17,7 +17,6 @@ Backend
     assert treeoflife.main.JSONProtocol
     assert treeoflife.main.RemoteInterface
     assert treeoflife.main.main
-    assert treeoflife.main.VimRunner
 
 The backend is made of several parts, more or less each nested inside each other.
 
@@ -27,13 +26,11 @@ The backend is made of several parts, more or less each nested inside each other
 2. The tracker object. This is responsible for holding on to the current tree root node,
    and provides methods for loading and unloading it from files and strings.
 3. The CommandInterface class. This is a subclass of Tracker that provides methods
-   for command line interfaces: tracker.command(), primarily. it also has some
-   incorrectly-placed vim-running code.
+   for command line interfaces: tracker.command(), primarily.
 4. The SavingInterface class. This is a subclass of CommandInterface that provides
    methods for saving, an autosave-check, and loading, from a centralized directory.
 5. The RemoteInterface class. This is a subclass of SavingInterface that provides
-   methods for use in treeoflife/main.py; notably, it handles most of the magic
-   for starting vim inside iterm2.
+   methods for use in treeoflife/main.py.
 6. The JSONProtocol class. This is a twisted protocol class that implements the
    protocol that the UI code understands, and has a reference to the tracker object.
    There can be multiple instances of JSONProtocol, one for each connected client,

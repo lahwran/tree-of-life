@@ -39,12 +39,6 @@ command = global_commands.add
 import treeoflife.navigation
 
 
-@command()
-@command("edit")
-def vim(event):
-    event.ui.vim(event.source)
-
-
 def _listing_node(active, node, indent):
     indent_text = " " * 4
     if active is node:
@@ -92,6 +86,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
 
     def __init__(self, *args, **kwargs):
         kwargs["roottype"] = MixedAlarmRoot
+        self._reactor = kwargs.pop("reactor")
         Tracker.__init__(self, *args, **kwargs)
 
     def _command(self, source, command_name, text):
@@ -117,65 +112,6 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
             command_name = self._default_command
 
         self._command(source, command_name, command_text)
-
-    def vim(self, source, **keywords):
-        import os
-        tmp = tempfile()
-        tmp_backup = tempfile()
-        exceptions = []
-        # USER MESSAGE
-        logger.info("starting vim - tmp: %s", tmp)
-        # USER MESSAGE
-        logger.info("starting vim - tmp-backup: %s", tmp_backup)
-
-        with open(tmp, "w") as writer:
-            self.serialize("file", writer)
-        with open(tmp_backup, "w") as writer:
-            self.serialize("file", writer)
-
-        def callback():
-            if open(tmp, "r").read() == open(tmp_backup, "r").read():
-                os.unlink(tmp)
-                os.unlink(tmp_backup)
-                # USER MESSAGE
-                logger.info("text same, not loading")
-                return True
-
-            try:
-                with open(tmp, "r") as reader:
-                    with Profile("deserialize"):
-                        self.deserialize("file", reader)
-            except Exception:
-                # USER MESSAGE NEEDED
-                logger.exception("Failure loading")
-                formatted = traceback.format_exc()
-                tmp_exception = tempfile()
-                with open(tmp_exception, "w") as writer:
-                    writer.write(formatted)
-                exceptions.append(tmp_exception)
-                with open(tmp_backup, "r") as reader:
-                    self.deserialize("file", reader)
-                self._run_vim(source, callback, tmp, tmp_exception, **keywords)
-                return False
-            else:
-                # USER MESSAGE
-                logger.info("loaded")
-                # LOGGING
-                logger.info("new active: %r", self.root.active_node)
-
-                #os.unlink(tmp)
-                # TODO: unlink temp file?
-                for exc_temp in exceptions:
-                    os.unlink(exc_temp)
-                return True
-
-        self._run_vim(source, callback, tmp, **keywords)
-
-    def start_editor(self):
-        self.vim(None)
-
-    def _run_vim(self, source, callback, extra, *filenames, **keywords):
-        raise NotImplementedError
 
     def errormessage(self, source, message):
         logger.error(message)
@@ -235,9 +171,12 @@ class SavingInterface(CommandInterface):
     def __init__(self, directory, main_file,
             config_file="config.json",
             autosave_template="_{main_file}_autosave_{time}",
-            backup_template="_{main_file}_backup_{time}"):
-        super(SavingInterface, self).__init__()
+            backup_template="_{main_file}_backup_{time}", **kw):
+        super(SavingInterface, self).__init__(**kw)
 
+        if directory is None:
+            self.save_dir = None
+            return
         self.save_dir = os.path.realpath(os.path.expanduser(directory))
         self.main_file = main_file
         self.save_file = os.path.join(self.save_dir, main_file)
@@ -265,12 +204,16 @@ class SavingInterface(CommandInterface):
             return callback(reader)
 
     def load(self):
+        if self.save_dir is None:
+            return
         config = self._load_file(self.config_file, json.load)
         if config:
             self.config = config
         self._load_file(self.save_file, partial(self.deserialize, "file"))
 
     def full_save(self):
+        if self.save_dir is None:
+            return
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -293,6 +236,8 @@ class SavingInterface(CommandInterface):
         self.last_full_save = datetime.now()
 
     def auto_save(self):
+        if self.save_dir is None:
+            return
         self._special_save(self.autosave_file, self.autosave_id,
                 self.autosave_minutes, "last_auto_save")
 
