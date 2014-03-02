@@ -16,6 +16,7 @@ class NoIOProtocol(JSONProtocol):
         JSONProtocol.__init__(self, *a, **kw)
         self._is_transient_connection = True
         self.sent_messages = []
+        self.do_raise = True
 
     def update(self):
         if "update" in self.allowed:
@@ -36,7 +37,10 @@ class NoIOProtocol(JSONProtocol):
         self.lineReceived(json.dumps(kw))
 
     def capture_error(self, e, message=None):
-        raise
+        if self.do_raise:
+            raise
+        else:
+            JSONProtocol.capture_error(self, e, message)
 
 
 @editor_launch.editor_types.add("test-editor")
@@ -95,3 +99,62 @@ def test_edit():
         {u"editor_running": False},
         {u"display": True}
     ]
+
+
+def test_edit_error():
+
+    class Config(object):
+        editor = "test-editor"
+        port = 12345
+
+    clock = Clock()
+    tracker = RemoteInterface(Config, None, None, None,
+            reactor=clock)
+    protocol = NoIOProtocol(tracker, clock, allowed={"update_editor_running"})
+    tracker.listeners.append(protocol)
+    tracker.root.createchild("task", "test")
+    assert tracker.root.find("test").one()
+
+    assert not tracker.edit_session
+
+    protocol.receive(command="edit")
+
+    assert protocol.sent_messages == [
+        {u"display": False},
+        {u"editor_running": True}
+    ]
+    protocol.sent_messages = []
+    assert tracker.edit_session
+    assert tracker.edit_session.editor
+    assert tracker.edit_session.editor.command
+    identifier = tracker.edit_session.editor.identifier
+    tmp = tracker.edit_session.editor.tmp
+
+    with open(tracker.edit_session.editor.tmp, "r") as reader:
+        data = reader.read()
+    with open(tracker.edit_session.editor.tmp, "w") as writer:
+        writer.write("\nday: dasfadsf\xfcherp derp\n".encode("utf-8"))
+        writer.write(data)
+
+    temp_protocol = NoIOProtocol(tracker, clock, allowed=set())
+    temp_protocol.transport = FakeTransport()
+
+    temp_protocol.lineReceived(tracker.edit_session.editor.json_data)
+    assert not tracker.root.find(u"dasfadsf\xfcherp derp").first()
+    assert not protocol.sent_messages
+    assert not temp_protocol.transport.connected
+    assert tracker.edit_session.editor.identifier == identifier
+    assert tracker.edit_session.editor.tmp == tmp
+
+    protocol.do_raise = False
+    clock.advance(1)
+    assert not tracker.root.find(u"dasfadsf\xfcherp derp").first()
+    assert tracker.edit_session.editor.identifier != identifier
+    assert len(tracker.edit_session.editor.filenames) == 2
+    assert tracker.edit_session.editor.error
+    assert tracker.edit_session.editor.error_tmp
+    assert tracker.root.find("test").one()
+    assert not temp_protocol.sent_messages
+    assert len(protocol.sent_messages) == 1
+    assert protocol.sent_messages[0].keys() == ["error"]
+    assert "LoadError" in protocol.sent_messages[0]["error"]

@@ -1,5 +1,6 @@
 from __future__ import unicode_literals, print_function
 
+import traceback
 import subprocess
 import os
 import logging
@@ -57,7 +58,7 @@ class EditSession(object):
             self.source.capture_error(e)
             formatted = traceback.format_exc()
             self.ui.root = self.old_root
-            self.editor = self.EditorType(self, edited_text)
+            self.editor = self.EditorType(self, edited_text, error=formatted)
         else:
             logger.info("loaded; new active: %r", self.ui.root.active_node)
             self.succeeded()
