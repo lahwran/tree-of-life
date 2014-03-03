@@ -4,7 +4,8 @@ exclude_lines =
 	pragma: no cover
 #    def __repr__
     class [^ ]+\(((zope\.)?interface\.)?Interface\)
-#    if __name__ == .__main__.
+    if __name__ == .__main__.
+    __future__
     assert False
     should_never_run\(\)
     DEBUG

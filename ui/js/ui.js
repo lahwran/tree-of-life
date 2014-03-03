@@ -350,6 +350,15 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
             b.__host__.setMaxWidth(x);
         });
 
+        b.commit_edits = function() {
+            b.send({
+                embedded_editor_finished: {
+                    identifier: b.embedded_editor.identifier,
+                    data: b.embedded_editor.data
+                }
+            });
+        }
+
         var promptfunc = function() {
             var result = [];
             if (b.promptnodes === undefined) return [];
@@ -474,6 +483,9 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
         });
         $rootScope.$on("message/error", function(event, err) {
             backend.addError(err);
+        });
+        $rootScope.$on("message/embedded_edit", function(event, edit) {
+            backend.embedded_editor = edit;
         });
         $rootScope.$watch(function() {
             profile("rootscope");

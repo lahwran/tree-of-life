@@ -17,7 +17,7 @@ editor_types = HandlerDict()
 
 
 @command()
-def editpudb(ui, source):
+def editpudb(ui, source):  # pragma: no cover
     import pudb
     pudb.set_trace()
     edit(ui, source)
@@ -48,7 +48,7 @@ class EditSession(object):
         if edited_text == self.original_text:
             logger.info("text same, not loading")
             self.succeeded()
-            return
+            return True
 
         try:
             with Profile("deserialize"):
@@ -62,6 +62,8 @@ class EditSession(object):
         else:
             logger.info("loaded; new active: %r", self.ui.root.active_node)
             self.succeeded()
+            return True
+        return False
 
     def succeeded(self):
         self.editor = None
@@ -119,8 +121,7 @@ class _TerminalLauncher(object):
         # too concerned; user input will never be passed to this.
         wrapped_args = []
         for arg in args:
-            if b"'" in arg:
-                raise Exception("Can't put quotes in args! (sorry, "
+            assert "'" not in arg, ("Can't put quotes in args! (sorry, "
                                 "I know it's awkward and hacky)")
             wrapped_args.append(b"'%s'" % arg)
         return wrapped_args
@@ -130,9 +131,12 @@ class _TerminalLauncher(object):
             data = reader.read().decode("utf-8")
         self.session.editor_done(data)
 
+    def command_attempted(self):
+        pass
+
 
 @editor_types.add("vim-iterm")
-class ItermLauncher(_TerminalLauncher):
+class ItermLauncher(_TerminalLauncher):  # pragma: no cover
     """
     Tell iterm2 to open a new window, then run a command that runs $EDITOR;
     after $EDITOR finishes, the command will send a json message to the main
@@ -163,19 +167,53 @@ class ItermLauncher(_TerminalLauncher):
         with open(self.tempfile, "w") as temp_writer:
             temp_writer.write(self.command)
 
-        osascript(self.applescript.format(tempfile=self.tempfile))
+        self.osascript(self.applescript.format(tempfile=self.tempfile))
 
     def command_attempted(self):
-        osascript(
+        self.osascript(
             b'tell application "iTerm"\n'
             b'    activate\n'
             b'end tell\n'
         )
 
+    def osascript(self, code):
+        temp_code = tempfile()
+        with open(temp_code, "w") as code_writer:
+            code_writer.write(code)
+        subprocess.call([b"osascript", temp_code])
+        os.unlink(temp_code)
 
-def osascript(code):
-    temp_code = tempfile()
-    with open(temp_code, "w") as code_writer:
-        code_writer.write(code)
-    subprocess.call([b"osascript", temp_code])
-    os.unlink(temp_code)
+
+@editor_types.add("embedded")
+class EmbeddedEditor(object):
+    hide = False
+
+    def __init__(self, session, contents, error=None):
+        self.session = session
+        self.identifier = str(uuid.uuid4())
+
+        self.message = {
+            "embedded_edit": {
+                "identifier": self.identifier,
+                "data": contents,
+                "error": error
+            }
+        }
+        self.logfile = tempfile()
+        with open(self.logfile, "a") as writer:
+            writer.write(json.dumps(self.message))
+            writer.write('\n')
+        logger.info("Starting embedded editor (logfile %s)",
+                self.logfile)
+        self.session.source.sendmessage(self.message)
+
+    def done(self, data):
+        with open(self.logfile, "a") as writer:
+            writer.write(json.dumps(data))
+            writer.write('\n')
+        logger.info("attempting to stop embedded editor")
+        if self.session.editor_done(data):
+            self.session.source.sendmessage({"embedded_edit": None})
+
+    def command_attempted(self):
+        pass

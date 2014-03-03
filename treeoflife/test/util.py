@@ -27,3 +27,10 @@ class FakeNodeCreator(_NodeCreatorTracker):
 
     def values(self):
         return [self.create]  # pragma: no cover
+
+
+class _Any(object):
+    def __eq__(self, other):
+        return True
+
+any = _Any()

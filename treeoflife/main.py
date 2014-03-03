@@ -108,6 +108,15 @@ class RemoteInterface(SavingInterface):
         with Profile("editor finished"):
             self.edit_session.editor.done()
 
+    def _embedded_editor_finished(self, identifier, contents):
+        if identifier != self.edit_session.editor.identifier:
+            logger.error("editor id mismatches, doing nothing: %r",
+                            identifier)
+            return
+        logger.info("finishing embedded edit instance: %r", identifier)
+        with Profile("embedded edit finished"):
+            self.edit_session.editor.done(contents)
+
     def errormessage(self, source, message):
         source.error(message)
         logger.error("errormessage from %r: %r", source, message)
@@ -267,6 +276,10 @@ class JSONProtocol(LineOnlyReceiver):
                 identifier=identifier)
         self.transport.loseConnection()
 
+    def message_embedded_editor_finished(self, info):
+        self.commandline._embedded_editor_finished(
+                info["identifier"], info["data"])
+
     def message_ui_connected(self, ignoreme):
         self._is_transient_connection = False
         try:
@@ -303,7 +316,7 @@ argparser.add_argument("-m", "--main-file", default="life", dest="mainfile")
 argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
-argparser.add_argument("-e", "--editor", default="builtin", dest="editor")
+argparser.add_argument("-e", "--editor", default="embedded", dest="editor")
 
 
 class Restarter(object):
