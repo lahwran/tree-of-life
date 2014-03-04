@@ -160,28 +160,27 @@ class JSONProtocol(LineOnlyReceiver):
         self.update_editor_running()
 
         try:
-            with Profile("update"):
-                reversed_displaychain = self.commandline.displaychain()[::-1]
-                root = self.commandline.root
-                pool = root.ui_graph()
-                active_ref = getattr(root.active_node, "_px_root", None)
-                todo = getattr(root, "todo", None)
-                if todo is not None:
-                    todo_id = todo.id
-                else:
-                    todo_id = None
-                pool["ids"] = {
-                    "root": root.id,
-                    "days": "00001",
-                    "active": root.active_node.active_id,
-                    "active_ref": active_ref.id if active_ref else None,
-                    "todo_bucket": todo_id
-                }
-                self.sendmessage({
-                    "promptnodes": [node.id for node in reversed_displaychain],
-                    "pool": pool,
-                })
-                self.commandline.auto_save()
+            reversed_displaychain = self.commandline.displaychain()[::-1]
+            root = self.commandline.root
+            pool = root.ui_graph()
+            active_ref = getattr(root.active_node, "_px_root", None)
+            todo = getattr(root, "todo", None)
+            if todo is not None:
+                todo_id = todo.id
+            else:
+                todo_id = None
+            pool["ids"] = {
+                "root": root.id,
+                "days": "00001",
+                "active": root.active_node.active_id,
+                "active_ref": active_ref.id if active_ref else None,
+                "todo_bucket": todo_id
+            }
+            self.sendmessage({
+                "promptnodes": [node.id for node in reversed_displaychain],
+                "pool": pool,
+            })
+            self.commandline.auto_save()
         except Exception:
             logger.exception("Error updating")
             try:
