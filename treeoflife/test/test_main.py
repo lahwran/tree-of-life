@@ -43,7 +43,7 @@ class NoIOProtocol(JSONProtocol):
         self.sent_messages.append(message)
 
     def receive(self, **kw):
-        self.lineReceived(json.dumps(kw))
+        self.line_received(json.dumps(kw))
 
     def capture_error(self, e, message=None):
         if self.do_raise:
@@ -76,6 +76,7 @@ class EditorForTesting(editor_launch._TerminalLauncher):
 class FakeTransport(object):
     def __init__(self):
         self.connected = True
+        self.disconnecting = False
 
     def loseConnection(self):
         self.connected = False
@@ -96,7 +97,7 @@ def test_edit(tpc):
         writer.write("\ncomment: \xfcherp derp\n".encode("utf-8"))
 
     temp_protocol = NoIOProtocol(tracker, clock, allowed=set())
-    temp_protocol.lineReceived(tracker.edit_session.editor.json_data)
+    temp_protocol.line_received(tracker.edit_session.editor.json_data)
     assert not tracker.root.find(u"\xfcherp derp").first()
     protocol.accept_messages()
     assert not temp_protocol.transport.connected
@@ -125,7 +126,7 @@ def test_edit_nohide(tpc, monkeypatch):
 
     temp_protocol = NoIOProtocol(tracker, clock, allowed=set())
 
-    temp_protocol.lineReceived(tracker.edit_session.editor.json_data)
+    temp_protocol.line_received(tracker.edit_session.editor.json_data)
     protocol.accept_messages()
     temp_protocol.accept_messages()
     assert not temp_protocol.transport.connected
@@ -145,7 +146,7 @@ def test_edit_nochange(tpc, monkeypatch):
 
     temp_protocol = NoIOProtocol(tracker, clock, allowed=set())
 
-    temp_protocol.lineReceived(tracker.edit_session.editor.json_data)
+    temp_protocol.line_received(tracker.edit_session.editor.json_data)
     protocol.accept_messages()
     temp_protocol.accept_messages()
     assert not temp_protocol.transport.connected
@@ -180,7 +181,7 @@ def test_edit_error(tpc):
     temp_protocol = NoIOProtocol(tracker, clock, allowed=set())
     temp_protocol.transport = FakeTransport()
 
-    temp_protocol.lineReceived(tracker.edit_session.editor.json_data)
+    temp_protocol.line_received(tracker.edit_session.editor.json_data)
     assert not tracker.root.find(u"dasfadsf\xfcherp derp").first()
     assert not protocol.sent_messages
     assert not temp_protocol.transport.connected
@@ -234,10 +235,35 @@ def test_edit_embedded():
         }
     })
     protocol.accept_messages()
-    protocol.lineReceived(response_message)
+    protocol.line_received(response_message)
     protocol.accept_messages(
         {"editor_running": False},
         {"embedded_edit": None}
     )
     assert tracker.root.find(u"\xfcherp derp").one()
     assert not tracker.edit_session
+
+
+def test_receive_long_message():
+    # long messages are used to transfer the entire life file.
+    # they're allowed, darn you default twisted linereceiver
+
+    length = 5000000  # 5MB
+    called = []
+
+    class Derp(NoIOProtocol):
+        def message_huge(self, data):
+            assert data == " " * length
+            called.append(True)
+
+    class Config(object):  # not really needed I think
+        editor = "test-editor"
+        port = 12345
+
+    clock = Clock()
+    tracker = RemoteInterface(Config, None, None, None,
+            reactor=clock)
+    protocol = Derp(tracker, clock, allowed={"update_editor_running"})
+
+    protocol.dataReceived(json.dumps({"huge": " " * length}) + "\n")
+    assert called == [True]

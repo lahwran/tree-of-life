@@ -10,8 +10,7 @@ import logging
 from datetime import datetime
 from collections import defaultdict
 
-from twisted.internet.protocol import Factory, ProcessProtocol
-from twisted.protocols.basic import LineOnlyReceiver
+from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -131,6 +130,38 @@ class RemoteInterface(SavingInterface):
         return realresult
 
 
+class LineOnlyReceiver(Protocol):
+    """
+    Copied-and-edited version of twisted LineOnlyReceiver.
+    I DON'T WANT A LENGTH LIMIT
+    """
+    _buffer = b''
+    delimiter = b'\n'
+
+    def dataReceived(self, data):
+        """Translates bytes into lines, and calls line_received."""
+        lines = (self._buffer + data).split(self.delimiter)
+        self._buffer = lines.pop(-1)
+        for line in lines:
+            if self.transport.disconnecting:
+                # this is necessary because the transport may be told to lose
+                # the connection by a line within a larger packet, and it is
+                # important to disregard all the lines in that packet following
+                # the one that told it to close.
+                return
+            self.line_received(line)
+
+    def line_received(self, line):
+        """Override this for when each line is received.
+        """
+        raise NotImplementedError
+
+    def send_line(self, line):
+        """Sends a line to the other end of the connection.
+        """
+        return self.transport.writeSequence((line, self.delimiter))
+
+
 class JSONProtocol(LineOnlyReceiver):
     delimiter = b"\n"
 
@@ -151,7 +182,7 @@ class JSONProtocol(LineOnlyReceiver):
             logger.info("connection lost: %r", reason)
 
     def sendmessage(self, message):
-        self.sendLine(json.dumps(message))
+        self.send_line(json.dumps(message))
 
     def update(self):
         if self.update_timeout is not None and self.update_timeout.active():
@@ -199,7 +230,7 @@ class JSONProtocol(LineOnlyReceiver):
     def error(self, new_error):
         self.sendmessage({"error": new_error})
 
-    def lineReceived(self, line):
+    def line_received(self, line):
         try:
             document = json.loads(line)
         except ValueError:
@@ -407,6 +438,7 @@ class NoCacheFile(twisted.web.static.File):
 
         from twisted.web.static import getTypeAndEncoding, resource, server
 
+        # no really that's supposed to be "restat"
         self.restat(False)
 
         if self.type is None:
