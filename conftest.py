@@ -1,9 +1,11 @@
 
+import py
 import pytest
 import time
 import datetime
 import functools
-import pudb
+
+
 real_datetime = datetime.datetime
 
 try:
@@ -73,8 +75,38 @@ def pytest_addoption(parser):
         dest="weakref",
         help="run tests marked as weakref.")
 
+
+def patch_pudb(config):
+    class PudbShortcuts(object):
+        @property
+        def db(self):
+            capman = config.pluginmanager.getplugin("capturemanager")
+            out, err = capman.suspendcapture()
+
+            import sys
+            import pudb
+            dbg = pudb._get_debugger()
+
+            dbg.set_trace(sys._getframe().f_back)
+
+    import __builtin__
+    __builtin__.__dict__["pu"] = PudbShortcuts()
+
+
 def pytest_configure(config):
     # register an additional marker
+    try:
+        import pudb
+        patch_pudb(config)
+    except ImportError:
+        errmsg = ("\n\n\n\n"
+            "    No pudb installed. install for fancy debugging in tests :)\n"
+            "    once installed, can be used simply by putting 'pu.db' on a line\n"
+            "    and passing -s to py.test.\n\n\n\n")
+        import sys
+        sys.stdout.write(errmsg)
+        sys.stdout.flush()
+
     config.addinivalue_line("markers",
         "weakref: mark test as testing weakref code")
 
