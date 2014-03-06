@@ -14,9 +14,27 @@
 @indentwidth: 32px;
 @sidebarwidth: 250px;
 
-@import "cssreset.less";
+.reset {
+    @import "cssreset.less";
+}
+.reset, .solo-reset {
+
+    &:focus {
+        outline: none;
+    }
+
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+    box-sizing: border-box;
+}
 @import "browser_compat.less";
 @import "../fontawesome-less/font-awesome.less";
+
+@import "editor.less";
 
 body {
     font-size: 16px;
@@ -308,39 +326,5 @@ body {
                 cursor: pointer;
             }
         }
-    }
-}
-
-.editor {
-    top: 0px;
-    bottom: 0px;
-    left: 0px;
-    right: 0px;
-    position: fixed;
-    z-index: 9;
-
-    .editor-running {
-        background-color: rgba(213, 214, 205, 0.75);
-        color: @background;
-        text-align: center;
-        cursor: pointer;
-
-        &:before {
-            content: '';
-            display: inline-block;
-            height: 100%;
-            vertical-align: middle;
-            margin-right: -0.25em; /* Adjusts for spacing */
-        }
-
-        /* The element to be centered, can
-        also be of any width and height */ 
-        .centered {
-            display: inline-block;
-            vertical-align: middle;
-            font-size: 70px;
-        }
-    }
-    .editor-embedded {
     }
 }

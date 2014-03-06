@@ -1,0 +1,14 @@
+<div class="editor solo-reset" ng-class="{hidden: !backend.editor_running}">
+  <div class="editor-running reset" ng-if="!use_embedded" ng-click="show_editor()">
+    <div class="centered">
+      Editor Running
+    </div>
+  </div>
+  <div class="editor-embedded solo-reset" ng-if="use_embedded"
+      ng-class="{errored: editor.error}">
+    <div class="error reset"><pre>{{ editor.error }}</pre></div>
+    <codemirror editor="editor"></codemirror>
+    <div class="cancel reset" ng-click="cancel()"><span>cancel</span></div>
+    <div class="commit reset" ng-click="commit()"><span>save</span></div>
+  </div>
+</div>

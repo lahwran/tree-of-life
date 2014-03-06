@@ -134,6 +134,9 @@ class _TerminalLauncher(object):
     def command_attempted(self):
         pass
 
+    def source_died(self):
+        pass
+
 
 @editor_types.add("vim-iterm")
 class ItermLauncher(_TerminalLauncher):  # pragma: no cover
@@ -211,9 +214,14 @@ class EmbeddedEditor(object):
         with open(self.logfile, "a") as writer:
             writer.write(json.dumps(data))
             writer.write('\n')
+        if data is None:
+            data = self.session.original_text
         logger.info("attempting to stop embedded editor")
         if self.session.editor_done(data):
             self.session.source.sendmessage({"embedded_edit": None})
 
     def command_attempted(self):
         pass
+
+    def source_died(self):
+        self.session.succeeded()

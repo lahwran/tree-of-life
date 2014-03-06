@@ -175,6 +175,9 @@ class JSONProtocol(LineOnlyReceiver):
 
     def connectionLost(self, reason):
         if not self._is_transient_connection:
+            if (self.commandline.edit_session
+                    and self.commandline.edit_session.source is self):
+                self.commandline.edit_session.editor.source_died()
             try:
                 self.commandline.listeners.remove(self)
             except ValueError:
@@ -396,6 +399,7 @@ def init_sentry():
         list_max_length=256,
         string_max_length=2 ** 16,
         auto_log_stacks=True,
+        timeout=1
     )
     handler = SentryHandler(client)
     handler.setLevel(logging.WARNING)

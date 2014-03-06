@@ -1,3 +1,6 @@
 [submodule "popup"]
 	path = popup
 	url = https://github.com/lahwran/tree-of-life-osx.git
+[submodule "ui/js/third-party/codemirror"]
+	path = ui/js/third-party/codemirror
+	url = https://github.com/marijnh/CodeMirror.git

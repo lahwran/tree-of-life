@@ -1,0 +1,108 @@
+.editor {
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    position: fixed;
+    z-index: 19;
+
+    transition: left 0.1s linear, right 0.1s linear;
+    -webkit-transition: left 0.1s linear, right 0.1s linear;
+
+    &.hidden {
+        left: 100%;
+        right: -100%;
+
+        transition: left 0.1s linear, right 0.1s linear;
+        -webkit-transition: left 0.1s linear, right 0.1s linear;
+    }
+
+    .editor-running {
+        background-color: rgba(213, 214, 205, 0.75);
+        color: @background;
+        text-align: center;
+        cursor: pointer;
+
+        &:before {
+            content: '';
+            display: inline-block;
+            height: 100%;
+            vertical-align: middle;
+            margin-right: -0.25em; /* Adjusts for spacing */
+        }
+
+        /* The element to be centered, can
+        also be of any width and height */ 
+        .centered {
+            display: inline-block;
+            vertical-align: middle;
+            font-size: 70px;
+        }
+    }
+    .editor-embedded {
+        height: 100%;
+        .error { display: none; }
+        &.errored {
+            .error {
+                overflow-y: scroll;
+                display: block;
+                position: absolute;
+                top: 2em;
+                left: 0px;
+                width: 100%;
+                color: @foreground;
+                height: 11em;
+                border-bottom: 1px solid @line;
+                padding-bottom: 0.5em;
+                font-family: monospace;
+                pre {
+                    font-size: 13px;
+                }
+            }
+            codemirror {
+                top: 14em;
+            }
+        }
+        .commit {
+            background-color: average(@background, @green);
+            &:hover {
+                background-color: @green;
+                color: @line;
+            }
+            right: 0px;
+        }
+        .cancel {
+            background-color: average(@background, @orange);
+            &:hover {
+                background-color: @orange;
+                color: @line;
+            }
+            left: 0px;
+        }
+
+        .commit, .cancel {
+            color: @foreground;
+            width: 50%;
+            height: 2em;
+            position: absolute;
+            top: 0px;
+            text-align: center;
+            display: inline-block;
+
+            span {
+                margin-top: .1em;
+                font-size: 1.5em;
+            }
+        }
+        codemirror {
+            position: absolute;
+            top: 2em;
+            bottom: 0;
+            left: 0px;
+            right: 0px;
+            .CodeMirror {
+                height: 100%;
+            }
+        }
+    }
+}
