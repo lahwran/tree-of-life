@@ -11,30 +11,62 @@ Setting Up
 note: as a matter of habit, do not copy and paste into your terminal from the internet,
 pages can do all sorts of trickery to hide text
 
-1. start the backend
+#### Download
 
-        # from your favorite projects directory:
-        virtualenv treeoflife-ve
-        cd treeoflife-ve
+    git clone https://github.com/lahwran/tree-of-life.git
+    git submodule init
+    git submodule update
 
-        # from the virtualenv directory:
-        git clone <tree-of-life clone url>
-        cd tree-of-life
+#### install dependencies
 
-        # from the git repo directory:
-        source ../bin/activate
-        python setup.py develop  # (or python setup.py install, if you're a hater)
-        treeoflife-server
+*Note:* I haven't tested on windows yet, and installing dependencies is known to be
+a pain on windows. You may have to install twisted manually if you don't use pypy,
+and if you do use pypy, I have no idea whether this will work. Windows users get
+to wing it for the time being, but please complain :)
 
-2. start a frontend
-    - mac: `<your favorite projects directory>/treeoflife-ve/tree-of-life/Popup.app`  
-      this app doesn't like to be started before the backend, so make sure that's running first.
+- **Make sure you have virtualenv installed**.
+  it varies, but there's a distro package on most linuxes that
+  provides it. on mac, or on linux that doesn't provide it
+  (`easy_install` assumed to be available):
 
-    - web: go to http://localhost:18082/ui.html - someday I'll explain the reasoning behind that port
+        which pip || sudo easy_install pip
+        which virtualenv || sudo pip install virtualenv
 
-the server (treeoflife-server) can safely be ctrl+c'd without data loss (it will
-commit an internal git repo.)
+- **with `pypy` - optional, but highly recommended for speed;** can cause pain on
+  windows and some linuxes. if so, try without it.
 
+        # download the latest version for your operating system from http://pypy.org/download.html
+        # extract somewhere; for example, you might extract it to ~/Downloads/pypy-2.2.1/
+        cd ~/tree-of-life  # (where ever you git cloned to)`
+        virtualenv -p ~/Downloads/pypy-2.2.1/ ve-pypy-2.7  # Create a virtualenv using that pypy; name it ve-<something>`
+        source ve-pypy-2.7/bin/activate  # activate the virtualenv`
+
+- **with your regular `python` - slower, but potentially more compatible**
+
+        cd ~/tree-of-life  # (where ever you git cloned to)
+        virtualenv ve-cpython-2.7  # Create a virtualenv using system python-2.7; name it ve-<something>
+        source ve-cpython-2.7/bin/activate # activate the virtualenv
+
+Now that you have a virtualenv (or, if you're on windows, are being brave and
+trying without one), run:
+
+    python setup.py develop
+    # some people have moral issues with "develop"; if you do,
+    # feel free to use "install" instead. it's less convenient, though.
+
+#### Start the backend
+
+    treeoflife-server
+
+can safely be ctrl+c'd without data loss (it will
+commit an internal git repo, ~/.treeoflife)
+
+#### Start a frontend
+
+- web: go to http://localhost:18082/ui.html - someday I'll explain the reasoning behind that port
+- mac menu bar: `open ~/tree-of-life/Popup.app`.
+  this app doesn't like to be started before the backend, so make sure that's running first. I'll
+  get around to making it retry soon...
 
 Commands
 --------
@@ -45,7 +77,7 @@ some commands to get you started:
 
 
 - `task: something` creates a task called something and activates it
-- `edit` opens up vim in iterm (depends on osx, vim, and iterm; working on making this more flexible)
+- `edit` opens up an editor; by default, codemirror. use --editor=vim-iterm to the server to use vim in iterm, if you're on mac
 - `save` saves the backend, so you can see the current tree in ~/.treeoflife/life
 - `next` goes to the next task (need to make this more logically sensible)
 - `stop` will shut down the backend (shutting down the backend includes saving and committing the life file.)
