@@ -1,5 +1,6 @@
 from __future__ import unicode_literals, print_function
 
+import platform
 import traceback
 import os
 import json
@@ -10,6 +11,7 @@ import time
 import logging
 import inspect
 import itertools
+import glob
 
 from treeoflife.file_storage import parse_line
 from treeoflife.nodes.node import nodecreator, TreeRootNode
@@ -146,6 +148,38 @@ class Git(object):
     def __init__(self, path):
         self.path = path
 
+        self.binary = self._which("git")
+
+    def _which(self, name):
+        """
+        Borrowed from twisted.python.procutils, but modified so I can edit PATH
+        """
+        flags = os.X_OK
+        result = []
+        exts = filter(None, os.environ.get('PATHEXT', '').split(os.pathsep))
+        path = [x for x in os.environ.get('PATH', '').split(os.pathsep) if x]
+
+        if platform.system() == "Windows":
+            directories = glob.glob("c:/*rogram*iles*/*git*/*bin*/")
+            path.extend(directories)
+
+        if not path:
+            return []
+        for p in path:
+            p = os.path.join(p, name)
+            if os.access(p, flags):
+                result.append(p)
+            for e in exts:
+                pext = p + e
+                if os.access(pext, flags):
+                    result.append(pext)
+
+        if not result:
+            paths = "\n".join("    %s" % x for x in path)
+            raise RuntimeError("Couldn't find %s in:\n%s" % (name, paths))
+
+        return result[0]
+
     def init(self):
         if not os.path.isdir(os.path.join(self.path, ".git")):
             self._git("init")
@@ -163,7 +197,7 @@ class Git(object):
         self._git("commit", "-m", message)
 
     def _git(self, *args):
-        process = subprocess.Popen(["git"] + list(args), cwd=self.path)
+        process = subprocess.Popen([self.binary] + list(args), cwd=self.path)
         return process.wait()
 
 
