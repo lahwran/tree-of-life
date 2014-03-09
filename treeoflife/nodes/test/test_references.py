@@ -171,7 +171,8 @@ def test_parent(tracker, reftype):
 
 
 class TestProxynode(object):
-    def test_activate(self, tracker, reftype):
+    def test_activate(self, tracker, reftype, setdt):
+        setdt(2014, 1, 1, 1, 1)
         tracker.deserialize("str",
             u"task: \xfctarget 1\n"
             u"    task: \xfctarget 2\n"
@@ -192,18 +193,23 @@ class TestProxynode(object):
 
         assert root.active_node is ref
 
+        setdt.increment(seconds=1)
         navigation.done(tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task").one()
+        setdt.increment(seconds=1)
         navigation.done(tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task > task").one()
+        setdt.increment(seconds=1)
         navigation.done(tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task").one()
+        setdt.increment(seconds=1)
         navigation.done(tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference").one()
+        setdt.increment(seconds=1)
         navigation.done(tracker.root)
         assert root.active_node is root.find(
                 u"days > day").one()

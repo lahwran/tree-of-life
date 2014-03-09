@@ -532,8 +532,7 @@ class TestRootNode(object):
         assert tracker.root.active_node is node
 
     def test_skeleton_load_integration(self, setdt):
-        from treeoflife.nodes import days
-        setdt(days, 2013, 1, 30, 12)
+        setdt(2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
             "days\n"
@@ -560,8 +559,7 @@ class TestRootNode(object):
             assert tracker.root.ids[node.id] is node
 
     def test_skeleton_day_active(self, setdt):
-        from treeoflife.nodes import days
-        setdt(days, 2013, 1, 30, 12)
+        setdt(2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize("str",
             "days\n"

@@ -1,6 +1,6 @@
 from __future__ import unicode_literals, print_function
 
-from datetime import datetime, date, time, timedelta
+import datetime
 import logging
 
 from treeoflife.nodes.node import Node, nodecreator, BooleanOption
@@ -28,7 +28,7 @@ class DateTask(BaseTask):
     @property
     def text(self):
         date_str = timefmt.date_to_str(self.date)
-        delta = timefmt.approx_delta(datetime.now().date(), self.date)
+        delta = timefmt.approx_delta(datetime.datetime.now().date(), self.date)
         date_str += ' (%s, %s)' % (self.date.strftime('%A'), delta)
         return date_str
 
@@ -70,7 +70,8 @@ class DateTask(BaseTask):
 
     def search_texts(self):
         types, texts = BaseTask.search_texts(self)
-        texts.add(timefmt.approx_delta(datetime.now().date(), self.date))
+        texts.add(timefmt.approx_delta(datetime.datetime.now().date(),
+            self.date))
         texts.add(self.date.strftime('%A'))
         texts.add(timefmt.date_to_str(self.date))
 
@@ -91,11 +92,11 @@ class Day(DateTask):
         """
         Returns level of acceptable-ness of activating this day
         """
-        now = datetime.now()
-        origin = datetime.combine(self.date, time.min)
-        start = origin + timedelta(hours=6)
-        end = origin + timedelta(days=1)
-        morning = end + timedelta(hours=6)
+        now = datetime.datetime.now()
+        origin = datetime.datetime.combine(self.date, datetime.time.min)
+        start = origin + datetime.timedelta(hours=6)
+        end = origin + datetime.timedelta(days=1)
+        morning = end + datetime.timedelta(hours=6)
         if now < origin or now > morning:
             return 0
         if now >= end or now <= start:
@@ -152,7 +153,8 @@ class Sleep(DateTask, alarms.NodeMixin):
 
     def acceptable(self):
         # because sleep is shifted forwards
-        if (datetime.now() - timedelta(hours=12)).date() == self.date:
+        if ((datetime.datetime.now() - datetime.timedelta(hours=12)).date()
+                == self.date):
             return 2
         return 0
 
@@ -162,21 +164,21 @@ class Sleep(DateTask, alarms.NodeMixin):
 
     def _combine_until(self, until):
         assert False, "sleep node is deactivated, please don't run me"
-        now = datetime.now()
+        now = datetime.datetime.now()
 
         def evaluate(date):
-            dt = datetime.combine(date, until)
+            dt = datetime.datetime.combine(date, until)
             td = dt - now
-            if td < timedelta():
-                return timedelta(days=1000)
+            if td < datetime.timedelta():
+                return datetime.timedelta(days=1000)
             return td
 
         best = pick_best(evaluate,
                 set([self.date,
-                    self.date + timedelta(days=1),
-                    self.date + timedelta(days=2)]),
-                timedelta(hours=8))
-        until = datetime.combine(best, until)
+                    self.date + datetime.timedelta(days=1),
+                    self.date + datetime.timedelta(days=2)]),
+                datetime.timedelta(hours=8))
+        until = datetime.datetime.combine(best, until)
         assert until > now
 
         return until
@@ -211,7 +213,7 @@ class Sleep(DateTask, alarms.NodeMixin):
     def _adjust_times(self):
         assert False, "sleep node is deactivated, please don't run me"
         if self.amount is not None:
-            self.until = datetime.now() + self.amount
+            self.until = datetime.datetime.now() + self.amount
 
     @property
     def active(self):
@@ -303,7 +305,8 @@ class Days(Node):
         kwargs["nodeid"] = "00001"
         super(Days, self).__init__(*args, **kwargs)
         self.day_children = {}
-        self.archive_date = (datetime.now() - timedelta(days=31)).date()
+        self.archive_date = (
+                datetime.datetime.now() - datetime.timedelta(days=31)).date()
 
     def active_child(self):
         for parent in self.root.active_node.iter_parents():
@@ -331,7 +334,8 @@ class Days(Node):
         assert current.node_type == "day"
 
         if sleep_day is None:
-            sleep_day = (datetime.now() - timedelta(hours=4)).date()
+            sleep_day = (datetime.datetime.now() - datetime.timedelta(hours=4)
+                    ).date()
         warn_skip = []
         sleep_node = None
 

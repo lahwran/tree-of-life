@@ -23,7 +23,7 @@ def test_createauto_todo_integration():
 
 
 def test_createauto_activatefirst(setdt):
-    setdt(days, 2014, 2, 19, 12)
+    setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 
     tracker.deserialize("str",

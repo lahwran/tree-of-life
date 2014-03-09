@@ -26,14 +26,11 @@ class directcall(object):
 def setdt(monkeypatch):
     def setdt(*args, **kwargs):
         targets = [datetime]
-        actual_args = []
-        for arg in args:
-            if getattr(arg, "datetime", None) is not None:
-                targets.append(arg)
-            else:
-                actual_args.append(arg)
 
-        _now = real_datetime(*actual_args, **kwargs)
+        if "dt" in kwargs:
+            _now = kwargs["dt"]
+        else:
+            _now = real_datetime(*args, **kwargs)
 
         patches = {}
         def _add(f):
@@ -68,6 +65,14 @@ def setdt(monkeypatch):
                 monkeypatch.setattr(target, "datetime", patcheddatetime)
 
             return patcheddatetime
+
+    def increment(*a, **kw):
+        prev = datetime.datetime.now()
+        delta = datetime.timedelta(*a, **kw)
+        setdt(dt=prev + delta)
+
+    setdt.increment = increment
+
     return setdt
 
 def pytest_addoption(parser):

@@ -1,6 +1,6 @@
 from __future__ import unicode_literals, print_function
 
-from datetime import datetime
+import datetime
 
 from treeoflife.parseutil import Grammar
 from treeoflife.nodes.node import Node, Option, BooleanOption, nodecreator
@@ -32,7 +32,7 @@ class _FinishGrammar(Grammar):
 class StartedOption(timefmt.DatetimeOption):
     def set(self, node, value):
         if value is None:
-            node.started = datetime.now()
+            node.started = datetime.datetime.now()
         else:
             super(StartedOption, self).set(node, value)
 
@@ -48,7 +48,7 @@ class FinishedOption(object):
 
     def set(self, node, value):
         if value is None:
-            node.finished = datetime.now()
+            node.finished = datetime.datetime.now()
             return
 
         kind, value = _FinishGrammar(value).finished()
@@ -92,10 +92,10 @@ class BaseTask(Node):
             return
             # wtf do we do now?
             raise Exception("fixme, need to do something about restarts")
-        self.started = datetime.now()
+        self.started = datetime.datetime.now()
 
     def finish(self):
-        self.finished = datetime.now()
+        self.finished = datetime.datetime.now()
 
     def unfinish(self):
         self.finished = None

@@ -44,10 +44,8 @@ def test_active_option():
     assert tracker.root.active_node.text == "\xfca task"
 
 
-def test_activate_deactivate(monkeypatch):
-    from treeoflife.nodes import tasks
-    monkeypatch.setattr(tasks, "datetime",
-            FakeDatetime(datetime(2012, 10, 24)))
+def test_activate_deactivate(monkeypatch, setdt):
+    setdt(2012, 10, 24)
     tracker = Tracker(nodecreator=FakeNodeCreator(tasks.Task),
             skeleton=False)
 
@@ -58,8 +56,7 @@ def test_activate_deactivate(monkeypatch):
         "task: \xfc3\n"
     )
 
-    monkeypatch.setattr(tasks, "datetime",
-            FakeDatetime(datetime(2012, 10, 25)))
+    setdt(2012, 10, 25)
     navigation.done(tracker.root)
     navigation.done(tracker.root)
 

@@ -7,7 +7,6 @@ import argparse
 import uuid
 import shlex
 import logging
-from datetime import datetime
 from collections import defaultdict
 
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol

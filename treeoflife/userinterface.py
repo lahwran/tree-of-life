@@ -5,7 +5,7 @@ import os
 import json
 import subprocess
 from functools import partial
-from datetime import datetime, timedelta
+import datetime
 import time
 import logging
 import inspect
@@ -232,8 +232,8 @@ class SavingInterface(CommandInterface):
         self.git.add(".gitignore")
 
         self.git.commit("Full save %s" %
-                datetime.now().strftime(self.timeformat))
-        self.last_full_save = datetime.now()
+                datetime.datetime.now().strftime(self.timeformat))
+        self.last_full_save = datetime.datetime.now()
 
     def auto_save(self):
         if self.save_dir is None:
@@ -246,10 +246,11 @@ class SavingInterface(CommandInterface):
             os.makedirs(self.save_dir)
 
         last = getattr(self, lastname)
-        if last and datetime.now() < last + timedelta(minutes=freq):
+        if last and datetime.datetime.now() < last + datetime.timedelta(
+                                                        minutes=freq):
             return
 
         filename = name_format.format(main_file=self.main_file, time=int(time))
         with open(filename, "w") as writer:
             self.serialize("file", writer)
-        setattr(self, lastname, datetime.now())
+        setattr(self, lastname, datetime.datetime.now())

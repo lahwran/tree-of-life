@@ -14,7 +14,7 @@ from treeoflife import searching
 
 
 def test_ordering(setdt):
-    setdt(days, 2012, 12, 22, 12)
+    setdt(2012, 12, 22, 12)
 
     day1 = Day("day", "December 22, 2012", None)
     sleep1 = Sleep("sleep", "December 22, 2012", None)
@@ -62,12 +62,12 @@ def test_acceptable_day(setdt):
         (2012, 12, 23, 6,  0,  1):  0,
     }
     for dt, value in values.items():
-        setdt(days, *dt)
+        setdt(*dt)
         assert day.acceptable() == value, str(datetime(dt))
 
 
 def test_acceptable_sleep(setdt):
-    setdt(days, 2012, 1, 1)
+    setdt(2012, 1, 1)
     sleep = Sleep("sleep", "December 22, 2012", None)
 
     values = {
@@ -79,7 +79,7 @@ def test_acceptable_sleep(setdt):
     }
 
     for dt, value in values.items():
-        setdt(days, *dt)
+        setdt(*dt)
         assert sleep.acceptable() == value, str(datetime(dt))
 
 
@@ -207,8 +207,7 @@ class TestMakeSkeleton(object):
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
 
-        from treeoflife.nodes import tasks
-        setdt(days, tasks, 2012, 12, 22, 12)
+        setdt(2012, 12, 22, 12)
 
         days_node.createchild("day", "December 19, 2012 (This should be "
                 "ignored)")
@@ -234,8 +233,7 @@ class TestMakeSkeleton(object):
         days_node = Days("days", None, tracker.root)
         tracker.root.addchild(days_node)
 
-        from treeoflife.nodes import tasks
-        setdt(days, tasks, 2012, 12, 21, 12)
+        setdt(2012, 12, 21, 12)
 
         days_node.createchild("day", "December 19, 2012")
         days_node.addchild(GenericActivate("archived", "herp derp"))
@@ -265,8 +263,7 @@ def test_out_of_order(setdt):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from treeoflife.nodes import tasks
-    setdt(days, tasks, 2013, 12, 29, 12)
+    setdt(2013, 12, 29, 12)
 
     days_node.createchild("day", "December 19, 2012")
     days_node.addchild(GenericActivate("archived", "19 a"))
@@ -328,8 +325,7 @@ def test_archiving(setdt):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from treeoflife.nodes import tasks
-    setdt(days, tasks, 2013, 12, 22, 12)
+    setdt(2013, 12, 22, 12)
 
     days_node.createchild("day", "July 19, 2012")
     days_node.createchild("day", "July 21, 2012")
@@ -356,8 +352,7 @@ def test_ui_dictify(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from treeoflife.nodes import tasks
-    setdt(days, tasks, 2012, 12, 22, 12)
+    setdt(2012, 12, 22, 12)
 
     before = [
         days_node.createchild("day", "December 19, 2012"),
@@ -383,7 +378,7 @@ def test_ui_dictify(setdt, monkeypatch):
     }
 
 
-def test_ui_dictify_existing(setdt):
+def test_ui_dictify_existing():
     tracker = Tracker(skeleton=False)
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
@@ -412,8 +407,7 @@ def test_ui_dictify_rollover(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from treeoflife.nodes import tasks
-    setdt(days, tasks, 2012, 12, 22, 12)
+    setdt(2012, 12, 22, 12)
 
     before = [
         days_node.createchild("day", "December 19, 2012"),
@@ -429,7 +423,7 @@ def test_ui_dictify_rollover(setdt, monkeypatch):
     ]
 
     Days.make_skeleton(tracker.root)
-    setdt(days, tasks, 2012, 12, 23, 12)
+    setdt(2012, 12, 23, 12)
 
     assert days_node.ui_dictify() == {
         "children": [node.id for node in after],
@@ -446,8 +440,7 @@ def test_ui_dictify_sleepnode(setdt, monkeypatch):
     days_node = Days("days", None, tracker.root)
     tracker.root.addchild(days_node)
 
-    from treeoflife.nodes import tasks
-    setdt(days, tasks, 2012, 12, 21, 23)
+    setdt(2012, 12, 21, 23)
 
     before = [
         days_node.createchild("day", "December 19, 2012"),
@@ -476,7 +469,7 @@ def test_ui_dictify_sleepnode(setdt, monkeypatch):
 @pytest.mark.xfail
 class TestSleepNode(object):
     def test_properly_initialized(self, setdt):
-        setdt(days, 2013, 1, 30, 23)
+        setdt(2013, 1, 30, 23)
         node = Sleep("sleep", "today", None)
 
         assert node.wake_alarm.date is None
@@ -495,14 +488,14 @@ class TestSleepNode(object):
         (time(12,  0), datetime(2013, 1, 31,  12, 0)),
     ])
     def test_combine_until(self, setdt, until, until_dt):
-        setdt(days, 2013, 1, 30, 23)
+        setdt(2013, 1, 30, 23)
         node = Sleep("sleep", "today", None)
 
         assert node._combine_until(until) == until_dt
 
     @pytest.mark.parametrize('hour', [1, 13])
     def test_day_creation(self, setdt, hour):
-        setdt(days, 2013, 1, 30, hour)
+        setdt(2013, 1, 30, hour)
         tracker = Tracker(skeleton=False)
 
         tracker.deserialize("str",
@@ -517,7 +510,7 @@ class TestSleepNode(object):
         assert node.prev_neighbor.node_type == "day"
 
     def test_update(self, setdt):
-        setdt(days, 2013, 1, 30, 23)
+        setdt(2013, 1, 30, 23)
 
         node = Sleep("sleep", "today", None)
 
@@ -581,7 +574,7 @@ def test_searchhooks(setdt, monkeypatch):
         _parsehook_dayabs
     ])
     monkeypatch.setattr(searching, "parseonlyfilters", [])
-    setdt(days, 2014, 2, 19, 12)
+    setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 
     tracker.deserialize("str",
@@ -604,5 +597,5 @@ def test_searchhooks(setdt, monkeypatch):
     assert (searching.parse("day: today")
             == searching.Queries(searching.parse("today").queries[0]))
 
-    setdt(days, 2014, 2, 20, 12)
+    setdt(2014, 2, 20, 12)
     assert something.find("today").one().date == date(2014, 2, 20)
