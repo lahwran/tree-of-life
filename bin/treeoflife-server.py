@@ -13,6 +13,6 @@ try:
     main._main()
 
 finally:
-    print()
-    print()
+    print("")
+    print("")
     raw_input("        Press enter to close\n\n ->")
