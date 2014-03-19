@@ -12,7 +12,9 @@ try:
     from treeoflife import main
     main._main()
 
-finally:
-    print("")
-    print("")
-    raw_input("        Press enter to close\n\n ->")
+except:
+    import traceback
+    traceback.print_exc()
+print("")
+print("")
+raw_input("        Press enter to close\n\n ->")
