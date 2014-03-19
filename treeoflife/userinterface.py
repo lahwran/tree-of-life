@@ -183,6 +183,7 @@ class Git(object):
     def init(self):
         if not os.path.isdir(os.path.join(self.path, ".git")):
             self._git("init")
+            self._setcommitter()
 
     def gitignore(self, names):
         if not os.path.exists(os.path.join(self.path, ".gitignore")):
@@ -193,13 +194,22 @@ class Git(object):
     def add(self, *filenames):
         self._git("add", *filenames)
 
-    def commit(self, message):
-        self._git("commit", "-m", message,
-                "--author", "treeoflife-autocommit <treeoflife@localhost>")
+    def commit(self, message, was_retry=False):
+        success = self._git("commit", "-m", message)
+        if not success and not was_retry:
+            self._setcommitter()
+            self.commit(message, True)
+
+    def _setcommitter(self):
+        if not self._git("config", "user.name"):
+            self._git("config", "user.name", "treeoflife-autocommit")
+        if not self._git("config", "user.email"):
+            self._git("config", "user.email", "treeoflife@localhost")
 
     def _git(self, *args):
-        process = subprocess.Popen([self.binary] + list(args), cwd=self.path)
-        return process.wait()
+        result = subprocess.check_call(
+                [self.binary] + list(args), cwd=self.path)
+        return result == 0
 
 
 class SavingInterface(CommandInterface):
