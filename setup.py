@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 from setuptools import setup, find_packages
 
+import platform
+if platform.system() == "Windows":
+    mainscript = "bin/treeoflife-server.py"
+else:
+    mainscript = "bin/treeoflife-server"
+
 setup(
         name="treeoflife",
         description="A Tree of your Life (end-user application)",
@@ -10,7 +16,7 @@ setup(
         author="lahwran",
         author_email="lahwran0@gmail.com",
         url="https://github.com/lahwran/tree-of-life",
-        scripts=["bin/treeoflife-server"],
+        scripts=[mainscript],
         install_requires=[
             "twisted",
             "parsley",
