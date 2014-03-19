@@ -49,6 +49,12 @@ angular.module("treeoflife")
                 keyMap: "vim",
                 lineNumbers: true,
                 undoDepth: 200,
+                extraKeys: {
+                    "Tab": function(cm) {
+                        var spaces = Array(cm.getOption("indentUnit") + 1).join(" ");
+                        cm.replaceSelection(spaces, "end", "+input");
+                    }
+                }
             };
 
             CodeMirror.Vim.defineEx("writeandquit", "writeandquit", function() {
