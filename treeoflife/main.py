@@ -505,6 +505,8 @@ def main(restarter, args):
     logfile = init_log(config)
     restarter.to_flush.append(logfile)
 
+    import treeoflife.nodes.import_all
+
     ui = RemoteInterface(config, restarter, config.path, config.mainfile,
             reactor=reactor)
     ui.load()
