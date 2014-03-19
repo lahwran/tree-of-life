@@ -27,7 +27,7 @@
     <script src="js/editor.js"></script>
   </head>
   <body>
-    <div ng-controller="ui_controller" class="scroller">
+    <div ng-controller="ui_controller" class="scroller solo-reset">
       <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
         autofocus class="commandbox reset" ng-show="!backend.editor_running"/>
 
