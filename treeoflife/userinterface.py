@@ -194,7 +194,8 @@ class Git(object):
         self._git("add", *filenames)
 
     def commit(self, message):
-        self._git("commit", "-m", message)
+        self._git("commit", "-m", message,
+                "--author", "treeoflife-autocommit <treeoflife@localhost>")
 
     def _git(self, *args):
         process = subprocess.Popen([self.binary] + list(args), cwd=self.path)
