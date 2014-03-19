@@ -207,7 +207,7 @@ class Git(object):
             self._git("config", "user.email", "treeoflife@localhost")
 
     def _git(self, *args):
-        result = subprocess.check_call(
+        result = subprocess.call(
                 [self.binary] + list(args), cwd=self.path)
         return result == 0
 
