@@ -172,12 +172,12 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
             }
         };
     })
-    .directive("tlKeypress", function() {
+    .directive("tlKeys", function() {
         return {
             link: function(scope, element, attrs) {
-                element.bind("keydown keypress", function(event) {
+                element.bind("keydown", function(event) {
                     scope.$apply(function() {
-                        var handlers = scope.$eval(attrs.tlKeypress);
+                        var handlers = scope.$eval(attrs.tlKeys);
                         var handler = handlers[event.which]
                         if (angular.isDefined(handler)) {
                             handler();

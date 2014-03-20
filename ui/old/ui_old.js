@@ -28,12 +28,10 @@ function on_message_received(message) {
 function on_status_changed(message) {
 }
 function on_calculate_width() {
-// DELAYED FIXME TODO XXX PORT
     var width = min($(".size-container").width(), tracker_api.getScreenWidth()/2);
     return width;
 }
 function on_calculate_height() {
-// DELAYED FIXME TODO XXX PORT
     var max_height = tracker_api.getScreenHeight() - 50;
 
     set_heights(max_height);
@@ -66,7 +64,6 @@ function on_connected() {
 // height calc
 
 function get_height_adds() {
-// DELAYED FIXME TODO XXX PORT
     var total_height = {value: 0};
     $(".height-add").each(function(item) {
         var height = $(this).outerHeight(true);
@@ -76,7 +73,6 @@ function get_height_adds() {
 }
 
 function set_heights(max_height) {
-// DELAYED FIXME TODO XXX PORT
     var used = get_height_adds();
     assert(used <= max_height, "height-add elements taller than max height");
 
@@ -179,11 +175,9 @@ message_handlers = {
         tracker_api.setMaxWidth(width);
     },
     input: function(input) {
-// FIXME TODO XXX PORT
         $(".command-box input").val(input);
     },
     error: function(error) {
-// FIXME TODO XXX PORT
         var error_count = parseInt($.trim($(".error-count").text()));
 
         error_count += 1;
@@ -243,7 +237,6 @@ ui_handlers = {
         }
     },
     typing: function(event) {
-// FIXME TODO XXX PORT
         if (event.which == 38) {
             message({navigate: "up"});
         } else if (event.which == 40) {

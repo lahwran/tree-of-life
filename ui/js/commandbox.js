@@ -2,12 +2,13 @@ angular.module("treeoflife")
 .directive("tlCommandbox", function($rootScope, backend) {
     return {
         restrict: "E",
-        template: '<input type="text" ng-model="command" ng-change="changed" class="commandbox reset" tl-keypress="keys" autofocus>',
+        template: '<input type="text" ng-model="command" ng-change="changed" class="commandbox reset" tl-keys="keys" autofocus>',
         replace: true,
         scope: {
             sendCommand: "="
         },
         link: function($scope, $element, $attrs) {
+            $scope.command = "";
             $scope.keys = {
                 // enter
                 13: function() {
