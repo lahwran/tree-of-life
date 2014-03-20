@@ -9,6 +9,7 @@ from treeoflife.tracker import Tracker
 from treeoflife.nodes.days import (Day, Sleep, Days,
         _parsehook_dayparse, _parsehook_dayabs)
 from treeoflife.nodes.misc import GenericActivate
+from treeoflife.exceptions import LoadError
 from treeoflife.nodes import days
 from treeoflife import searching
 
@@ -223,37 +224,6 @@ class TestMakeSkeleton(object):
             "    day#?????: December 21, 2012 (Friday, yesterday)\n"
             "    day#?????: December 22, 2012 (Saturday, today)\n"
             "        @started: December 22, 2012 12:00:00 PM\n"
-            "        @active\n"
-        ))
-
-    def test_edge_cases(self, setdt, monkeypatch):
-        monkeypatch.setattr(Day, "_post_started", lambda self: None)
-
-        tracker = Tracker(skeleton=False)
-        days_node = Days("days", None, tracker.root)
-        tracker.root.addchild(days_node)
-
-        setdt(2012, 12, 21, 12)
-
-        days_node.createchild("day", "December 19, 2012")
-        days_node.addchild(GenericActivate("archived", "herp derp"))
-        days_node.createchild("day", "December 20, 2012")
-        stucknode = days_node.createchild("day", "December 21, 2012")
-        stucknode.started = datetime(2012, 12, 21, 7)
-        stucknode.finished = datetime(2012, 12, 21, 8)
-
-        Days.make_skeleton(tracker.root)
-
-        result = tracker.serialize("str")
-        assert match(result, (
-            "days#?????\n"
-            "    day#?????: December 19, 2012 (Wednesday, 2 days ago)\n"
-            "    archived#?????: herp derp\n"
-            "    day#?????: December 20, 2012 (Thursday, yesterday)\n"
-            "    day#?????: December 21, 2012 (Friday, today)\n"
-            "        @finished: 1h after December 21, 2012 07:00:00 AM\n"
-            "    day#?????: December 21, 2012 (Friday, today)\n"
-            "        @started: December 21, 2012 12:00:00 PM\n"
             "        @active\n"
         ))
 
@@ -599,3 +569,17 @@ def test_searchhooks(setdt, monkeypatch):
 
     setdt(2014, 2, 20, 12)
     assert something.find("today").one().date == date(2014, 2, 20)
+
+
+def test_duplicate_day(setdt):
+    setdt(2014, 3, 19, 19, 40)
+
+    tracker = Tracker(skeleton=False)
+    tracker.deserialize("str",
+        "days\n"
+        "    day: today\n"
+    )
+
+    n = tracker.root.find("days").one()
+    with pytest.raises(LoadError):
+        n.createchild("day", "today")

@@ -10,6 +10,7 @@ from treeoflife.nodes.misc import Archived
 from treeoflife import alarms
 from treeoflife import searching
 from treeoflife import parseutil
+from treeoflife.exceptions import LoadError
 #from treeoflife import alarmclock
 
 logger = logging.getLogger(__name__)
@@ -425,8 +426,8 @@ class Days(Node):
 
                 if (existing_child.node_type == child.node_type and
                         existing_child.date == child.date):
-                    logger.warn("duplicate nodes added: %r and %r",
-                            existing_child, child)
+                    raise LoadError("attempted to add duplicate: %r and %r" %
+                            (existing_child, child))
                 elif existing_child < child:
                     break
                 else:
