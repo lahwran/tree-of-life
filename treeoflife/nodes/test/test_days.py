@@ -12,6 +12,7 @@ from treeoflife.nodes.misc import GenericActivate
 from treeoflife.exceptions import LoadError
 from treeoflife.nodes import days
 from treeoflife import searching
+from treeoflife import navigation
 
 
 def test_ordering(setdt):
@@ -583,3 +584,28 @@ def test_duplicate_day(setdt):
     n = tracker.root.find("days").one()
     with pytest.raises(LoadError):
         n.createchild("day", "today")
+
+
+def test_faroff_activate(setdt):
+    setdt(2014, 3, 19, 20, 17)
+
+    tracker = Tracker(skeleton=False)
+    tracker.deserialize("str",
+        "days\n"
+        "    day: today\n"
+        "        @active\n"
+        "    day: March 25, 2014\n"
+    )
+
+    navigation.create("March 25, 2014 > task: something",
+            tracker.root)
+
+    with pytest.raises(searching.NoMatchesError):
+        navigation.activate("March 25, 2014",
+                tracker.root)
+
+    with pytest.raises(searching.NoMatchesError):
+        navigation.activate("March 25, 2014 > task: something",
+                tracker.root)
+
+    assert tracker.root.active_node is tracker.root.find("today").one()

@@ -12,9 +12,24 @@ def _create(query, root, auto=False):
     return node
 
 
+def _filter_can_activate(nodes):
+    # TODO: this is a dumb solution
+    for node in nodes:
+        good = True
+        for parent in node.iter_parents():
+            if parent.node_type in ["days", "life"]:
+                break
+            if not parent.can_activate:
+                good = False
+                break
+        if good:
+            yield node
+
+
 def _activate(nodes, root, force=False):
     if not force:
-        nodes = searching.tag_filter(nodes, {"can_activate"})
+        # this is a hackfix for the real problem, but will do for a while
+        nodes = _filter_can_activate(nodes)
     node = searching.one(nodes)
 
     active = root.active_node
