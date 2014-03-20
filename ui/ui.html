@@ -25,15 +25,17 @@
     <script src="js/browser_compat.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/editor.js"></script>
+    <script src="js/commandbox.js"></script>
   </head>
   <body>
     <div ng-controller="ui_controller" class="scroller solo-reset">
-      <input type="text" ng-model="_command" extern-enter="sendcommand(_command)"
-        autofocus class="commandbox reset" ng-show="!backend.editor_running"/>
+      <tl-commandbox send-command="sendcommand" ng-show="!backend.editor_running">
+      </tl-commandbox>
 
       <tl-editor> </tl-editor>
 
       <div class="content reset" ng-show="!backend.editor_running">
+        {{ herp }}
         <collapseable text="" class="sidebar" shown="sidebar_shown">
           <div ng-show="browser_compat">
             <div ng-include="'/partials/browser-compat.html'">

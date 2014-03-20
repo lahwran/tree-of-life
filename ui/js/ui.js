@@ -37,8 +37,10 @@ function ui_controller($scope, backend, handlers, $timeout) {
         backend.send({command: "edit"});
     }
     $scope.sidebar = {};
+    $scope.derp = function(thing) {
+        $scope.herp = thing;
+    }
     $scope.sendcommand = function(command) {
-        $scope._command = "";
         if (command === "reload") {
             location.reload(true);
             return;
@@ -170,17 +172,21 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
             }
         };
     })
-    .directive("externEnter", function() {
+    .directive("tlKeypress", function() {
         return {
             link: function(scope, element, attrs) {
                 element.bind("keydown keypress", function(event) {
-                    if(event.which === 13) {
-                        scope.$apply(function(){
-                            scope.$eval(attrs.externEnter);
-                        });
-
-                        event.preventDefault();
-                    }
+                    scope.$apply(function() {
+                        var handlers = scope.$eval(attrs.tlKeypress);
+                        var handler = handlers[event.which]
+                        if (angular.isDefined(handler)) {
+                            handler();
+                            event.preventDefault();
+                        }
+                        else if (angular.isDefined(handlers.log)) {
+                            handlers.log(event.which);
+                        }
+                    });
                 });
             }
         };

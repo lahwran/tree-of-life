@@ -39,6 +39,7 @@ html, body, .h100 {
 @import "../fontawesome-less/font-awesome.less";
 
 @import "editor.less";
+@import "commandbox.less";
 
 body {
     font-size: 16px;
@@ -78,27 +79,6 @@ body {
 
     transition: border 0.8s;
     -webkit-transition: border 0.8s; /* Safari */
-}
-
-.commandbox {
-    padding: 5px;
-    height: 1.1em;
-
-    box-sizing: content-box;
-
-    background-color: (@background * 1.5);
-    width: 100%;
-    color: @foreground;
-    border-bottom: 1px solid @line;
-    margin-bottom: 10px;
-    position: fixed;
-    top: 0px;
-    left: 0px;
-    z-index: 10;
-
-    &:focus {
-        border-bottom-color: @green;
-    }
 }
 
 .collapseable {

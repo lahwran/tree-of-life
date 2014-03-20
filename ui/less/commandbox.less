@@ -1,0 +1,21 @@
+
+.commandbox {
+    padding: 5px;
+    height: 1.1em;
+
+    box-sizing: content-box;
+
+    background-color: (@background * 1.5);
+    width: 100%;
+    color: @foreground;
+    border-bottom: 1px solid @line;
+    margin-bottom: 10px;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    z-index: 10;
+
+    &:focus {
+        border-bottom-color: @green;
+    }
+}
