@@ -7,15 +7,18 @@ if platform.system() == "Windows":
 else:
     mainscript = "bin/treeoflife-server"
 
+vers = "0.0.2"
+
 setup(
         name="treeoflife",
         description="A Tree of your Life (end-user application)",
-        version="1",
-        packages=find_packages(),
+        version=vers,
+        packages=["treeoflife"],
         license='MIT',
         author="lahwran",
         author_email="lahwran0@gmail.com",
         url="https://github.com/lahwran/tree-of-life",
+        download_url="https://github.com/lahwran/tree-of-life/tarball/" + vers,
         scripts=[mainscript],
         install_requires=[
             "twisted",
@@ -27,7 +30,7 @@ setup(
             "sphinx",
         ],
         classifiers=[
-            'Development Status :: 4 - Beta',
+            'Development Status :: 3 - Alpha',
             'Environment :: Web Environment',
             'Environment :: MacOS X',
             'Framework :: Twisted',
@@ -40,6 +43,7 @@ setup(
             'Programming Language :: Python :: Implementation :: PyPy',
             'Programming Language :: Python :: Implementation :: CPython',
             'Programming Language :: Objective C',
+            'Programming Language :: JavaScript',
             'Topic :: Office/Business :: Scheduling',
             'Topic :: Software Development :: Bug Tracking'
         ]
