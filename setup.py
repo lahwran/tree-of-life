@@ -7,13 +7,13 @@ if platform.system() == "Windows":
 else:
     mainscript = "bin/treeoflife-server"
 
-vers = "0.0.2"
+vers = "0.0.3"
 
 setup(
         name="treeoflife",
         description="A Tree of your Life (end-user application)",
         version=vers,
-        packages=["treeoflife"],
+        packages=find_packages(),
         license='MIT',
         author="lahwran",
         author_email="lahwran0@gmail.com",
