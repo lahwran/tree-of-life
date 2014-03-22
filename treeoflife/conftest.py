@@ -14,6 +14,7 @@ try:
 except ImportError:
     running_on_pypy = False
 
+
 class directcall(object):
     def __init__(self, func):
         self.func = func
@@ -21,6 +22,7 @@ class directcall(object):
 
     def __call__(self, *args, **kwargs):
         return self.func()
+
 
 @pytest.fixture
 def setdt(monkeypatch):
@@ -33,6 +35,7 @@ def setdt(monkeypatch):
             _now = real_datetime(*args, **kwargs)
 
         patches = {}
+
         def _add(f):
             patches[f.__name__] = f
 
@@ -75,6 +78,7 @@ def setdt(monkeypatch):
 
     return setdt
 
+
 def pytest_addoption(parser):
     parser.addoption("--weakref", action="store_true",
         dest="weakref",
@@ -106,14 +110,15 @@ def pytest_configure(config):
     except ImportError:
         errmsg = ("\n\n\n\n"
             "    No pudb installed. install for fancy debugging in tests :)\n"
-            "    once installed, can be used simply by putting 'pu.db' on a line\n"
-            "    and passing -s to py.test.\n\n\n\n")
+            "    once installed, can be used simply by putting 'pu.db' on a \n"
+            "    line and passing -s to py.test.\n\n\n\n")
         import sys
         sys.stdout.write(errmsg)
         sys.stdout.flush()
 
     config.addinivalue_line("markers",
         "weakref: mark test as testing weakref code")
+
 
 def pytest_runtest_setup(item):
     if ("weakref" in item.keywords

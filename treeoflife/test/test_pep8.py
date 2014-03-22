@@ -7,12 +7,9 @@ import sys
 parent_dir = os.path.dirname(__file__)
 root_package = os.path.dirname(parent_dir)
 root = os.path.dirname(root_package)
-files = [os.path.join(root, filename) for filename in [
-    "activities.py",
-]]
 paths = [
     os.path.relpath(filename) for filename in
-    [root_package] + files
+    [root_package]
 ]
 ignore = [
     "E128",  # E128 is "under-indented"

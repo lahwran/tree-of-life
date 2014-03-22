@@ -407,6 +407,7 @@ def init_sentry():
 
 
 def init_log(config):
+    directory = os.path.realpath(os.path.expanduser(config.path))
     rootlogger = logging.getLogger()
 
     formatter = logging.Formatter('[%(asctime)s %(levelname)8s] %(name)s: '
@@ -415,7 +416,8 @@ def init_log(config):
     init_sentry()
 
     rootlogger.setLevel(logging.DEBUG)
-    logfile = open(config.logfile, "a")
+    path = os.path.join(directory, config.logfile)
+    logfile = open(path, "a")
     handlers = [
         logging.StreamHandler(sys.stdout),
         logging.StreamHandler(logfile)
@@ -494,7 +496,7 @@ def main(restarter, args):
 
     if not config.ignore_tests:
         import pytest
-        if pytest.main([]) != 0:
+        if pytest.main(["-qq", "treeoflife"]) != 0:
             return
 
     if config.dev:

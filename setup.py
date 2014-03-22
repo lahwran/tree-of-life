@@ -7,7 +7,7 @@ if platform.system() == "Windows":
 else:
     mainscript = "bin/treeoflife-server"
 
-vers = "0.0.3"
+vers = "0.0.4"
 
 setup(
         name="treeoflife",
@@ -22,7 +22,7 @@ setup(
         scripts=[mainscript],
         install_requires=[
             "twisted",
-            "parsley",
+            "parsley==1.2",
             "pytest",
             "pep8",
             "txws",
@@ -38,6 +38,7 @@ setup(
             'License :: OSI Approved :: MIT License',
             'Natural Language :: English',
             'Operating System :: MacOS :: MacOS X',
+            'Operating System :: OS Independent',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 2 :: Only',
             'Programming Language :: Python :: Implementation :: PyPy',
