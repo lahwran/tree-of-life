@@ -38,6 +38,18 @@ global_commands = HandlerDict()
 command = global_commands.add
 
 
+class FunctionCommand(object):
+    def __init__(self, function, args):
+        self.function = function
+        self.args = args
+
+    def execute(self):
+        self.function(**self.args)
+
+    def preview(self):
+        return {}
+
+
 import treeoflife.navigation
 
 
@@ -70,12 +82,19 @@ class Event(object):
         self.ui = ui
         self.event = self
 
-    def _inject(self, function):
-        func_args = inspect.getargs(function.__code__).args
+    def _inject(self, callable_):
+        isfunction = not hasattr(callable_, "execute")
+        f = callable_ if isfunction else callable_.__init__
+        func_args = inspect.getargs(f.__code__).args
         call = {}
         for arg in func_args:
+            if arg == "self":
+                continue
             call[arg] = getattr(self, arg)
-        return function(**call)
+        if isfunction:
+            return FunctionCommand(callable_, call)
+        else:
+            return callable_(**call)
 
 
 class MixedAlarmRoot(TreeRootNode, alarms.RootMixin):
@@ -91,29 +110,39 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         self._reactor = kwargs.pop("reactor")
         Tracker.__init__(self, *args, **kwargs)
 
-    def _command(self, source, command_name, text):
-        logger.info("command begin: %r, %r, %r", source, command_name, text)
-        initial = time.time()
-        try:
-            target = global_commands.handlers[command_name]
-        except KeyError:
-            self.errormessage(source, "no such command %r" % command_name)
-        else:
-            event = Event(source, self.root, command_name, text, self)
-            event._inject(target)
-            final = time.time()
-            logger.info("command took: %r", final - initial)
-
-    def command(self, source, line):
+    def parse_command(self, source, line):
         if not line.strip():
             return
+        logger.info("command parse and init: %s", repr(line))
+        initial = time.time()
 
         command_name, center, command_text = line.partition(" ")
         if command_name not in global_commands.handlers:
             command_text = line
             command_name = self._default_command
 
-        self._command(source, command_name, command_text)
+        target = global_commands.handlers[command_name]
+
+        event = Event(source, self.root, command_name, command_text, self)
+        try:
+            self._command = event._inject(target)
+        finally:
+            final = time.time()
+            logger.info("command parse and init: %r", final - initial)
+        return self._command
+
+    def commit_command(self):
+        logger.info("command commit: %s", repr(self._command))
+        initial = time.time()
+        try:
+            self._command.execute()
+        finally:
+            self._command = None
+            final = time.time()
+            logger.info("command parse and init: %r", final - initial)
+
+    def preview_command(self):
+        return self._command.preview()
 
     def errormessage(self, source, message):
         logger.error(message)

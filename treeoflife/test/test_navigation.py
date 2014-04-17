@@ -17,7 +17,7 @@ def test_createauto_todo_integration():
         tracker
     )
     assert not tracker.root.find("todo bucket > todo: \xfctest").first()
-    event._inject(navigation.createauto)
+    event._inject(navigation.createauto).execute()
     assert tracker.root.find("todo bucket > todo: \xfctest").one()
 
 

@@ -91,11 +91,11 @@ class RemoteInterface(SavingInterface):
     def show_client(self, client):
         client.sendmessage({"display": True})
 
-    def command(self, source, line):
+    def parse_command(self, source, line):
         if self.edit_session:
             self.edit_session.editor.command_attempted()
             return
-        super(RemoteInterface, self).command(source, line)
+        return super(RemoteInterface, self).parse_command(source, line)
 
     def _editor_finished(self, identifier):
         if identifier != self.edit_session.editor.identifier:
@@ -279,7 +279,8 @@ class JSONProtocol(LineOnlyReceiver):
         self.command_index = len(self.command_history)
         self.command_history.append("")
         try:
-            self.commandline.command(self, command)
+            self.commandline.parse_command(self, command)
+            self.commandline.commit_command()
         except Exception as e:
             logger.exception("Error running command")
             self.capture_error(e)

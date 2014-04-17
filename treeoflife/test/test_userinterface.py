@@ -1,6 +1,7 @@
 from __future__ import unicode_literals, print_function
 
 import pytest
+from twisted.internet.task import Clock
 
 from treeoflife import userinterface
 from treeoflife import exceptions
@@ -46,3 +47,48 @@ class TestGenerateListing(object):
             "      _gennode: derp",
             ">         task: honk"
         ]
+
+
+def test_command(monkeypatch):
+    clock = Clock()
+    interface = userinterface.CommandInterface(reactor=clock, skeleton=False)
+    calls = []
+
+    def testhandler(text, ui, command_name, root):
+        calls.append(command_name)
+        assert text == "this is my text"
+        assert ui is interface
+        assert root is ui.root
+
+    class PreviewableHandler(object):
+        def __init__(self, command_name, text, ui, root):
+            assert type(self) == PreviewableHandler
+            assert text == "this is my text"
+            assert ui is interface
+            assert root is ui.root
+            self.command_name = command_name
+
+        def preview(self):
+            return {"command_name": self.command_name}
+
+        def execute(self):
+            calls.append(self.command_name)
+
+    monkeypatch.setitem(userinterface.global_commands.handlers,
+            "testhandler", testhandler)
+    monkeypatch.setitem(userinterface.global_commands.handlers,
+            "previewable", PreviewableHandler)
+
+    interface.parse_command(None, "testhandler this is my text")
+    assert interface._command
+    assert interface.preview_command() == {}
+    interface.commit_command()
+    assert not interface._command
+
+    interface.parse_command(None, "previewable this is my text")
+    assert interface._command.command_name
+    assert interface.preview_command() == {"command_name": "previewable"}
+    interface.commit_command()
+    assert not interface._command
+
+    assert calls == ["testhandler", "previewable"]

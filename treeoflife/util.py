@@ -5,7 +5,7 @@ import os
 import tempfile as _tempfile
 import time
 import functools
-import __builtin__
+import __builtin__  # monkeypatch fix for hasattr, nothing crazy
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,9 @@ def _monitor(name):
 
 def hasattr_(obj, name):
     """
-    Injected hasattr that only catches AttributeError
+    Injected hasattr that only catches AttributeError.
+    This is not a backwards-incompatble change, I have no idea
+    why they haven't fixed it.
     """
     sentinel = object()
     return getattr(obj, name, sentinel) is not sentinel
