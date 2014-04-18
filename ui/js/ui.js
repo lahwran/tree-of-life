@@ -37,9 +37,6 @@ function ui_controller($scope, backend, handlers, $timeout) {
         backend.send({command: "edit"});
     }
     $scope.sidebar = {};
-    $scope.derp = function(thing) {
-        $scope.herp = thing;
-    }
     $scope.sendcommand = function(command) {
         if (command === "reload") {
             location.reload(true);
@@ -480,6 +477,9 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
         $rootScope.$on("message/pool", function(event, pool) {
             backend.pool = pool;
             $rootScope.pool = pool;
+        });
+        $rootScope.$on("message/command_preview", function(event, preview) {
+            $rootScope.command_preview = preview;
         });
         $rootScope.$on("message/error", function(event, err) {
             backend.addError(err);

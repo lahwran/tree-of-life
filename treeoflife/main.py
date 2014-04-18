@@ -1,5 +1,6 @@
 from __future__ import unicode_literals, print_function
 
+import time
 import json
 import sys
 import os
@@ -171,6 +172,9 @@ class JSONProtocol(LineOnlyReceiver):
         self.command_index = 0
         self.update_timeout = None
         self.reactor = reactor
+        self.parsed_command_text = None
+        self.parsed_command = None
+        self.current_preview = None
 
     def connectionLost(self, reason):
         if not self._is_transient_connection:
@@ -254,7 +258,9 @@ class JSONProtocol(LineOnlyReceiver):
                 self.capture_error(e, "UNEXPECTED, SEE CONSOLE")
 
     def message_input(self, text_input):
+        prev = self.command_history[self.command_index]
         self.command_history[self.command_index] = text_input
+        self._update_command()
 
     def message_navigate(self, direction):
         shift = -1 if direction == "up" else 1
@@ -273,19 +279,50 @@ class JSONProtocol(LineOnlyReceiver):
             return
 
         self.sendmessage({"input": self.command_history[self.command_index]})
+        self._update_command()
+
+    def _update_command(self, preview=True):
+        text = self.command_history[self.command_index]
+        old = self.parsed_command_text
+        if text == old:
+            return
+
+        if text is None:
+            self.parsed_command = None
+        else:
+            command = self.commandline.parse_command(self, text)
+            self.parsed_command = command
+
+        if not preview:
+            return
+
+        if self.parsed_command is None:
+            value = None
+        else:
+            value = command._full_preview()
+        old_preview = self.current_preview
+        self.current_preview = value
+        if old_preview == value:
+            return
+        self.sendmessage({"command_preview": value})
 
     def message_command(self, command):
         self.command_history[self.command_index] = command
+        self._update_command(preview=False)
+        logger.info("command commit: %s", repr(self.parsed_command))
+        initial = time.time()
         self.command_index = len(self.command_history)
         self.command_history.append("")
         try:
-            self.commandline.parse_command(self, command)
-            self.commandline.commit_command()
+            self.parsed_command.execute()
         except Exception as e:
             logger.exception("Error running command")
             self.capture_error(e)
         else:
+            final = time.time()
+            logger.info("command commit took: %r", final - initial)
             self.commandline.update_all()
+        self._update_command()
 
     def capture_error(self, e, message=None):
         stred = str(e)

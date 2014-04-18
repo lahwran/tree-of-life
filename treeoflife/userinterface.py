@@ -38,16 +38,35 @@ global_commands = HandlerDict()
 command = global_commands.add
 
 
-class FunctionCommand(object):
-    def __init__(self, function, args):
+class Command(object):
+    def _full_preview(self):
+        return {
+            "name": self.event.command_name,
+            "text": self.event.text,
+            "data": self.preview()
+        }
+
+
+class FunctionCommand(Command):
+    def __init__(self, event, function, args):
         self.function = function
         self.args = args
+        self.event = event
 
     def execute(self):
         self.function(**self.args)
 
     def preview(self):
         return {}
+
+
+@command("previewtestcommand")
+class TestingCommand(Command):
+    def preview(self):
+        return {"preview": "derp"}
+
+    def execute(self):
+        pass
 
 
 import treeoflife.navigation
@@ -85,16 +104,25 @@ class Event(object):
     def _inject(self, callable_):
         isfunction = not hasattr(callable_, "execute")
         f = callable_ if isfunction else callable_.__init__
-        func_args = inspect.getargs(f.__code__).args
+        if f == object.__init__:
+            func_args = []
+        else:
+            func_args = inspect.getargs(f.__code__).args
         call = {}
         for arg in func_args:
             if arg == "self":
                 continue
-            call[arg] = getattr(self, arg)
+            try:
+                call[arg] = getattr(self, arg)
+            except:
+                import pudb; pudb.set_trace()
+                raise
         if isfunction:
-            return FunctionCommand(callable_, call)
+            return FunctionCommand(self, callable_, call)
         else:
-            return callable_(**call)
+            result = callable_(**call)
+            result.event = self
+            return result
 
 
 class MixedAlarmRoot(TreeRootNode, alarms.RootMixin):
@@ -124,25 +152,14 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
         target = global_commands.handlers[command_name]
 
         event = Event(source, self.root, command_name, command_text, self)
+        command = None
         try:
-            self._command = event._inject(target)
+            command = event._inject(target)
         finally:
             final = time.time()
-            logger.info("command parse and init: %r", final - initial)
-        return self._command
-
-    def commit_command(self):
-        logger.info("command commit: %s", repr(self._command))
-        initial = time.time()
-        try:
-            self._command.execute()
-        finally:
-            self._command = None
-            final = time.time()
-            logger.info("command parse and init: %r", final - initial)
-
-    def preview_command(self):
-        return self._command.preview()
+            logger.info("command parse and init: %r -> %s", final - initial,
+                    repr(command))
+        return command
 
     def errormessage(self, source, message):
         logger.error(message)

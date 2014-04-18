@@ -9,6 +9,7 @@ import pprint
 from treeoflife.main import JSONProtocol, RemoteInterface
 from treeoflife import editor_launch
 from treeoflife.test import util
+from treeoflife import userinterface
 
 # TODO: need to monkeypatch tempfile() to not clutter os temp directory
 
@@ -267,3 +268,84 @@ def test_receive_long_message():
 
     protocol.dataReceived(json.dumps({"huge": " " * length}) + "\n")
     assert called == [True]
+
+
+def test_stateful_command(tpc, monkeypatch):
+    tracker, protocol, clock = tpc
+    calls = []
+
+    class TestCommand(userinterface.Command):
+        def __init__(self, command_name, text, ui, root):
+            assert type(self) == TestCommand
+            assert text == "hello world" or text == "around the world"
+            assert ui is tracker
+            assert root is ui.root
+            self.command_name = command_name
+            self.text = text
+
+        def preview(self):
+            return {
+                "preview": "something"
+            }
+
+        def execute(self):
+            calls.append(self.text)
+
+    monkeypatch.setitem(userinterface.global_commands.handlers,
+            "testcommand", TestCommand)
+
+    protocol.receive(input="testcommand hello world")
+    assert protocol.parsed_command
+    protocol.accept_messages({
+        "command_preview": {
+            "name": "testcommand",
+            "text": "hello world",
+            "data": {"preview": "something"}
+        }
+    })
+    protocol.receive(command="testcommand hello world")
+    assert not protocol.parsed_command
+    protocol.accept_messages({
+        "command_preview": None
+    })
+
+    protocol.receive(input="testcommand around the world")
+    assert protocol.parsed_command
+    protocol.accept_messages({
+        "command_preview": {
+            "name": "testcommand",
+            "text": "around the world",
+            "data": {"preview": "something"}
+        }
+    })
+    protocol.receive(navigate="up")
+    assert protocol.parsed_command
+    protocol.accept_messages(
+        {"input": "testcommand hello world"},
+        {
+            "command_preview": {
+                "name": "testcommand",
+                "text": "hello world",
+                "data": {"preview": "something"}
+            }
+        }
+    )
+    protocol.receive(navigate="down")
+    assert protocol.parsed_command
+    protocol.accept_messages(
+        {"input": "testcommand around the world"},
+        {
+            "command_preview": {
+                "name": "testcommand",
+                "text": "around the world",
+                "data": {"preview": "something"}
+            }
+        }
+    )
+    protocol.receive(input="  ")
+    assert not protocol.parsed_command
+    protocol.accept_messages({
+        "command_preview": None
+    })
+
+    assert calls == ["hello world"]

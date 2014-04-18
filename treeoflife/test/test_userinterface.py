@@ -60,7 +60,7 @@ def test_command(monkeypatch):
         assert ui is interface
         assert root is ui.root
 
-    class PreviewableHandler(object):
+    class PreviewableHandler(userinterface.Command):
         def __init__(self, command_name, text, ui, root):
             assert type(self) == PreviewableHandler
             assert text == "this is my text"
@@ -79,16 +79,23 @@ def test_command(monkeypatch):
     monkeypatch.setitem(userinterface.global_commands.handlers,
             "previewable", PreviewableHandler)
 
-    interface.parse_command(None, "testhandler this is my text")
-    assert interface._command
-    assert interface.preview_command() == {}
-    interface.commit_command()
-    assert not interface._command
+    command = interface.parse_command(None, "testhandler this is my text")
+    assert command.preview() == {}
+    assert command._full_preview() == {
+        "name": "testhandler",
+        "text": "this is my text",
+        "data": {}
+    }
+    command.execute()
 
-    interface.parse_command(None, "previewable this is my text")
-    assert interface._command.command_name
-    assert interface.preview_command() == {"command_name": "previewable"}
-    interface.commit_command()
-    assert not interface._command
+    command = interface.parse_command(None, "previewable this is my text")
+    assert command.command_name
+    assert command.preview() == {"command_name": "previewable"}
+    assert command._full_preview() == {
+        "name": "previewable",
+        "text": "this is my text",
+        "data": {"command_name": "previewable"}
+    }
+    command.execute()
 
     assert calls == ["testhandler", "previewable"]

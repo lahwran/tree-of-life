@@ -35,7 +35,9 @@
       <tl-editor> </tl-editor>
 
       <div class="content reset" ng-show="!backend.editor_running">
-        {{ herp }}
+        <div class="preview" ng-show="backend.command_preview">
+          {{ backend.command_preview }}
+        </div>
         <collapseable text="" class="sidebar" shown="sidebar_shown">
           <div ng-show="browser_compat">
             <div ng-include="'/partials/browser-compat.html'">
