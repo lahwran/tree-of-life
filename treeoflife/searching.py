@@ -57,7 +57,7 @@ def split_tags(orig_tags):
     plurality = None
     for tag in orig_tags:
         if tag in pluralities:
-            if not plurality is None:
+            if plurality is not None:
                 assert False
             plurality = tag
         else:

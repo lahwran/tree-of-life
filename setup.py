@@ -7,7 +7,7 @@ if platform.system() == "Windows":
 else:
     mainscript = "bin/treeoflife-server"
 
-vers = "0.0.4"
+vers = "0.0.5"
 
 setup(
         name="treeoflife",
@@ -24,7 +24,7 @@ setup(
             "twisted",
             "parsley==1.2",
             "pytest",
-            "pep8",
+            "pep8==1.5.6",
             "txws",
             "raven",
             "sphinx",

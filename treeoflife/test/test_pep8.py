@@ -23,6 +23,9 @@ ignore = [
     "E121",  # stfu about continued comment on previous line in this file
     "E201",  # whitespace after ( in function call - used for vertical time
              # alignment
+    "E265",  # comment must start "# " - I generally like that, but I ignore
+             # it in some placse
+    "E131",  # line continuation alignment - I'm pretty free with this
 ]
 
 try:
