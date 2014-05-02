@@ -1,7 +1,23 @@
 from __future__ import unicode_literals, print_function
 
-from treeoflife.userinterface import command
+from treeoflife.userinterface import command, Command
 from treeoflife import searching
+
+
+@command("fancy")
+class SomeCommand(Command):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        self.results = self.query(root.active_node)\
+                            .actions()\
+                            .ignore_overflow()\
+                            .list()
+
+    def preview(self):
+        return {"options": [result.preview() for result in self.results]}
+
+    def execute(self):
+        node = self.results[0].produce_node()
 
 
 def _create(query, root, auto=False):

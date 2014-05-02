@@ -141,7 +141,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
     def parse_command(self, source, line):
         if not line.strip():
             return
-        logger.info("command parse and init: %s", repr(line))
+        logger.debug("command parse and init: %s", repr(line))
         initial = time.time()
 
         command_name, center, command_text = line.partition(" ")
@@ -157,7 +157,7 @@ class CommandInterface(Tracker, alarms.TrackerMixin):
             command = event._inject(target)
         finally:
             final = time.time()
-            logger.info("command parse and init: %r -> %s", final - initial,
+            logger.debug("command parse and init: %r -> %s", final - initial,
                     repr(command))
         return command
 

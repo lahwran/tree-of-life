@@ -389,63 +389,11 @@ class TestCreate(object):
     #    assert created == [results[2], results[4], results[6]]
     #    assert repr(creator)
 
-    def test_after_create(self):
-        tracker = Tracker(False, FakeNodeCreator(GenericActivate))
-
-        origin = tracker.root.createchild("task", "origin")
-        origin.createchild("task", "1")
-        origin.createchild("task", "2")
-        origin.createchild("task", "3")
-        origin.createchild("task", "4")
-        origin.createchild("task", "5")
-
-        creator = searching.parse_create_single("task: target :{first, after}")
-        creator(origin)
-
-        assert match("\n".join(serialize(origin)), (
-            "task#?????: origin\n"
-            "    task#?????: 1\n"
-            "    task#?????: target\n"
-            "    task#?????: 2\n"
-            "    task#?????: 3\n"
-            "    task#?????: 4\n"
-            "    task#?????: 5"
-        ))
-        assert repr(creator)
-
-    def test_after_started(self):
-        tracker = Tracker(False)
-
-        nodes = []
-
-        origin = tracker.root.createchild("task", "origin")
-        nodes.append(origin.createchild("task", "finished"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(origin.createchild("task", "finished 2"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(origin.createchild("task", "started"))
-        nodes[-1].start()
-        nodes.append(origin.createchild("task", "untouched"))
-        nodes.append(origin.createchild("task", "untouched 2"))
-
-        creator = searching.parse_create_single(
-                "task: target :{after, last, finished}")
-        created = creator(origin)
-
-        results = list(origin.children)
-        assert (results[:2] + results[3:]) == nodes
-        assert results[2].node_type == "task"
-        assert results[2].text == "target"
-        assert created == results[2]
-        assert repr(creator)
-
     def test_last(self):
         creator = searching.parse_create_single("+task: last")
-        assert not creator.is_before
-        assert creator.last_segment.tags == set()
-        assert creator.last_segment.plurality == "last"
+        assert not creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_plurality == "last"
 
         tracker = Tracker(False)
 
@@ -474,9 +422,9 @@ class TestCreate(object):
 
     def test_early(self):
         creator = searching.parse_create_single("-task: first")
-        assert creator.is_before
-        assert creator.last_segment.tags == set()
-        assert creator.last_segment.plurality == "first"
+        assert creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_plurality == "first"
 
         tracker = Tracker(False)
 
@@ -505,9 +453,9 @@ class TestCreate(object):
 
     def test_early_reversed(self):
         creator = searching.parse_create_single("<- +task: first")
-        assert creator.is_before
-        assert creator.last_segment.tags == set()
-        assert creator.last_segment.plurality == "last"
+        assert creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_plurality == "last"
 
         tracker = Tracker(False)
 
@@ -538,9 +486,9 @@ class TestCreate(object):
 
     def test_last_reversed(self):
         creator = searching.parse_create_single("<- -task: first")
-        assert not creator.is_before
-        assert creator.last_segment.tags == set()
-        assert creator.last_segment.plurality == "first"
+        assert not creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_plurality == "first"
 
         tracker = Tracker(False)
 
@@ -571,9 +519,10 @@ class TestCreate(object):
 
     def test_default_reversed(self):
         creator = searching.parse_create_single("<- task: mid")
-        assert not creator.is_before
-        assert creator.last_segment.tags == set(["can_activate"])
-        assert creator.last_segment.plurality == "first"
+        assert not creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_activate_hack
+        assert creator.segment.create_plurality == "first"
 
         tracker = Tracker(False)
 
@@ -604,9 +553,10 @@ class TestCreate(object):
 
     def test_reversed_no_match(self):
         creator = searching.parse_create_single("<- task: mid")
-        assert not creator.is_before
-        assert creator.last_segment.tags == set(["can_activate"])
-        assert creator.last_segment.plurality == "first"
+        assert not creator.segment.create_is_before
+        assert creator.segment.tags == set()
+        assert creator.segment.create_activate_hack
+        assert creator.segment.create_plurality == "first"
 
         tracker = Tracker(False)
 
@@ -631,45 +581,12 @@ class TestCreate(object):
         assert results[:-2] + results[-1:] == nodes
         assert repr(creator)
 
-    def test_before_explicit(self):
-        creator = searching.parse_create_single(
-                "<- task: first :{before, last}")
-        assert creator.is_before
-        assert creator.last_segment.tags == set()
-        assert creator.last_segment.plurality == "last"
-
-        tracker = Tracker(False)
-
-        nodes = []
-
-        nodes.append(tracker.root.createchild("task", "finished"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(tracker.root.createchild("task", "finished 2"))
-        nodes[-1].start()
-        nodes[-1].finish()
-        nodes.append(tracker.root.createchild("task", "started"))
-        nodes[-1].start()
-        nodes.append(tracker.root.createchild("task", "untouched"))
-        nodes.append(tracker.root.createchild("task", "untouched 2"))
-
-        origin = tracker.root.createchild("task", "origin")
-        nodes.append(origin)
-
-        creator(origin)
-
-        results = list(tracker.root.children)
-
-        assert results[0].node_type == "task"
-        assert results[0].text == "first"
-        assert results[1:] == nodes
-        assert repr(creator)
-
     def test_after_match(self):
         creator = searching.parse_create_single("-> task: mid")
-        assert creator.is_before
-        assert creator.last_segment.tags == set(["can_activate"])
-        assert creator.last_segment.plurality == "first"
+        assert creator.segment.create_is_before
+        assert creator.segment.create_activate_hack
+        assert creator.segment.tags == set()
+        assert creator.segment.create_plurality == "first"
 
         tracker = Tracker(False)
 
@@ -699,10 +616,10 @@ class TestCreate(object):
 
     def test_other_tag(self):
         creator = searching.parse_create_single(
-                "<- task: target :{first, started}")
-        assert not creator.is_before
-        assert creator.last_segment.tags == set(["started"])
-        assert creator.last_segment.plurality == "first"
+                "<- task: target :{started}")
+        assert not creator.segment.create_is_before
+        assert creator.segment.tags == set(["started"])
+        assert creator.segment.create_plurality == "first"
         assert repr(creator)
 
     def test_empty_prev_peer(self):
@@ -781,6 +698,14 @@ class TestCreate(object):
             creator(tracker.root)
 
         assert tracker.root.find("day").first() is None
+
+    def test_cant_create_with_plurality(self):
+        with pytest.raises(searching.CantCreateError):
+            searching.parse_create_single("task: test :{first}")
+        with pytest.raises(searching.CantCreateError):
+            searching.parse_create_single("task: test :{last}")
+        with pytest.raises(searching.CantCreateError):
+            searching.parse_create_single("task: test :{many}")
 
     #def test_many(self):
     #    creator = searching.parse_create("-> :{many} > task: TARGET")
@@ -894,25 +819,15 @@ def test_parse_filters(monkeypatch):
         queries.append(searching.parse_single("task: some random query"))
         return queries
 
-    def _hook3(queries):
-        return queries * 2
-
     monkeypatch.setattr(searching, "parsecreatefilters", [
         _hook1,
         _hook2
-    ])
-    monkeypatch.setattr(searching, "parseonlyfilters", [
-        _hook3
     ])
 
     assert searching.parse("around the world") == searching.Queries(
             searching.parse_single("around the world"),
             searching.parse_single("comment: derp derp"),
             searching.parse_single("task: some random query"),
-
-            searching.parse_single("around the world"),
-            searching.parse_single("comment: derp derp"),
-            searching.parse_single("task: some random query")
     )
 
     assert (searching.parse_create("comment: hoop doop") ==
@@ -992,6 +907,26 @@ def test_failed_create(monkeypatch):
     with pytest.raises(searching.NodeNotCreated):
         creator(tracker.root)
 
+
+def test_solo_create():
+    query = searching.parse_single("task: derp")
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+
+    lastsegment = query.segments[-1]
+    assert lastsegment.can_create
+
+
+def test_no_last():
+    query = searching.parse_single("task: derp :{last}")
+
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    assert not query(tracker.root).list()
+
+
+def test_empty_ignore_overflow():
+    query = searching.parse_single("task: derp")
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    assert not query(tracker.root).ignore_overflow().list()
 
 # to test: filters. create obeys filters. create only creates one node.
 # create only uses first filter.

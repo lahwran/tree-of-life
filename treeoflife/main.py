@@ -309,7 +309,9 @@ class JSONProtocol(LineOnlyReceiver):
     def message_command(self, command):
         self.command_history[self.command_index] = command
         self._update_command(preview=False)
-        logger.info("command commit: %s", repr(self.parsed_command))
+        logger.info("command commit: %r -> %s",
+                command,
+                repr(self.parsed_command))
         initial = time.time()
         self.command_index = len(self.command_history)
         self.command_history.append("")
@@ -320,7 +322,7 @@ class JSONProtocol(LineOnlyReceiver):
             self.capture_error(e)
         else:
             final = time.time()
-            logger.info("command commit took: %r", final - initial)
+            logger.debug("command commit took: %r", final - initial)
             self.commandline.update_all()
         self._update_command()
 
@@ -453,7 +455,7 @@ def init_log(config):
 
     init_sentry()
 
-    rootlogger.setLevel(logging.DEBUG)
+    rootlogger.setLevel(logging.INFO)
     path = os.path.join(directory, config.logfile)
     logfile = open(path, "a")
     handlers = [

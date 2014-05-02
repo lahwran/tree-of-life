@@ -544,7 +544,6 @@ def test_searchhooks(setdt, monkeypatch):
         _parsehook_dayparse,
         _parsehook_dayabs
     ])
-    monkeypatch.setattr(searching, "parseonlyfilters", [])
     setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 

@@ -19,11 +19,15 @@ _TaggedPattern = namedtuple('TaggedPattern', 'pat, tags')
 
 
 class Queries(object):
+    """
+    A super-query made of other queries.
+    AST + execution
+    """
     def __init__(self, *queries):
         self.queries = queries
 
     def __call__(self, node, counter=None):
-        return QueriesResults(self.queries, node)
+        return QueriesResults(self.queries, node, counter=counter)
 
     def __eq__(self, other):
         return self.queries == getattr(other, "queries", None)
@@ -34,6 +38,10 @@ class Queries(object):
 
 
 class Query(object):
+    """
+    A whole query.
+    AST + execution
+    """
     def __init__(self, *segments):
         self.segments = tuple(segments)
 
@@ -94,6 +102,7 @@ def make_segment(separator, nodeid, pattern, tags):
 
 
 class SearchGrammar(parseutil.Grammar):
+    # parsley weirdness. should not be a class, but w/e
     grammar = r"""
     ws = ' '+
     text = <(~separator ~tags_begin ~': ' anything)+>
@@ -155,7 +164,6 @@ parse_single = memoize(SearchGrammar.wraprule("query"))
 
 
 parsecreatefilters = HandlerList()
-parseonlyfilters = HandlerList()
 
 
 @memoize
@@ -165,8 +173,6 @@ def parse(string=None, query=None):
     queries = [query.copy()]
 
     for filter_ in parsecreatefilters:
-        queries = filter_(queries)
-    for filter_ in parseonlyfilters:
         queries = filter_(queries)
 
     return Queries(*queries)
@@ -238,127 +244,24 @@ class CantCreateError(Exception):
 
 
 class _Creator(object):
-    def __init__(self, query, do_auto_add=False):
+    def __init__(self, query, do_auto_add=None):
         self.query = query.copy()
-        segment = self.query.segments[-1]
+        self.segment = self.query.segments[-1]
         self.query.segments = self.query.segments[:-1]
-
-        if segment.matcher is None:
-            raise CantCreateError("cannot create node without full node")
-        if not segment.matcher.is_rigid:
-            raise CantCreateError("cannot create node without full node")
-        if segment.separator == "parents":
-            raise CantCreateError("cannot create parent node")
-
-        rel = segment.matcher.create_relationship
-        if rel == "default":
-            new_tags = set(segment.tags)
-
-            if "before" in new_tags:
-                if "after" in new_tags:
-                    assert False
-                new_tags.remove("before")
-                self.is_before = True
-            elif "after" in new_tags:
-                new_tags.remove("after")
-                self.is_before = False
-            else:
-                self.is_before = (segment.separator != "prev_peer")
-                if not new_tags:
-                    new_tags.add("can_activate")
-
-            if segment.plurality is not None:
-                assert segment.plurality != "many"
-                new_tags.add(segment.plurality)
-            else:
-                new_tags.add("first")
-
-        else:
-            if segment.tags:
-                assert False, "conflict between rel shortcut and tags"
-            if segment.plurality is not None:
-                assert False, (
-                    "conflict between rel shortcut and tags")
-            is_last = (rel == "+")
-
-            if is_last:
-                new_tags = set(["last"])
-                self.is_before = False
-            else:
-                new_tags = set(["first"])
-                self.is_before = True
-
-            if segment.separator == "prev_peer":
-                # invert order for prev_peer
-                self.is_before = not self.is_before
-
-        self.node_type = segment.matcher.type
-        self.text = segment.matcher.text
-
-        if segment.separator not in ("children", "next_peer", "prev_peer"):
-            assert False
-
-        new_last = make_segment(segment.separator, None,
-                ("default", "*", None), new_tags)
-        self.last_segment = new_last
-
-        # is this really the right place to put auto add?
-        # probably not, but where does it belong then?
-        self.do_auto_add = do_auto_add
+        if not self.segment.can_create:
+            raise CantCreateError(self.segment._no_create_reason)
 
     def __eq__(self, other):
-        return (
-                self.do_auto_add == getattr(other, "do_auto_add", None)
-            and self.query == getattr(other, "query", None)
-            and self.is_before == getattr(other, "is_before", None)
-            and self.node_type == getattr(other, "node_type", None)
-            and self.text == getattr(other, "text", None)
-            and self.last_segment == getattr(other, "last_segment", None)
-        )
+        return self.query == other.query
 
     def __call__(self, basenode):
-        assert basenode.node_type, "Please provide a single node"
-        parentnode = self.query(basenode).first()
-        if parentnode is None:
+        node = self.query(basenode).first()
+        if node is None:
             return
-
-        new_node = parentnode.root.nodecreator.create(
-                        self.node_type, self.text, None, validate=False)
-        existing_nodes = list(self.last_segment(parentnode))
-        try:
-            if self.do_auto_add:
-                parent = new_node.auto_add(creator=parentnode,
-                        root=parentnode.root)
-                if parent:
-                    return new_node
-
-            if existing_nodes:
-                assert len(existing_nodes) == 1
-                node = existing_nodes[0]
-
-                if self.is_before:
-                    rel = {"before": node}
-                else:
-                    rel = {"after": node}
-
-                new_node = node.parent.addchild(new_node, **rel)
-            elif self.last_segment.separator == "children":
-                new_node = parentnode.addchild(new_node)
-            elif self.last_segment.separator == "prev_peer":
-                new_node = parentnode.parent.addchild(new_node,
-                        before=parentnode)
-            else:
-                new_node = parentnode.parent.addchild(new_node,
-                        after=parentnode.parent.children.prev_neighbor)
-            new_node._validate()
-        except LoadError:
-            new_node.detach()
-            raise
-
-        return new_node
+        return self.segment.create(node)
 
     def __repr__(self):
-        return "<creator %r -> %r>" % (self.query, self.last_segment)
+        return "<creator %r -> %r>" % (self.query, self.segment)
 
 
 class TickCounter(object):
@@ -447,6 +350,10 @@ def tag_filter(nodes, tags, counter=None):
 
 
 class Matcher(object):
+    """
+    The text portion of a segment
+    AST + execution code
+    """
     def __init__(self, type, text, rel="default"):
         self.type = None if type == "*" else type
         self.text = None if text == "*" else text
@@ -488,6 +395,10 @@ class Matcher(object):
 
 
 class Segment(object):
+    """
+    A segment of a search
+    AST + execution code
+    """
     def __init__(self, separator, pattern,
             matcher, tags, plurality, nodeid=None):
         self.separator = separator  # string (informational only)
@@ -501,7 +412,98 @@ class Segment(object):
 
         self.nodeid = nodeid  # string or None
 
-    def __call__(self, node, counter=None):
+        self.setup_create()
+
+    def setup_create(self):
+        r = None
+        if self.matcher is None:
+            r = "cannot create node without full node"
+        elif not self.matcher.is_rigid:
+            r = "cannot create node without full node"
+        elif self.separator == "parents":
+            r = "cannot create parent node"
+        elif self.nodeid:
+            r = "cannot create node with set id"
+        elif self.plurality is not None:
+            r = "cannot create anything but one node, but plurality is set"
+        elif self.separator not in ("children", "next_peer", "prev_peer"):
+            r = "cannot create with this separator"
+
+        self.can_create = r is None
+        self._no_create_reason = r
+        if r:
+            return
+
+        rel = self.matcher.create_relationship
+        self.create_activate_hack = False
+
+        if rel == "default":
+            self.create_is_before = (self.separator != "prev_peer")
+            is_last = False
+            self.create_activate_hack = True
+        else:
+            #TODO: if createrel is set, mark this segment as preferring create?
+            if self.tags:
+                assert False, "conflict between rel shortcut and tags"
+            is_last = (rel == "+")
+            self.create_is_before = not is_last
+
+            if self.separator == "prev_peer":
+                # invert order for prev_peer, to be intuitive
+                self.create_is_before = not self.create_is_before
+        self.create_plurality = "last" if is_last else "first"
+
+    def create(self, parentnode):
+        assert self.can_create, self._no_create_reason
+        assert parentnode.node_type, "Please provide a single node"
+
+        node_type = self.matcher.type
+        text = self.matcher.text
+
+        new_node = parentnode.root.nodecreator.create(
+                        node_type, text, None, validate=False)
+        existing_nodes = list(self(parentnode, createprep=True))
+        try:
+            parent = new_node.auto_add(creator=parentnode,
+                    root=parentnode.root)
+            if parent:
+                return new_node
+
+            if existing_nodes:
+                assert len(existing_nodes) == 1
+                node = existing_nodes[0]
+
+                if self.create_is_before:
+                    rel = {"before": node}
+                else:
+                    rel = {"after": node}
+
+                new_node = node.parent.addchild(new_node, **rel)
+            elif self.separator == "children":
+                new_node = parentnode.addchild(new_node)
+            elif self.separator == "prev_peer":
+                new_node = parentnode.parent.addchild(new_node,
+                        before=parentnode)
+            else:
+                new_node = parentnode.parent.addchild(new_node,
+                        after=parentnode.parent.children.prev_neighbor)
+            new_node._validate()
+        except LoadError:
+            new_node.detach()
+            raise
+
+        return new_node
+
+    def __call__(self, node, counter=None, createprep=None):
+        """
+        segment = Segment()
+        nodes_iterator = segment(
+            node -> node to search from,
+            counter=None -> TickCounter,
+            createprep=False  -> skip self.matcher; for use in preparing
+                                 for createrel
+        )
+        """
         if self.nodeid is not None:
             try:
                 node = getnodeid(node, self.nodeid, counter)
@@ -512,19 +514,28 @@ class Segment(object):
                 return
 
         nodes = self.retriever(node, counter)
-        if self.matcher is not None:
+        if self.matcher is not None and not createprep:
             nodes = self.matcher(nodes, counter)
 
         if self.tags:
             nodes = tag_filter(nodes, self.tags, counter)
+        elif createprep and self.create_activate_hack:
+            # TODO XXX FIXME EW WRONG BAD
+            # separate dem concerns
+            nodes = tag_filter(nodes, {"can_activate"}, counter)
 
-        if self.plurality == "last":
+        if createprep:
+            plurality = self.create_plurality
+        else:
+            plurality = self.plurality
+
+        if plurality == "last":
             node = None
             for node in nodes:
                 pass
             if node is not None:
                 yield node
-        elif self.plurality == "first":
+        elif plurality == "first":
             for node in nodes:  # pragma: no branch
                 yield node
                 break
@@ -611,11 +622,70 @@ class _Frame(object):
         self.found = False
 
 
+class _NodeResult(object):
+    def __init__(self, node):
+        self.node = node
+        self.actions = []
+
+    def preview(self):
+        return {
+            "node": {"existing": self.node.id},
+            "actions": self.actions
+        }
+
+    def produce_node(self):
+        return self.node
+
+
+class _CreateResult(object):
+    # TODO: with empty createsegments this is the same as NodeResult
+    def __init__(self, segments, createposition, parentnode):
+        self.segments = segments  # [createposition:]
+        self.createsegments = segments[createposition:]
+        assert all(segment.can_create for segment in self.createsegments)
+        self.createposition = createposition
+        self.parentnode = parentnode
+        self.actions = ["create-only"]
+
+    def preview(self):
+        return {
+            "node": {
+                "existing": self.parentnode.id,
+                "create": [{
+                    "direction": segment.separator,
+                    "type": segment.matcher.type,
+                    "text": segment.matcher.text,
+                    "rel": segment.matcher.create_relationship
+                } for segment in self.createsegments]
+            },
+            "actions": self.actions
+        }
+
+    def produce_node(self):
+        created = []
+        lastresult = self.parentnode
+        for segment in self.createsegments:
+            try:
+                lastresult = segment.create(lastresult)
+            except LoadError:  # fake transactionality
+                for x in created:
+                    x.detach()
+                raise
+
+            created.append(lastresult)
+        return lastresult
+
+
 class QueryResults(_FancyIterator):
     def __init__(self, segments, basenode, counter=None):
         assert basenode.node_type, "Please provide a single node"
         self.segments = segments
         self.basenode = basenode
+
+        self.mincreate = 0
+        for index, segment in enumerate(reversed(self.segments)):
+            if not segment.can_create:
+                self.mincreate = len(self.segments) - index
 
         if counter is None:
             counter = TickCounter()
@@ -624,6 +694,23 @@ class QueryResults(_FancyIterator):
     @fancify
     def nodes(self):
         return (x[2] for x in self._search(True, False))
+
+    @fancify
+    def actions(self, matches=True, creates=True):
+        for is_found, createposition, node in self._search(matches, creates):
+            if is_found:
+                result = _NodeResult(node)
+            elif createposition >= self.mincreate:
+                result = _CreateResult(self.segments, createposition, node)
+            else:
+                continue
+
+            result.actions.append("activate")
+            #if result.can_activate:
+            #    result.actions.append("finish-and-activate")
+
+            if result.actions:
+                yield result
 
     def __iter__(self):
         return iter(self.nodes())
@@ -637,27 +724,30 @@ class QueryResults(_FancyIterator):
 
         while stack:
             frame = stack[-1]
-            position = len(stack) - 1
+            nextposition = len(stack) - 1
 
             try:
                 node = frame.iterator.next()
             except StopIteration:
                 if not frame.found and errors:
-                    yield False, position, frame.node
+                    yield False, nextposition - 1, frame.node
                 stack.pop()
                 continue
             frame.found = True
 
-            if position >= seglen:
+            if nextposition >= seglen:
                 if successes:
                     yield True, None, node
                 continue
 
-            n_seg = self.segments[position]
+            n_seg = self.segments[nextposition]
             stack.append(_Frame(node, n_seg(node, self.counter)))
 
 
 class QueriesResults(_FancyIterator):
+    """
+    Very fancy iterator over results of a Queries()
+    """
     def __init__(self, queries, basenode, counter=None):
         assert basenode.node_type, "Please provide a single node"
 
@@ -678,6 +768,10 @@ class QueriesResults(_FancyIterator):
     @fancify
     def nodes(self):
         return self._makechain(lambda q: q.nodes())
+
+    @fancify
+    def actions(self, matches=True, creates=True):
+        return self._makechain(lambda q: q.actions(matches, creates))
 
     def _search(self, successes, errors):
         return self._makechain(lambda q: q._search(successes, errors))
