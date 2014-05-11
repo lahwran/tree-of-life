@@ -43,7 +43,15 @@ class Query(object):
     AST + execution
     """
     def __init__(self, *segments):
-        self.segments = tuple(segments)
+        self.segments = segments
+
+    @property
+    def segments(self):
+        return self._segments
+
+    @segments.setter
+    def segments(self, segments):
+        self._segments = tuple(segments)
 
         self.mincreate = 0
         for index, segment in enumerate(reversed(self.segments)):
@@ -665,10 +673,10 @@ class _CreateResult(object):
         self.exists = False
         self.segments = segments  # [createposition:]
         self.createsegments = segments[createposition:]
-        assert all(segment.can_create for segment in self.createsegments)
-        self.createposition = createposition
         self.parentnode = parentnode
+        self.createposition = createposition
         self.actions = list(actions)
+        assert all(segment.can_create for segment in self.createsegments)
 
         # hacky heuristic
         creators = parentnode.root.nodecreator.creators

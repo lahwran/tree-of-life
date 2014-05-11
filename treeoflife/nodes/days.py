@@ -536,7 +536,7 @@ def _parsehook_dayparse(queries):
 
 @searching.parsecreatefilters.add
 def _parsehook_dayabs(queries):
-    for query in queries:
+    for index, query in enumerate(queries):
         firstseg = query.segments[0]
         if not firstseg.matcher or firstseg.separator != "children":
             continue
@@ -556,5 +556,5 @@ def _parsehook_dayabs(queries):
                 plurality=None,
                 nodeid="00001"
         )
-        query.segments = (days_seg,) + tuple(query.segments)
+        queries[index] = searching.Query(days_seg, *query.segments)
     return queries

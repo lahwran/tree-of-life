@@ -571,6 +571,24 @@ def test_searchhooks(setdt, monkeypatch):
     assert something.find("today").one().date == date(2014, 2, 20)
 
 
+def test_searchhooks_mincreate(setdt, monkeypatch):
+    monkeypatch.setattr(searching, "parsecreatefilters", [
+        _parsehook_dayparse,
+        _parsehook_dayabs
+    ])
+    setdt(2014, 2, 19, 12)
+    tracker = Tracker(skeleton=False)
+
+    tracker.deserialize("str",
+        "task: something\n"
+        "days\n"
+        "    day: today\n"
+    )
+
+    query = searching.parse("today > does not exist, cannot create")
+    assert query(tracker.root).actions().list() is not None
+
+
 def test_duplicate_day(setdt):
     setdt(2014, 3, 19, 19, 40)
 

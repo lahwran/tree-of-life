@@ -935,7 +935,7 @@ def test_internal__search():
     ]
 
 
-def test_actions(monkeypatch):
+def test_actions():
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
     d = tracker.root.createchild("node", "a")\
                     .createchild("node", "b")\
@@ -961,7 +961,6 @@ def test_actions(monkeypatch):
         searching._CreateResult(query.segments, 2, b),
         searching._CreateResult(query.segments, 1, a),
     ]
-
 
 # to test: filters. create obeys filters. create only creates one node.
 # create only uses first filter.
