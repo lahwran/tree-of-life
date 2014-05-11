@@ -1,149 +1,225 @@
+# FIXME: this file is kinda verbose right now, can be derepeated...
+
 from __future__ import unicode_literals, print_function
 
 from treeoflife.userinterface import command, Command
 from treeoflife import searching
+from treeoflife.util import HandlerDict
 
 
-@command("fancy")
-class SomeCommand(Command):
-    def __init__(self, text, root):
-        self.query = searching.parse(text)
-        self.results = self.query(root.active_node)\
-                            .actions()\
-                            .ignore_overflow()\
-                            .list()
-
-    def preview(self):
-        return {"options": [result.preview() for result in self.results]}
-
-    def execute(self):
-        node = self.results[0].produce_node()
-
-
-def _create(query, root, auto=False):
-    creator = searching.parse_create(query=query, do_auto_add=auto)
-    node = creator(root.active_node)
-    node.user_creation()
-
-    return node
+def _cmd(name, root, text=""):
+    """
+    convenience func for use in integration tests
+    """
+    from treeoflife.userinterface import Event, global_commands
+    e = Event(source=None,
+            root=root,
+            command_name=name,
+            text=text,
+            ui=None)
+    c = global_commands.handlers[name]
+    ci = e._inject(c)
+    return ci.execute()
 
 
-def _filter_can_activate(nodes):
-    # TODO: this is a dumb solution
-    for node in nodes:
-        good = True
-        for parent in node.iter_parents():
-            if parent.node_type in ["days", "life"]:
-                break
-            if not parent.can_activate:
-                good = False
-                break
-        if good:
-            yield node
+actions = HandlerDict()
 
 
-def _activate(nodes, root, force=False):
-    if not force:
-        # this is a hackfix for the real problem, but will do for a while
-        nodes = _filter_can_activate(nodes)
-    node = searching.one(nodes)
-
-    active = root.active_node
-    root.activate(node, force=force)
-    return active
-
-
-@command()
-@command("next")
-def done(root):
-    query = searching.parse_single("> * :{can_activate}")
-    to_activate = query(root.active_node).first()
-
-    if to_activate is not None:
-        _activate([to_activate], root)
-        return
-
-    query = searching.chain(
-        searching.parse_single("-> :{can_activate}"),
-        searching.parse_single("< :{can_activate}")
-    )
-    nodes = query(root.active_node)
-
+@actions.add()
+def finishactivate(node):
     try:
-        prev_active = _activate(nodes, root)
+        prev_active = activate(node)
     except searching.NoMatchesError:
         return
     else:
         prev_active.finish()
 
 
-@command()
-def createauto(text, root):
-    query = searching.parse_single(text)
-    try:
-        activate(text, root)
-        return
-    except searching.NoMatchesError:
-        message = "no existing node to activate"
-
-    try:
-        createactivate(text, root)
-        return
-    except searching.NodeNotCreated:
-        message += ", and parent node to create under not found"
-    except searching.CantCreateError as e:
-        message += "; " + str(e)
-    raise Exception(message)
+@actions.add()
+def forceactivate(node):
+    return activate(node, force=True)
 
 
-@command()
+@actions.add()
+def activate(node, force=False):
+    # TODO: this is a dumb solution for activation checking. should be done
+    #       as part of can_activate or such. that doesn't work for creates
+    #       yet though, when the hooking up is done to keep track of
+    #       where a create will end up, then we can do this.
+    exception = []
+    for special_node in node.root.active_node.iter_parents():
+        if special_node.node_type in ["days", "life"]:
+            break
+        exception.append(special_node)
+
+    good = True
+    for parent in node.iter_parents():
+        if parent.node_type in ["days", "life"]:
+            break
+        if not parent.can_activate:
+            good = False
+            break
+
+    if node not in exception and not good and not force:
+        raise searching.NoMatchesError("tried to activate forbidden node "
+                        "(detected by stupid failsafe check)")
+
+    active = node.root.active_node
+    node.root.activate(node, force=force)
+    return active
+
+
+@actions.add()
+def do_nothing(node):
+    pass
+
+
+class PreviewCommand(Command):
+    def preview(self):
+        return {"options": [result.preview() for result in self.results[:20]]}
+
+    def execute(self):
+        if not self.results:
+            # TODO: blow up on nothing to do?
+            #       user get no notification right now
+            return
+        r = self.results[0]
+        node = r.produce_node()
+        if r.actions:
+            action = r.actions[0]
+            func = actions.handlers[action]
+            func(node)
+
+
+@command("createauto")
+class CreateAutoCommand(PreviewCommand):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        bound = self.query(root.active_node).actions().ignore_overflow()
+        results = []
+        for result in bound:
+            if not result.can_activate and result.exists:
+                continue
+            if result.can_activate:
+                result.actions[:] = ["activate"]
+            results.append(result)
+
+        results.sort(key=lambda result: (
+            (0,) if result.exists else
+            (1, -result.createposition)
+        ))
+        self.results = results
+
+
+@command("create")
 @command("c")
-def create(text, root):
-    query = searching.parse_single(text)
-    return _create(query, root)
+class CreateCommand(PreviewCommand):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        self.results = self.query(root.active_node)\
+                .actions(matches=False).ignore_overflow().list()
+        self.results.sort(key=lambda result: -result.createposition)
 
 
-@command()
+@command("activate")
 @command("a")
-def activate(text, root):
-    query = searching.parse(text)
-    nodes = query(root.active_node)
-    return _activate(nodes, root)
+class ActivateCommand(PreviewCommand):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        query = self.query(root.active_node)\
+                .actions(creates=False).ignore_overflow()
+        self.results = []
+        for result in query:
+            if not result.can_activate:
+                continue
+            result.actions = ["activate"]
+            self.results.append(result)
 
 
-@command()
-@command("fa")
-def forceactivate(text, root):
-    query = searching.parse(text)
-    nodes = query(root.active_node)
-    return _activate(nodes, root, force=True)
-
-
-@command()
-@command("f")
-def finish(text, root):
-    query = searching.parse(text)
-    nodes = query(root.active_node)
-    prev_active = _activate(nodes, root)
-    prev_active.finish()
-
-
+@command("createactivate")
 @command("ca")
-def createactivate(text, root):
-    query = searching.parse_single(text)
-    node = _create(query, root, auto=True)
+class CreateActivateCommand(PreviewCommand):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        results = self.query(root.active_node)\
+                .actions(matches=False).ignore_overflow().list()
+        results.sort(key=lambda result: -result.createposition)
+        self.results = []
+        for result in results:
+            if not result.can_activate:
+                continue
+            result.actions = ["activate"]
+            self.results.append(result)
 
-    try:
-        prev = _activate([node], root)
-    except searching.NoMatchesError:
-        # couldn't find activate tag on node. create, but do nothing
-        return
 
-    return prev
+@command("finish")
+@command("f")
+class FinishActivateCommand(ActivateCommand):
+    def __init__(self, text, root):
+        ActivateCommand.__init__(self, text, root)
+        for result in self.results:
+            result.actions = ["finishactivate"]
 
 
+@command("createfinish")
 @command("cf")
-def createfinish(text, root):
-    prev_active = createactivate(text, root)
-    if prev_active is not None:
-        prev_active.finish()
+class CreateFinishActivateCommand(CreateActivateCommand):
+    def __init__(self, text, root):
+        CreateActivateCommand.__init__(self, text, root)
+        for result in self.results:
+            result.actions = ["finishactivate"]
+
+
+@command("forceactivate")
+@command("fa")
+class ForceActivateCommand(PreviewCommand):
+    def __init__(self, text, root):
+        self.query = searching.parse(text)
+        query = self.query(root.active_node)\
+                .actions(creates=False).ignore_overflow()
+        self.results = []
+        for result in query:
+            if result.can_activate:
+                continue
+            if not type(result.node).can_activate:
+                continue
+            result.actions = ["forceactivate"]
+            self.results.append(result)
+
+
+@command("done")
+@command("next")
+class DoneCommand(PreviewCommand):
+    def __init__(self, root):
+        self.query1 = searching.parse_single("> * :{can_activate}")
+        self.query2 = searching.parse_single("-> :{can_activate}")
+        self.query3 = searching.parse_single("< :{can_activate}")
+
+        results = self.query1(root.active_node).actions(creates=False)
+
+        self.results = []
+
+        for result in results:
+            assert result.exists
+            result.actions[:] = ["activate"]
+            self.results.append(result)
+
+        if self.results:
+            return
+
+        results = self.query2(root.active_node).actions(creates=False)
+
+        for result in results:
+            assert result.exists
+            result.actions[:] = ["finishactivate"]
+            self.results.append(result)
+
+        if self.results:
+            return
+
+        results = self.query3(root.active_node).actions(creates=False)
+
+        for result in results:
+            assert result.exists
+            result.actions[:] = ["finishactivate"]
+            self.results.append(result)

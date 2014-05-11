@@ -347,48 +347,6 @@ class TestCreate(object):
         ))
         assert repr(creator)
 
-    # removed this functionality
-
-    #def test_multi_create(self):
-    #    tracker = Tracker(False)
-
-    #    nodes = []
-
-    #    origin = tracker.root.createchild("task", "origin")
-    #    nodes.append(origin.createchild("task", "finished"))
-    #    nodes[-1].start()
-    #    nodes[-1].finish()
-    #    nodes.append(origin.createchild("task", "finished 2"))
-    #    nodes[-1].start()
-    #    nodes[-1].finish()
-    #    nodes.append(origin.createchild("task", "started"))
-    #    nodes[-1].start()
-    #    nodes.append(origin.createchild("task", "untouched"))
-    #    nodes.append(origin.createchild("task", "untouched 2"))
-
-    #    selector = searching.parse_single("task: target :{many}")
-    #    #import pudb; pudb.set_trace()
-    #    creator = searching.parse_create(query=selector)
-    #    #import pytest; pytest.set_trace()
-    #    created = creator(origin)
-
-    #    results = list(origin.children)
-    #    assert [
-    #        results[0],
-    #        results[1],
-    #        results[3],
-    #        results[5],
-    #        results[7],
-    #    ] == nodes
-    #    assert results[2].node_type == "task"
-    #    assert results[2].text == "target"
-    #    assert results[4].node_type == "task"
-    #    assert results[4].text == "target"
-    #    assert results[6].node_type == "task"
-    #    assert results[6].text == "target"
-    #    assert created == [results[2], results[4], results[6]]
-    #    assert repr(creator)
-
     def test_last(self):
         creator = searching.parse_create_single("+task: last")
         assert not creator.segment.create_is_before
@@ -927,6 +885,83 @@ def test_empty_ignore_overflow():
     query = searching.parse_single("task: derp")
     tracker = Tracker(False, FakeNodeCreator(GenericActivate))
     assert not query(tracker.root).ignore_overflow().list()
+
+
+def test_query_creatability():
+    assert searching.parse_single("x: y").mincreate == 0
+    assert searching.parse_single("z").mincreate == 1
+    assert searching.parse_single("x: y > z").mincreate == 2
+    assert searching.parse_single("x: y > x: y").mincreate == 0
+    assert searching.parse_single("z > x: y").mincreate == 1
+    assert searching.parse_single("z > z > x: y > z > x: y").mincreate == 4
+    assert searching.parse_single("z > x:").mincreate == 2
+
+
+def test_internal__search():
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    d = tracker.root.createchild("node1", "a")\
+                    .createchild("node1", "b")\
+                    .createchild("node1", "c")\
+                    .createchild("node1", "d")
+
+    c = tracker.root.createchild("node2", "a")\
+                    .createchild("node2", "b")\
+                    .createchild("node2", "c")
+
+    b = tracker.root.createchild("node3", "a")\
+                    .createchild("node3", "b")
+
+    a = tracker.root.createchild("node4", "a")
+
+    query = searching.parse_single("a > b > c > d")
+    bound = query(tracker.root)
+    assert list(bound._search(True, False)) == [
+        (True, None, d)
+    ]
+
+    assert list(bound._search(False, True)) == [
+        (False, 3, c),
+        (False, 2, b),
+        (False, 1, a)
+    ]
+    assert list(query(a)._search(False, True)) == [
+        (False, 0, a)
+    ]
+    assert list(bound._search(True, True)) == [
+        (True, None, d),
+        (False, 3, c),
+        (False, 2, b),
+        (False, 1, a)
+    ]
+
+
+def test_actions(monkeypatch):
+    tracker = Tracker(False, FakeNodeCreator(GenericActivate))
+    d = tracker.root.createchild("node", "a")\
+                    .createchild("node", "b")\
+                    .createchild("node", "c")\
+                    .createchild("node", "d")
+
+    c = tracker.root.createchild("node", "a")\
+                    .createchild("node", "b")\
+                    .createchild("node", "c")
+
+    b = tracker.root.createchild("node", "a")\
+                    .createchild("node", "b")
+
+    a = tracker.root.createchild("node", "a")
+
+    query = searching.parse_single("node: a > node: b > node: c > node: d")
+    assert query.mincreate == 0
+    bound = query(tracker.root)
+    z = list(bound.actions())
+    assert z == [
+        searching._NodeResult(d),
+        searching._CreateResult(query.segments, 3, c),
+        searching._CreateResult(query.segments, 2, b),
+        searching._CreateResult(query.segments, 1, a),
+    ]
+
 
 # to test: filters. create obeys filters. create only creates one node.
 # create only uses first filter.

@@ -112,11 +112,7 @@ class Event(object):
         for arg in func_args:
             if arg == "self":
                 continue
-            try:
-                call[arg] = getattr(self, arg)
-            except:
-                import pudb; pudb.set_trace()
-                raise
+            call[arg] = getattr(self, arg)
         if isfunction:
             return FunctionCommand(self, callable_, call)
         else:

@@ -194,23 +194,23 @@ class TestProxynode(object):
         assert root.active_node is ref
 
         setdt.increment(seconds=1)
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task").one()
         setdt.increment(seconds=1)
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task > task").one()
         setdt.increment(seconds=1)
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference > task").one()
         setdt.increment(seconds=1)
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert root.active_node is root.find(
                 u"days > day > reference").one()
         setdt.increment(seconds=1)
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert root.active_node is root.find(
                 u"days > day").one()
 
@@ -551,7 +551,7 @@ class TestRefnode(object):
             u"        {}: << >\n".format(reftype)
         )
 
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         refnode = tracker.root.find(u"** > " + reftype).one()
         assert tracker.root.active_node is refnode
         assert refnode.started
@@ -560,7 +560,7 @@ class TestRefnode(object):
             reftype + u": #abcde",
             u"    proxy: task: \xfctarget 2"
         ]
-        navigation.finish(u"<", tracker.root)
+        navigation._cmd("finish", tracker.root, u"<")
         target = tracker.root.find(u"task: \xfctarget 1").one()
         if reftype == u"depends":
             assert target.finished
@@ -572,7 +572,7 @@ class TestRefnode(object):
         ]
         assert tracker.root.active_node.node_type == u"day"
 
-        navigation.forceactivate(u">", tracker.root)
+        navigation._cmd("forceactivate", tracker.root, u">")
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -606,7 +606,7 @@ class TestRefnode(object):
         else:
             assert not target.finished
 
-        navigation.forceactivate(u">", tracker.root)
+        navigation._cmd("forceactivate", tracker.root, u">")
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -639,7 +639,7 @@ class TestRefnode(object):
         target = tracker.root.find(u"task: \xfctarget 1").one()
         assert target.finished
 
-        navigation.forceactivate(u">", tracker.root)
+        navigation._cmd("forceactivate", tracker.root, u">")
         assert tracker.root.active_node is refnode
         assert refnode.started
         assert not refnode.finished
@@ -784,7 +784,7 @@ def test_simple_interaction(tracker, reftype):
         u"            @active\n" % reftype
     )
 
-    navigation.createauto(u"task: test", tracker.root)
+    navigation._cmd("createauto", tracker.root, u"task: test")
 
     active_node = tracker.root.active_node
     proxy = tracker.root.find(u"days > today > " + reftype + u" > test").one()
@@ -794,7 +794,7 @@ def test_simple_interaction(tracker, reftype):
     assert proxy._px_target is target
     assert proxy._px_root.get_proxy(target) is proxy
 
-    navigation.createfinish(u"-> task: test 2", tracker.root)
+    navigation._cmd("createfinish", tracker.root, u"-> task: test 2")
 
     target = tracker.root.find(u"target").one()
     assert target.started
@@ -820,8 +820,8 @@ def test_another_interaction(tracker, reftype):
         u"            @active\n" % reftype
     )
 
-    navigation.createauto(u"task: test 1", tracker.root)
-    navigation.createfinish(u"< > +task: test 2", tracker.root)
+    navigation._cmd("createauto", tracker.root, u"task: test 1")
+    navigation._cmd("createfinish", tracker.root, u"< > +task: test 2")
 
     target = tracker.root.find(u"target").one()
 

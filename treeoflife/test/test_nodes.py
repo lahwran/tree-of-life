@@ -57,8 +57,8 @@ def test_activate_deactivate(monkeypatch, setdt):
     )
 
     setdt(2012, 10, 25)
-    navigation.done(tracker.root)
-    navigation.done(tracker.root)
+    navigation._cmd("done", tracker.root)
+    navigation._cmd("done", tracker.root)
 
     assert match(tracker.serialize("str"), (
         "task#?????: \xfc1\n"

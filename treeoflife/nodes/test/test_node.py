@@ -326,7 +326,7 @@ class TestNode(object):
         tracker.root.activate(tracker.root.createchild("node1"))
         tracker.root.active_node.create("-> -node2: text")
         node3 = tracker.root.active_node.create("-> -node3: text")
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
 
         assert tracker.root.active_node is node3
 
@@ -528,7 +528,7 @@ class TestRootNode(object):
         tracker.root.addchild(node)
         tracker.root.activate(node)
 
-        navigation.done(tracker.root)
+        navigation._cmd("done", tracker.root)
         assert tracker.root.active_node is node
 
     def test_skeleton_load_integration(self, setdt):

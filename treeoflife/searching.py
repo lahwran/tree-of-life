@@ -45,11 +45,19 @@ class Query(object):
     def __init__(self, *segments):
         self.segments = tuple(segments)
 
+        self.mincreate = 0
+        for index, segment in enumerate(reversed(self.segments)):
+            realindex = len(self.segments) - (index + 1)
+            assert segments[realindex] is segment
+            if not segment.can_create:
+                self.mincreate = realindex + 1
+                break
+
     def copy(self):
         return Query(*(segment.copy() for segment in self.segments))
 
     def __call__(self, node, counter=None):
-        return QueryResults(self.segments, node, counter)
+        return QueryResults(self.segments, self.mincreate, node, counter)
 
     def __repr__(self):
         return "<query %r>" % (self.segments,)
@@ -623,9 +631,19 @@ class _Frame(object):
 
 
 class _NodeResult(object):
-    def __init__(self, node):
+    def __init__(self, node, actions=()):
+        self.exists = True
         self.node = node
-        self.actions = []
+        self.actions = list(actions)
+        self.can_activate = node.can_activate
+
+    def __eq__(self, other):
+        sentinel = object()
+        return (
+                self.node == getattr(other, "node", sentinel)
+            and self.actions == getattr(other, "actions", sentinel)
+            and getattr(other, "createposition", sentinel) == sentinel
+        )
 
     def preview(self):
         return {
@@ -636,16 +654,36 @@ class _NodeResult(object):
     def produce_node(self):
         return self.node
 
+    def __repr__(self):
+        return "<_NodeResult %r; %r>" % (self.node, self.actions)
+
 
 class _CreateResult(object):
     # TODO: with empty createsegments this is the same as NodeResult
-    def __init__(self, segments, createposition, parentnode):
+    def __init__(self, segments, createposition, parentnode,
+            actions=("do_nothing",)):
+        self.exists = False
         self.segments = segments  # [createposition:]
         self.createsegments = segments[createposition:]
         assert all(segment.can_create for segment in self.createsegments)
         self.createposition = createposition
         self.parentnode = parentnode
-        self.actions = ["create-only"]
+        self.actions = list(actions)
+
+        # hacky heuristic
+        creators = parentnode.root.nodecreator.creators
+        last = creators[self.createsegments[-1].matcher.type]
+        self.can_activate = last.can_activate
+
+    def __eq__(self, other):
+        sentinel = object()
+        return (
+                self.segments == getattr(other, "segments", sentinel)
+            and self.createposition
+                    == getattr(other, "createposition", sentinel)
+            and self.parentnode == getattr(other, "parentnode", sentinel)
+            and self.actions == getattr(other, "actions", sentinel)
+        )
 
     def preview(self):
         return {
@@ -667,25 +705,27 @@ class _CreateResult(object):
         for segment in self.createsegments:
             try:
                 lastresult = segment.create(lastresult)
+                lastresult.user_creation()
             except LoadError:  # fake transactionality
                 for x in created:
                     x.detach()
                 raise
 
             created.append(lastresult)
+
         return lastresult
+
+    def __repr__(self):
+        return "<_CreateResult %r (%r); %r>" % (
+                self.parentnode, self.createposition, self.actions)
 
 
 class QueryResults(_FancyIterator):
-    def __init__(self, segments, basenode, counter=None):
+    def __init__(self, segments, mincreate, basenode, counter=None):
         assert basenode.node_type, "Please provide a single node"
         self.segments = segments
         self.basenode = basenode
-
-        self.mincreate = 0
-        for index, segment in enumerate(reversed(self.segments)):
-            if not segment.can_create:
-                self.mincreate = len(self.segments) - index
+        self.mincreate = mincreate
 
         if counter is None:
             counter = TickCounter()
@@ -703,14 +743,9 @@ class QueryResults(_FancyIterator):
             elif createposition >= self.mincreate:
                 result = _CreateResult(self.segments, createposition, node)
             else:
+                # can't produce a node here :(
                 continue
-
-            result.actions.append("activate")
-            #if result.can_activate:
-            #    result.actions.append("finish-and-activate")
-
-            if result.actions:
-                yield result
+            yield result
 
     def __iter__(self):
         return iter(self.nodes())
@@ -724,12 +759,23 @@ class QueryResults(_FancyIterator):
 
         while stack:
             frame = stack[-1]
+            # #(because of initial frame)
+            # stacksegments = len(stack) - 1
+            # # to 0-based
+            # currentposition = stacksegments - 1
+            # lastsuccessfulmatch = currentposition - 1
+            # # 0-based index following current one
+            # nextposition = currentposition + 1
+            # # currentposition would be 0-based index of
+            # # last successfully matched segment
+            # # that all simplifies to:
             nextposition = len(stack) - 1
 
             try:
                 node = frame.iterator.next()
             except StopIteration:
                 if not frame.found and errors:
+                    # yield False, currentposition, frame.node
                     yield False, nextposition - 1, frame.node
                 stack.pop()
                 continue
@@ -782,17 +828,6 @@ class QueriesResults(_FancyIterator):
 
 def one(iterator):
     return _FancyIterator(iterator).one()
-
-
-def chain(*queries):
-    def run(basenode, counter=None):
-        assert basenode.node_type, "Please provide a single node"
-        if counter is None:
-            counter = TickCounter()
-        for query in queries:
-            for result in query(basenode, counter):
-                yield result
-    return run
 
 
 class NoMatchesError(Exception):

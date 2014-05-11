@@ -596,15 +596,12 @@ def test_faroff_activate(setdt):
         "    day: March 25, 2014\n"
     )
 
-    navigation.create("March 25, 2014 > task: something",
-            tracker.root)
+    navigation._cmd("create", tracker.root, "March 25, 2014 > task: something")
+
+    navigation._cmd("activate", tracker.root, "March 25, 2014")
 
     with pytest.raises(searching.NoMatchesError):
-        navigation.activate("March 25, 2014",
-                tracker.root)
-
-    with pytest.raises(searching.NoMatchesError):
-        navigation.activate("March 25, 2014 > task: something",
-                tracker.root)
+        navigation._cmd("activate", tracker.root,
+                "March 25, 2014 > task: something")
 
     assert tracker.root.active_node is tracker.root.find("today").one()
