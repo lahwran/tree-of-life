@@ -1,0 +1,76 @@
+
+body {
+    font-size: 16px;
+    font-family: sans-serif;
+    font-weight: 100;
+    position: relative;
+    color: @foreground;
+    background-color: @background;
+    white-space: nowrap;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.window {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+}
+.header {
+    flex: 0 0 auto;
+    .error {
+        color: @pink;
+        margin-left: 2em;
+        margin-bottom: 1em;
+    }
+    border-bottom: 1px solid;
+    border-bottom-color: @highlight;
+}
+.content {
+    display: flex;
+    flex: 1 0 0px;
+    flex-direction: row;
+    padding-left: 5px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-right: 0px;
+}
+.column {
+    flex: 1 1 0px;
+    overflow: scroll;
+}
+.sidebar.collapseable {
+    flex: 0 1 auto;
+    background-color: @background;
+
+    .expand-collapse {
+        border-left-color: @blue;
+    }
+    .children.expanded {
+        padding-top: 2em;
+        width: (@fullwidth / 3) - 32px;
+        max-height: 100%;
+        overflow-y: scroll;
+    }
+    .children.collapsed {
+        width: 0px;
+    }
+
+    .notifications {
+        margin-bottom: 20px;
+        .notification {
+            border-left: 1px solid @pink;
+            margin-bottom: 5px;
+            padding-right: 10px;
+            padding-left: 10px;
+            a {
+                font-weight: bold;
+                color: @orange;
+                cursor: pointer;
+            }
+        }
+    }
+}
