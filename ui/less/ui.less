@@ -40,39 +40,8 @@ html, body, .h100 {
 
 @import "editor.less";
 @import "commandbox.less";
+@import "layout.less";
 
-body {
-    font-size: 16px;
-    font-family: sans-serif;
-    font-weight: 100;
-    position: relative;
-    color: @foreground;
-    background-color: @background;
-    white-space: nowrap;
-    overflow: hidden;
-}
-.scroller {
-    overflow-x: scroll;
-    width: 100%;
-    height: 100%;
-    padding-right: (@fullwidth / 2) + 16px;
-}
-.content {
-    margin-top: 2em;
-    padding-left: 5px;
-    padding-top: 0px;
-    padding-bottom: 0px;
-    padding-right: 0px;
-    .content-inner {
-        overflow-y: scroll;
-        width: 100%;
-        .error {
-            color: @pink;
-            margin-left: 2em;
-            margin-bottom: 1em;
-        }
-    }
-}
 
 
 * {
@@ -87,7 +56,8 @@ body {
         font-style: italic;
     }
     .children {
-        display: inline-block;
+        display: flex;
+        flex-direction: column;
         margin-left: @indentwidth;
     }
     div.expand-collapse {
@@ -121,19 +91,35 @@ body {
     margin-left: -1.1em;
 }
 
+.nodes {
+    display: flex;
+    flex-direction: column;
+}
+
 .started {
     color: @highlight;
 }
 .node, .option {
     position: relative;
-    .type, .text, .text-seperator {
-        display: inline-block;
-        vertical-align: top;
-        white-space: pre-line;
-        max-width: 100%;
+    .node-top {
+        display: flex;
+        flex-direction: row;
+    }
+    .text {
+        flex: 1 1 0px;
     }
     .type {
+        flex: 0 1 auto;
         font-style: italic;
+    }
+    .colon {
+        flex: 0 1 0.5em;
+    }
+
+    .type, .text, .colon {
+        vertical-align: top;
+        white-space: pre-line;
+        word-wrap: break-word;
     }
     .node-top:before {
         .icon(@fa-var-square);
@@ -209,6 +195,7 @@ body {
             position: absolute;
             width: 175px;
             overflow: hidden;
+            flex-direction: column;
             top: 0px;
             left: 0px;
             h1 {
@@ -276,42 +263,6 @@ body {
         left: initial;
     }
 }*/
-.sidebar.collapseable {
-    background-color: @background;
-    position: fixed;
-    height: 100%;
-    top: 0px;
-    right: 0px;
-    z-index: 5;
-
-    .expand-collapse {
-        border-left-color: @blue;
-    }
-    .children.expanded {
-        padding-top: 2em;
-        width: (@fullwidth / 2) - 32px;
-        max-height: 100%;
-        overflow-y: scroll;
-    }
-    .children.collapsed {
-        width: 0px;
-    }
-
-    .notifications {
-        margin-bottom: 20px;
-        .notification {
-            border-left: 1px solid @pink;
-            margin-bottom: 5px;
-            padding-right: 10px;
-            padding-left: 10px;
-            a {
-                font-weight: bold;
-                color: @orange;
-                cursor: pointer;
-            }
-        }
-    }
-}
 
 .previewblock {
     display: inline-block;

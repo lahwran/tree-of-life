@@ -28,34 +28,42 @@
     <script src="js/commandbox.js"></script>
   </head>
   <body>
-    <div ng-controller="ui_controller" class="scroller solo-reset">
-      <tl-commandbox send-command="sendcommand" ng-show="!backend.editor_running">
-      </tl-commandbox>
-      <div class="preview" ng-show="backend.command_preview">
-        <strong>{{ backend.command_preview.name }}</strong>
-        <em>{{ backend.command_preview.text }}</em>
-        <div ng-repeat="option in backend.command_preview.data.options">
-          <ul class="previewblock">
-            <li ng-repeat="action in option.actions">{{action}}</li>
-          </ul>
-          <div class="previewblock">
-            {{pool[option.node.existing].type}}<span ng-show="pool[option.node.existing].text">: {{pool[option.node.existing].text}}</span>
-          </div>
-          <div class="previewblock" ng-repeat="create in option.node.create">
-            <span ng-switch="create.direction">
-              <span ng-switch-when="next_peer">-&gt;</span>
-              <span ng-switch-when="prev_peer">&lt;-</span>
-              <span ng-switch-when="children">&gt;</span>
-            </span>
-            <span> {{create.type}}: {{create.text}} </span>
+    <tl-editor> </tl-editor>
+
+    <div ng-controller="ui_controller" class="window solo-reset">
+      <div class="header">
+        <tl-commandbox send-command="sendcommand" ng-show="!backend.editor_running">
+        </tl-commandbox>
+        <div class="preview" ng-show="backend.command_preview">
+          <strong>{{ backend.command_preview.name }}</strong>
+          <em>{{ backend.command_preview.text }}</em>
+          <div ng-repeat="option in backend.command_preview.data.options">
+            <ul class="previewblock">
+              <li ng-repeat="action in option.actions">{{action}}</li>
+            </ul>
+            <div class="previewblock">
+              {{pool[option.node.existing].type}}<span ng-show="pool[option.node.existing].text">: {{pool[option.node.existing].text}}</span>
+            </div>
+            <div class="previewblock" ng-repeat="create in option.node.create">
+              <span ng-switch="create.direction">
+                <span ng-switch-when="next_peer">-&gt;</span>
+                <span ng-switch-when="prev_peer">&lt;-</span>
+                <span ng-switch-when="children">&gt;</span>
+              </span>
+              <span> {{create.type}}: {{create.text}} </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <tl-editor> </tl-editor>
-
       <div class="content reset" ng-show="!backend.editor_running">
-        <collapseable text="" class="sidebar" shown="sidebar_shown">
+        <div class="column">
+          <div ng-repeat="error in backend.errors" class="error">
+            {{ error }}
+          </div>
+          <node pool="pool" node="pool.ids.days" toplevel></node>
+        </div>
+        <collapseable class="sidebar" text="" shown="sidebar_shown">
           <div ng-show="browser_compat">
             <div ng-include="'/partials/browser-compat.html'">
             </div>
@@ -66,17 +74,11 @@
             </div>
           </div>
           <!-- insert other stuff here -->
+          <div ng-show="!browser_compat" class="control-utils">
+            <div ng-click="_quit()"> quit popup </div>
+          </div>
           <nodes pool="pool" nodes="pool[pool.ids.todo_bucket].children"></nodes>
         </collapseable>
-        <div class="content-inner">
-          <div ng-repeat="error in backend.errors" class="error">
-            {{ error }}
-          </div>
-          <node pool="pool" node="pool.ids.days" toplevel></node>
-        </div>
-      </div>
-      <div class="control-utils">
-        <div ng-click="_quit()"> quit popup </div>
       </div>
     </div>
   </body>
