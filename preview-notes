@@ -1,0 +1,9 @@
+ui: commands, sends message on keystroke
+protocol: knows what command is currently entered on the other end
+    -> on change: (queue) update preview
+        -> knows what the current preview is?
+    -> on enter: commit
+        -> commit statefully
+        -> could commit without preview by including what to commit
+representation retrieved by instantiating command class
+command class has execute() or apply(), and preview(). preview is allowed to cache.
