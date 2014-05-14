@@ -56,8 +56,8 @@ html, body, .h100 {
         font-style: italic;
     }
     .children {
-        display: flex;
-        flex-direction: column;
+        display: -webkit-flex;
+        -webkit-flex-direction: column;
         margin-left: @indentwidth;
     }
     div.expand-collapse {
@@ -92,8 +92,8 @@ html, body, .h100 {
 }
 
 .nodes {
-    display: flex;
-    flex-direction: column;
+    display: -webkit-flex;
+    -webkit-flex-direction: column;
 }
 
 .started {
@@ -102,18 +102,18 @@ html, body, .h100 {
 .node, .option {
     position: relative;
     .node-top {
-        display: flex;
-        flex-direction: row;
+        display: -webkit-flex;
+        -webkit-flex-direction: row;
     }
     .text {
-        flex: 1 1 0px;
+        -webkit-flex: 1 1 0px;
     }
     .type {
-        flex: 0 1 auto;
+        -webkit-flex: 0 1 auto;
         font-style: italic;
     }
     .colon {
-        flex: 0 1 0.5em;
+        -webkit-flex: 0 1 0.5em;
     }
 
     .type, .text, .colon {
@@ -195,7 +195,7 @@ html, body, .h100 {
             position: absolute;
             width: 175px;
             overflow: hidden;
-            flex-direction: column;
+            -webkit-flex-direction: column;
             top: 0px;
             left: 0px;
             h1 {

@@ -14,13 +14,13 @@ body {
 }
 
 .window {
-    display: flex;
-    flex-direction: column;
+    display: -webkit-flex;
+    -webkit-flex-direction: column;
     height: 100%;
     width: 100%;
 }
 .header {
-    flex: 0 0 auto;
+    -webkit-flex: 0 0 auto;
     .error {
         color: @pink;
         margin-left: 2em;
@@ -30,21 +30,22 @@ body {
     border-bottom-color: @highlight;
 }
 .content {
-    display: flex;
-    flex: 1 0 0px;
-    flex-direction: row;
+    display: -webkit-flex;
+    -webkit-flex: 1 0 0px;
+    -webkit-flex-direction: row;
     padding-left: 5px;
     padding-top: 0px;
     padding-bottom: 0px;
     padding-right: 0px;
 }
 .column {
-    flex: 1 1 0px;
+    -webkit-flex: 1 1 0px;
     overflow: scroll;
 }
 .sidebar.collapseable {
-    flex: 0 1 auto;
+    -webkit-flex: 0 1 auto;
     background-color: @background;
+    margin-top: 1px;
 
     .expand-collapse {
         border-left-color: @blue;
