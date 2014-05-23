@@ -264,7 +264,44 @@ html, body, .h100 {
     }
 }*/
 
-.previewblock {
-    display: inline-block;
-    vertical-align: top;
+.preview {
+    .previewchoice {
+        .actions, .create-node, .existing-node {
+            display: inline-block;
+            vertical-align: top;
+            .label {
+                font-size: 0.7em;
+                font-style: italic;
+            }
+        }
+        .action, .create-node, .existing-node {
+            margin-top: 5px;
+            margin-bottom: 5px;
+            margin-left: 5px;
+            padding-top: 2px;
+            padding-left: 2px;
+            padding-right: 5px;
+            padding-left: 5px;
+            border-radius: 5px;
+            border: 1px solid;
+        }
+        .action {
+            border-color: @purple;
+        }
+        > div:nth-last-of-type(2) {
+            border-color: @purple;
+        }
+        .create-node {
+            border-color: @green;
+            .label {
+                color: @green;
+            }
+        }
+        .existing-node {
+            border-color: @blue;
+            .label {
+                color: @blue;
+            }
+        }
+    }
 }
