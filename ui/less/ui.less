@@ -283,24 +283,18 @@ html, body, .h100 {
             padding-right: 5px;
             padding-left: 5px;
             border-radius: 5px;
-            border: 1px solid;
+            border: 1px solid transparent;
         }
         .action {
-            border-color: @purple;
+            border-left-color: @purple;
         }
         > div:nth-last-of-type(2) {
-            border-color: @purple;
+            border-left-color: @purple;
+            border-right-color: @purple;
         }
         .create-node {
-            border-color: @green;
             .label {
                 color: @green;
-            }
-        }
-        .existing-node {
-            border-color: @blue;
-            .label {
-                color: @blue;
             }
         }
     }
