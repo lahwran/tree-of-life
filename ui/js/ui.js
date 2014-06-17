@@ -28,6 +28,8 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, backend, handlers, $timeout) {
+    $scope.charttest = [
+        1, 2, 3, 4, 5];
     $scope.root = {
         type: "root",
         text: null,
@@ -74,6 +76,7 @@ var nodetypes = {
         },
         templateurl: "partials/node-date.html"
     },
+    event: {templateurl: "partials/node-event.html"},
     root: {template: '<nodes nodes="node.children"></node>'},
     _default: {templateurl: "partials/node-default.html"},
 };
@@ -99,7 +102,7 @@ function activeclass($scope) {
     }
 }
 
-angular.module("treeoflife", [], function($rootScopeProvider) {
+angular.module("treeoflife", ["d4"], function($rootScopeProvider) {
         profile("angular init");
         $rootScopeProvider.digestTtl(200);
     })
@@ -477,6 +480,9 @@ angular.module("treeoflife", [], function($rootScopeProvider) {
         $rootScope.$on("message/pool", function(event, pool) {
             backend.pool = pool;
             $rootScope.pool = pool;
+        });
+        $rootScope.$on("message/event_queue", function(event, event_queue) {
+            backend.event_queue = event_queue;
         });
         $rootScope.$on("message/command_preview", function(event, preview) {
             $rootScope.command_preview = preview;

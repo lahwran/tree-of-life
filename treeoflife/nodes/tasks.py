@@ -155,3 +155,18 @@ class Event(BaseTask):
         timefmt.DatetimeOption("when"),
         # need "where" option maybe
     )
+
+    def __init__(self, *a, **kw):
+        self.when = None
+        BaseTask.__init__(self, *a, **kw)
+
+    def ui_dictify(self, result=None):
+        if result is None:
+            result = {}
+
+        when = self.when
+        if self.when:
+            when = timefmt.datetime_to_str(self.when)
+        result["when"] = when
+
+        return BaseTask.ui_dictify(self, result)

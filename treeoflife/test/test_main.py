@@ -349,3 +349,47 @@ def test_stateful_command(tpc, monkeypatch):
     })
 
     assert calls == ["hello world"]
+
+
+def test_update_event_queue_unique(tpc, setdt):
+    setdt(2000, 1, 1, 1, 1)
+    tracker, protocol, clock = tpc
+    protocol.allowed = set()
+    tracker.deserialize("str",
+        "event#herka: herp\n"
+        "    @when: June 1 2011 3:30 AM\n"
+        "task#doopa: herp\n"
+        "    reference: #derpa\n"
+        "    event#derka: derp"
+        "        @when: June 1 2010 3:30 AM\n"
+        "    event#asdfg: blah\n"
+        "reference#derpa: #herka\n"
+        "reference: #doopa\n"
+    )
+
+    protocol.allowed = {"update"}
+    protocol.update()
+
+    message = protocol.sent_messages[-1]
+    assert message["event_queue"] == ["asdfg", "derka", "herka"]
+
+
+def test_update_event_queue_finished(tpc, setdt):
+    setdt(2000, 1, 1, 1, 1)
+    tracker, protocol, clock = tpc
+    protocol.allowed = set()
+    tracker.deserialize("str",
+        "event#herka: herp\n"
+        "    @when: June 1 2011 3:30 AM\n"
+        "task#doopa: herp\n"
+        "    event#derka: derp"
+        "        @when: June 1 2010 3:30 AM\n"
+        "    event#asdfg: blah\n"
+        "        @finished\n"
+    )
+
+    protocol.allowed = {"update"}
+    protocol.update()
+
+    message = protocol.sent_messages[-1]
+    assert message["event_queue"] == ["derka", "herka"]

@@ -12,6 +12,9 @@
     <script src="js/third-party/angular.js"></script>
     <script src="js/third-party/less-1.5.0.min.js"></script>
 
+    <script src="js/third-party/d3.js" charset="utf-8"></script>
+    <script src="js/declarative-d3.js"></script>
+
     <script src="js/third-party/codemirror/lib/codemirror.js"></script>
     <link rel="stylesheet" type="text/css" href="js/third-party/codemirror/lib/codemirror.css">
     <script src="js/third-party/codemirror/mode/yaml/yaml.js"></script>
@@ -65,6 +68,11 @@
             {{ error }}
           </div>
           <node pool="pool" node="pool.ids.days" toplevel></node>
+        </div>
+        <div class="column">
+          <div ng-repeat="event_id in backend.event_queue track by $index">
+            <node pool="pool" node="event_id"></node>
+          </div>
         </div>
         <collapseable class="sidebar" text="" shown="sidebar_shown">
           <div ng-show="browser_compat">

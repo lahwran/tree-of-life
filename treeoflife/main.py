@@ -8,6 +8,7 @@ import argparse
 import uuid
 import shlex
 import logging
+import datetime
 from collections import defaultdict
 
 from twisted.internet.protocol import Factory, ProcessProtocol, Protocol
@@ -213,9 +214,19 @@ class JSONProtocol(LineOnlyReceiver):
                 "active_ref": active_ref.id if active_ref else None,
                 "todo_bucket": todo_id
             }
+            upcoming_events = {
+                    event.id: event for event in root.find("** > event")
+                    if (not event.when
+                        or event.when >= datetime.datetime.now())
+                        and not event.finished
+            }
+            upcoming_events = sorted(upcoming_events.values(),
+                    key=lambda event: (int(bool(event.when)), event.when)
+            )
             self.sendmessage({
                 "promptnodes": [node.id for node in reversed_displaychain],
                 "pool": pool,
+                "event_queue": [event.id for event in upcoming_events],
             })
             self.commandline.auto_save()
         except Exception:

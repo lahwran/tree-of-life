@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" ng-attr-width="{{ barOuterRadius() * 2 }}" ng-attr-height="{{ barOuterRadius() * 2 }}" class="d4-piechart">
+    <g d4-transform="translate(barOuterRadius(), barOuterRadius())">
+        <g class="slice" ng-repeat="arc in arcs track by $index">
+            <path d4-arc="arc"></path>
+        </g>
+        <g class="innerslice" ng-repeat="innerarc in innerArcs track by $index">
+            <path d4-arc="innerarc"></path>
+        </g>
+    </g>
+</svg>
