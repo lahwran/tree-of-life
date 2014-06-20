@@ -1,0 +1,38 @@
+
+<div class="timeline">
+  <svg class="ruler"
+    xmlns="http://www.w3.org/2000/svg"
+    ng-attr-width="{{ 176 }}"
+    ng-attr-height="{{ size }}"
+  >
+    <!-- g time-axis="scale"
+      style="stroke: white; fill: none;"
+      transform="translate(175, 0)"
+      axis-tick-size="10"
+      axis-orient="left"
+      axis-ticks="[d3.time.hours, 6]"
+      axis-tick-format="hoursformat"
+      axis-text-transform="scale(0.65)"
+      axis-text-dy="1em"
+    ></g -->
+    <g time-axis="scale"
+      style="stroke: white; fill: none;"
+      transform="translate(175, 0)"
+      axis-tick-size="75"
+      axis-orient="left"
+      axis-ticks="[d3.time.days, 1]"
+      axis-text-dy="1em"
+    ></g>
+    <!--div ng-repeat="event_id in backend.event_queue track by $index">
+      <node pool="pool" node="event_id"></node>
+    </div-->
+  </svg>
+  <div class="entries">
+    <div ng-repeat="event_id in nodes track by $index"
+      class="entry"
+      ng-style="{top: '' + location(event_id) + 'px'}"
+    >
+      <node pool="pool" node="event_id"></node>
+    </div>
+  </div>
+</div>

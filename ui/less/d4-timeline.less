@@ -1,0 +1,19 @@
+.timeline {
+    display: -webkit-flex;
+    -webkit-flex-direction: row;
+    .entries {
+        -webkit-flex: 1 1 0px;
+        position: relative;
+        .entry {
+            border-top: 1px solid white;
+            display: inline-block;
+            position: absolute;
+            left: 0px;
+        }
+    }
+
+    .ruler {
+        -webkit-flex: 0 1 auto;
+        width: 176px;
+    }
+}

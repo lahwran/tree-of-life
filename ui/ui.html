@@ -63,15 +63,15 @@
       </div>
 
       <div class="content reset" ng-show="!backend.editor_running">
-        <div class="column">
+        <div class="column-container">
           <div ng-repeat="error in backend.errors" class="error">
             {{ error }}
           </div>
-          <node pool="pool" node="pool.ids.days" toplevel></node>
-        </div>
-        <div class="column">
-          <div ng-repeat="event_id in backend.event_queue track by $index">
-            <node pool="pool" node="event_id"></node>
+          <div class="row">
+            <d4-timeline nodes="backend.event_queue" pool="pool" zoom="50"></d4-timeline>
+          </div>
+          <div class="footer">
+            <node pool="pool" node="pool.ids.days" toplevel></node>
           </div>
         </div>
         <collapseable class="sidebar" text="" shown="sidebar_shown">

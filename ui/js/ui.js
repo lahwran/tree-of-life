@@ -76,7 +76,24 @@ var nodetypes = {
         },
         templateurl: "partials/node-date.html"
     },
-    event: {templateurl: "partials/node-event.html"},
+    event: {
+        templateurl: "partials/node-event.html",
+        controller: function($scope) {
+            var whenformat = d3.time.format("%B %d, %Y %I:%M:%S %p");
+            var prettyformat = d3.time.format("%_I:%M %p");
+            $scope.$watch("node.when", function(when) {
+                if (!angular.isDefined(when)) return;
+                if (!$scope.node.when) {
+                    $scope.prettywhen = "SET ME!!";
+                    return
+                }
+                if (!angular.isDefined($scope.node._when)) {
+                    $scope.node._when = whenformat.parse($scope.node.when);
+                }
+                $scope.prettywhen = prettyformat($scope.node._when);
+            });
+        }
+    },
     root: {template: '<nodes nodes="node.children"></node>'},
     _default: {templateurl: "partials/node-default.html"},
 };

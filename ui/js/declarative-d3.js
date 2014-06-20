@@ -193,6 +193,81 @@ angular.module("d4", [])
             }
         };
     })
+    .directive("d4Timeline", function(d4ParseAccessor) {
+        return {
+            restrict: "E",
+            templateUrl: "/partials/d4-timeline.html",
+            replace: true,
+            scope: true,
+            link: function($scope, $element, $attrs) {
+                var initscale = d3.time.scale();
+                initscale.domain([new Date(2014, 6, 19), new Date(2014, 6, 20)])
+
+                $scope.$parent.$watch($attrs.pool, function(pool) {
+                    $scope.pool = pool;
+                });
+                $scope.$parent.$watch($attrs.nodes, function(nodes) {
+                    $scope.nodes = nodes;
+                });
+                $scope.$parent.$watch($attrs.zoom, function(zoom) {
+                    if (!angular.isDefined(zoom)) return;
+                    $scope.day_size = zoom;
+                    initscale.range([0, zoom]);
+                });
+
+                var scale = d3.time.scale();
+                $scope.scale = scale;
+
+                function setscale(domain) {
+                    var start = initscale(domain[0]) - 10;
+                    domain[0] = initscale.invert(start);
+                    var end = initscale(domain[1]);
+                    var size = end - start;
+                    scale.domain(domain);
+                    scale.range([0, size]);
+
+                    $scope.size = size;
+                }
+                var whenformat = d3.time.format("%B %d, %Y %I:%M:%S %p");
+                function when(event_id) {
+                    var event = $scope.pool[event_id];
+                    if (!event.when) {
+                        return $scope.scale.invert(0);
+                    }
+                    if (!angular.isDefined(event._when)) {
+                        event._when = whenformat.parse(event.when);
+                    }
+                    return event._when;
+                }
+                $scope.location = function(event_id) {
+                    if (!angular.isDefined($scope.pool)) return;
+                    return $scope.scale(when(event_id));
+                }
+                $scope.$watch(function() {
+                    if (!angular.isDefined($scope.nodes)) return;
+                    if (!angular.isDefined($scope.pool)) return;
+                    return $scope.nodes
+                }, function(nodes) {
+                    if (!angular.isDefined(nodes)) return;
+                    $scope.max = d3.time.day.ceil(d3.max(nodes, when));
+                });
+
+                // to stay realtime, need to poll this; not bothering for now
+                $scope.$watch(function() {
+                    return {
+                        range: [d3.time.day.floor(new Date()), $scope.max],
+                        zoom: $scope.day_size
+                    };
+                }, function(x) {
+                    if (!angular.isDefined($scope.max)) return;
+                    if (!angular.isDefined(x.zoom)) return;
+                    setscale(x.range);
+                }, true);
+
+                $scope.hoursformat = d3.time.format("%_I:%M %p");
+            }
+        }
+    })
     .directive("d4Transform", function($parse) {
         return {
             restrict: "A",
@@ -223,4 +298,55 @@ angular.module("d4", [])
         shapeName: "arc",
         directiveName: "d4Arc",
         attrs: ["innerRadius", "outerRadius", "startAngle", "endAngle"]
-    }));
+    }))
+    .directive("timeAxis", function($parse) {
+        return {
+            restrict: "A",
+            link: function($scope, $element, $attrs) {
+                var axis = d3.svg.axis();
+                var queued = false;
+                function update() {
+                    axis(d3.select($element[0]));
+                    var text = $element.find("text");
+                    if (angular.isDefined($attrs.axisTextTransform)) {
+                        text.attr("transform", $attrs.axisTextTransform);
+                    }
+                    if (angular.isDefined($attrs.axisTextDy)) {
+                        text.attr("dy", $attrs.axisTextDy);
+                    }
+                    queued = false;
+                }
+                function queueUpdate() {
+                    queued = true;
+                    setTimeout(update, 0);
+                }
+                function w(name, action) {
+                    $scope.$watch($attrs[name], function(x) {
+                        if (!angular.isDefined(x)) return;
+                        action(x);
+                        queueUpdate();
+                    });
+                }
+                axis.orient($attrs.axisOrient);
+                w("timeAxis", function(scale) { axis.scale(scale); });
+                w("axisTickSize", function(x) { axis.tickSize(x); })
+                w("axisTickFormat", function(x) { axis.tickFormat(x); })
+                $scope.$watch(function() {
+                    var scale = axis.scale();
+                    if (!angular.isDefined(scale)) return;
+                    return [scale.invert(0), scale.invert(1)];
+                }, function() {
+                    queueUpdate();
+                }, true)
+
+                var tickSizeExpression = $parse($attrs["axisTicks"]);
+                $scope.$watch(function() {
+                    return tickSizeExpression($scope, {d3: d3})
+                }, function(x) {
+                    if (!angular.isDefined(x)) return;
+                    axis.ticks.apply(axis, x);
+                    queueUpdate();
+                }, true);
+            }
+        };
+    });
