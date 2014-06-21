@@ -1,32 +1,40 @@
 
 <div class="timeline">
-  <svg class="ruler"
-    xmlns="http://www.w3.org/2000/svg"
-    ng-attr-width="{{ 176 }}"
-    ng-attr-height="{{ size }}"
-  >
-    <!-- g time-axis="scale"
-      style="stroke: white; fill: none;"
-      transform="translate(175, 0)"
-      axis-tick-size="10"
-      axis-orient="left"
-      axis-ticks="[d3.time.hours, 6]"
-      axis-tick-format="hoursformat"
-      axis-text-transform="scale(0.65)"
-      axis-text-dy="1em"
-    ></g -->
-    <g time-axis="scale"
-      style="stroke: white; fill: none;"
-      transform="translate(175, 0)"
-      axis-tick-size="75"
-      axis-orient="left"
-      axis-ticks="[d3.time.days, 1]"
-      axis-text-dy="1em"
-    ></g>
-    <!--div ng-repeat="event_id in backend.event_queue track by $index">
-      <node pool="pool" node="event_id"></node>
-    </div-->
-  </svg>
+  <div class="ruler">
+    <div class="day"
+      ng-repeat="date in dates track by date"
+      ng-style="{top: '' + scale(date) + 'px'}"
+      >
+      <h1> {{ dateheader(date) }} </h1>
+      <h2> {{ datefooter(date) }} </h1>
+    </div>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      ng-attr-width="{{ 140 }}"
+      ng-attr-height="{{ size }}"
+    >
+      <!-- g time-axis="scale"
+        style="stroke: white; fill: none;"
+        transform="translate(175, 0)"
+        axis-tick-size="10"
+        axis-orient="left"
+        axis-ticks="[d3.time.hours, 6]"
+        axis-tick-format="hoursformat"
+        axis-text-transform="scale(0.65)"
+        axis-text-dy="1em"
+      ></g -->
+      <g time-axis="scale"
+        transform="translate(139, 0)"
+        axis-tick-size="15"
+        axis-orient="left"
+        axis-text-transform="scale(0)"
+        axis-ticks="[d3.time.days, 1]"
+      ></g>
+      <!--div ng-repeat="event_id in backend.event_queue track by $index">
+        <node pool="pool" node="event_id"></node>
+      </div-->
+    </svg>
+  </div>
   <div class="entries">
     <div ng-repeat="event_id in nodes track by $index"
       class="entry"

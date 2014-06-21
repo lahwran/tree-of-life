@@ -218,15 +218,19 @@ angular.module("d4", [])
                 var scale = d3.time.scale();
                 $scope.scale = scale;
 
+                $scope.dateheader = d3.time.format("%B %e");
+                $scope.datefooter = d3.time.format("%A (%Y)");
+
                 function setscale(domain) {
                     var start = initscale(domain[0]) - 10;
-                    domain[0] = initscale.invert(start);
+                    var actualdomain = [initscale.invert(start), domain[1]];
                     var end = initscale(domain[1]);
                     var size = end - start;
-                    scale.domain(domain);
+                    scale.domain(actualdomain);
                     scale.range([0, size]);
 
                     $scope.size = size;
+                    $scope.dates = d3.time.day.range(domain[0], domain[1]);
                 }
                 var whenformat = d3.time.format("%B %d, %Y %I:%M:%S %p");
                 function when(event_id) {

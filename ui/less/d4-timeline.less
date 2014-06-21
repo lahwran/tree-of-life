@@ -14,6 +14,31 @@
 
     .ruler {
         -webkit-flex: 0 1 auto;
-        width: 176px;
+        width: 150px;
+        position: relative;
+        .day {
+            position: absolute;
+            left: 20px;
+            h1 {
+                display: block;
+                font-size: 19px;
+            }
+            h2 {
+                font-size: 9px;
+                word-wrap: break-word;
+            }
+        }
+        svg {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            stroke: @pink;
+            fill: none;
+
+            path, line {
+                shape-rendering: crispEdges;
+            }
+
+        }
     }
 }
