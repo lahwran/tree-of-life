@@ -2,7 +2,7 @@
 <div class="timeline">
   <div class="ruler">
     <div class="day"
-      ng-repeat="date in dates track by date"
+      ng-repeat="date in dates track by $index"
       ng-style="{top: '' + scale(date) + 'px'}"
       >
       <h1> {{ dateheader(date) }} </h1>
