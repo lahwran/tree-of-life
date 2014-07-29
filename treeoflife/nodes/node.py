@@ -5,6 +5,7 @@ import operator
 import logging
 import weakref
 import random
+import datetime
 
 from treeoflife.ordereddict import OrderedDict
 from treeoflife.exceptions import (ListIntegrityError, LoadError,
@@ -667,6 +668,8 @@ class TreeRootNode(Node):
 
         self.editor_callback = None
 
+        self.log = []
+
         self.days = None
         self.active_node = None
         self.todo = None
@@ -682,6 +685,13 @@ class TreeRootNode(Node):
             if func:
                 func(self)
 
+    def log_activation(self, deepestnode):
+        path = [(node.id, node.node_type, node.text)
+                for node in list(deepestnode.iter_parents())[::-1]]
+        logitem = (path, "activation", datetime.datetime.now())
+        self.log.append(logitem)
+        import pprint; pprint.pprint(self.log)
+
     def activate(self, node, force=False):
         # jump to a particular node as active
         if not node.can_activate:
@@ -694,6 +704,7 @@ class TreeRootNode(Node):
                 return
 
         self.active_node = node
+        self.log_activation(self.active_node)
         for parent_node in list(node.iter_parents())[::-1]:
             try:
                 parent_node.start()
