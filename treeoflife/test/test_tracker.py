@@ -6,7 +6,6 @@ import pytest
 
 from treeoflife.nodes.misc import GenericNode, GenericActivate
 from treeoflife.nodes.node import TreeRootNode
-from treeoflife.file_storage import serialize_to_str
 from treeoflife.test.util import FakeNodeCreator, match
 from treeoflife import exceptions
 
@@ -17,7 +16,7 @@ class TestTracker(object):
     def test_load_basic(self, tmpdir):
         tracker_obj = Tracker(nodecreator=FakeNodeCreator(),
                 skeleton=False)
-        f = tmpdir.join('file')
+        f = tmpdir.join('life')
         with f.open("wb") as w:
             w.write((
                 "firstchild: \u2028args\n"
@@ -26,7 +25,7 @@ class TestTracker(object):
                 "        thirdchild: \u2028herp derp\n"
                 "    fourthchild: \u2028ark dark\n"
             ).encode("utf-8"))
-        tracker_obj.deserialize("file", f.open("rb"))
+        tracker_obj.load(str(tmpdir))
 
         root = tracker_obj.root
         root_child0 = root.children.next_neighbor
@@ -60,7 +59,7 @@ class TestTracker(object):
             "    @option: this won't work here\n"
         )
         with pytest.raises(exceptions.LoadError):
-            tracker_obj.deserialize("str", lines)
+            tracker_obj.deserialize({"life": lines})
 
     def test_load_continued_text(self):
         tracker = Tracker(skeleton=False)
@@ -69,7 +68,7 @@ class TestTracker(object):
             "    - herp\n"
             "    - derp\n"
         )
-        tracker.deserialize("str", lines)
+        tracker.deserialize({"life": lines})
         assert tracker.root.children.next_neighbor.text == "derp\nherp\nderp"
 
     def test_save_basic(self, tmpdir):
@@ -96,10 +95,8 @@ class TestTracker(object):
         node2_1.continue_text('\u2665honk donk')
         node2.addchild(node2_1)
 
-        f = tmpdir.join("file")
-        target = f.open("wb")
-        with target:
-            tracker.serialize("file", target)
+        f = tmpdir.join("life")
+        tracker.save(str(tmpdir))
         assert match(f.read("rb"), (
             "node1#?????: \u2665node1_text\n"
             "    node1_1#?????: \u2665node1_1_text\n"
@@ -115,7 +112,7 @@ class TestTracker(object):
 
     def test_empty_line(self):
         tracker = Tracker(skeleton=False)
-        tracker.deserialize("str",
+        tracker.deserialize({"life":
                 "\n"
                 "task#12345: whatever\n"
                 "   \n"
@@ -124,8 +121,8 @@ class TestTracker(object):
                 "    task#hijkl: some other thing\n"
                 "\n"
                 "\n"
-        )
-        assert tracker.serialize("str") == (
+        })
+        assert tracker.serialize()["life"] == (
                 "\n"
                 "task#12345: whatever\n"
                 "    \n"
@@ -140,11 +137,11 @@ class TestTracker(object):
         tracker = Tracker(skeleton=False,
                 nodecreator=FakeNodeCreator(GenericActivate))
         with pytest.raises(exceptions.LoadError):
-            tracker.deserialize("str",
+            tracker.deserialize({"life":
                 "herp\n"
                 "    derp\n"
                 "            donk\n"
-            )
+            })
 
     def test_unhandled_load_error(self):
         class ExcOnOptionNode(GenericNode):
@@ -160,7 +157,7 @@ class TestTracker(object):
             "    @someoption: boom\n"
         )
         try:
-            tracker.deserialize("str", input_str)
+            tracker.deserialize({"life": input_str})
         except exceptions.LoadError as e:
             result = str(e)
             assert "At line 4: UNHANDLED ERROR" in result
@@ -177,6 +174,6 @@ class TestTracker(object):
         assert tracker.roottype is SubRootNode
         assert type(tracker.root) is SubRootNode
 
-        tracker.deserialize("str", "")
+        tracker.deserialize({"life": ""})
 
         assert type(tracker.root) is SubRootNode

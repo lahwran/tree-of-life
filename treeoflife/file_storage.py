@@ -5,9 +5,6 @@ from treeoflife.util import HandlerDict
 import string
 
 
-loaders = HandlerDict()
-serializers = HandlerDict()
-
 # would making this a set speed it up?
 nodeidchars = unicode(string.letters + string.digits)
 
@@ -98,13 +95,11 @@ def parse_line(line):
     return indent, is_metadata, id, node_type, text
 
 
-@loaders.add("str")
 def parse_string(string):
     assert type(string) == unicode
     return FileParser(string.split(u'\n'), decode=False)
 
 
-@loaders.add("file")
 class FileParser(object):
     def __init__(self, reader, decode=True):
         self.reader = reader
@@ -159,15 +154,6 @@ def serialize(tree, is_root=False, one_line=False):
     return lines
 
 
-@serializers.add("str")
 def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
     return u'\n'.join(lines) + u"\n"
-
-
-@serializers.add("file")
-def serialize_to_file(root, writer, encode=True):
-    result = serialize_to_str(root)
-    if encode:
-        result = result.encode("utf-8")
-    writer.write(result)

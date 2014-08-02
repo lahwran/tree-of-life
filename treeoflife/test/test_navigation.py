@@ -38,14 +38,14 @@ def test_createauto_activatefirst(setdt):
     setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "task: something\n"
         "days\n"
         "    day: today\n"
         "        @active\n"
         "    day: tomorrow\n"
         "    day: September 20, 2014\n"
-    )
+    })
 
     day = tracker.root.find("today").one()
     assert tracker.root.active_node is day
@@ -75,11 +75,11 @@ def test_create(setdt):
     setdt(2014, 5, 9, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "days\n"
         "    day: today\n"
         "        @active\n"
-    )
+    })
     day = tracker.root.find("today").one()
 
     command = navigation.CreateCommand("task: derp", tracker.root)
@@ -94,12 +94,12 @@ def test_activate(setdt):
     setdt(2014, 5, 9, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "days\n"
         "    day: today\n"
         "        @active\n"
         "        task: derp\n"
-    )
+    })
     day = tracker.root.find("today").one()
     node = day.find(">").one()
 
@@ -114,12 +114,12 @@ def test_createauto_noresults(setdt):
     setdt(2014, 5, 9, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "task: something\n"
         "days\n"
         "    day: today\n"
         "        @active\n"
-    )
+    })
     command = navigation.CreateAutoCommand("derp", tracker.root)
     assert len(command.results) == 0
     assert command.preview()
@@ -132,7 +132,7 @@ def donecmd_nodes(setdt):
     setdt(2014, 5, 9, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "days\n"
         "    day: today\n"
         "        task: origin\n"
@@ -142,7 +142,7 @@ def donecmd_nodes(setdt):
         "            task: child3\n"
         "        task: peer1\n"
         "        task: peer2\n"
-    )
+    })
     origin = tracker.root.find("** > origin").one()
     child1, child2, child3 = origin.children
     peer1, peer2 = origin.find("->")

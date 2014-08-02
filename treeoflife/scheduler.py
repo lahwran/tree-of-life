@@ -3,7 +3,7 @@ from collections import deque
 from treeoflife.tracker import Tracker
 
 tracker = Tracker()
-tracker.deserialize("file", open("/Users/lahwran/.treeoflife/life"))
+tracker.deserialize({"life": open("/Users/lahwran/.treeoflife/life").read()})
 
 
 def by_iterator(node):

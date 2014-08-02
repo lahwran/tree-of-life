@@ -3,7 +3,6 @@ from __future__ import unicode_literals, print_function
 import platform
 import traceback
 import os
-import json
 import subprocess
 from functools import partial
 import datetime
@@ -255,50 +254,33 @@ class Git(object):
 
 
 class SavingInterface(CommandInterface):
-    def __init__(self, directory, main_file,
-            config_file="config.json",
-            autosave_template="_{main_file}_autosave_{time}",
-            backup_template="_{main_file}_backup_{time}", **kw):
+
+    # TODO: move this somewhere more sensible (it's fine here for a while)
+
+    def __init__(self, directory, main_file, **kw):
         super(SavingInterface, self).__init__(**kw)
 
         if directory is None:
             self.save_dir = None
             return
         self.save_dir = os.path.realpath(os.path.expanduser(directory))
-        self.main_file = main_file
-        self.save_file = os.path.join(self.save_dir, main_file)
-        self.config_file = os.path.join(self.save_dir, config_file)
-        self.autosave_file = os.path.join(self.save_dir, autosave_template)
-        self.backup_file = os.path.join(self.save_dir, backup_template)
-        self.timeformat = "%A %B %d %H:%M:%S %Y"
 
         self.last_auto_save = None
-        self.last_backup_save = None
         self.last_full_save = None
 
-        self.autosave_id = time.time()
-        self.autosave_minutes = 5
-        self.backup_minutes = 30
+        now = datetime.datetime.now()
+        self.autosave_dir = now.strftime("_autosave/%Y-%m-%d/%H.%M.%S/")
+        self.autosave_minutes = datetime.timedelta(minutes=5)
 
         self.git = Git(self.save_dir)
-
-    def _load_file(self, filename, callback):
-        try:
-            reader = open(os.path.realpath(filename), "r")
-        except IOError:
-            return None
-        else:
-            return callback(reader)
 
     def load(self):
         if self.save_dir is None:
             return
-        config = self._load_file(self.config_file, json.load)
-        if config:
-            self.config = config
-        self._load_file(self.save_file, partial(self.deserialize, "file"))
 
-    def full_save(self):
+        return CommandInterface.load(self, self.save_dir)
+
+    def save(self):
         if self.save_dir is None:
             return
         if not os.path.exists(self.save_dir):
@@ -306,38 +288,29 @@ class SavingInterface(CommandInterface):
 
         self.git.init()
 
-        with open(self.config_file, "w") as writer:
-            json.dump(self.config, writer, sort_keys=True,
-                    indent=4)
-        self.git.add(self.config_file)
+        CommandInterface.save(self, self.save_dir)
 
-        with open(self.save_file, "w") as writer:
-            self.serialize("file", writer)
-        self.git.add(self.save_file)
+        self.git.add(config_path)
+        for filename in self.filenames:
+            self.git.add(os.path.join(self.save_dir, filename))
 
         self.git.gitignore(["_*"])
         self.git.add(".gitignore")
 
         self.git.commit("Full save %s" %
-                datetime.datetime.now().strftime(self.timeformat))
+                datetime.datetime.now().strftime("%A %B %d %H:%M:%S %Y"))
         self.last_full_save = datetime.datetime.now()
 
     def auto_save(self):
         if self.save_dir is None:
             return
-        self._special_save(self.autosave_file, self.autosave_id,
-                self.autosave_minutes, "last_auto_save")
-
-    def _special_save(self, name_format, time, freq, lastname):
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-
-        last = getattr(self, lastname)
-        if last and datetime.datetime.now() < last + datetime.timedelta(
-                                                        minutes=freq):
+        last = self.last_auto_save
+        if last and datetime.datetime.now() < last + self.autosave_minutes:
             return
 
-        filename = name_format.format(main_file=self.main_file, time=int(time))
-        with open(filename, "w") as writer:
-            self.serialize("file", writer)
-        setattr(self, lastname, datetime.datetime.now())
+        if not os.path.exists(self.autosave_dir):
+            os.makedirs(self.autosave_dir)
+
+        CommandInterface.save(self, self.autosave_dir)
+
+        self.last_auto_save = datetime.datetime.now()

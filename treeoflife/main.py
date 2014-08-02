@@ -48,7 +48,7 @@ def stop(ui):
 
 @command()
 def save(ui):
-    ui.full_save()
+    ui.save()
 
 
 @command()
@@ -410,12 +410,14 @@ class Restarter(object):
         self.args = sys.argv
 
     def restart(self, args=None):
+        from twisted.internet import reactor
         reactor.stop()
         if args is not None:
             self.args = [self.args[0]] + args
         self.should_restart = True
 
     def stop(self):
+        from twisted.internet import reactor
         reactor.stop()
         self.should_restart = False
 
@@ -580,7 +582,7 @@ def main(restarter, args):
     try:
         reactor.run()
     finally:
-        ui.full_save()
+        ui.save()
 
 
 def _main():

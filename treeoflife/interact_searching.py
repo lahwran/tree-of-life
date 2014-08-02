@@ -13,7 +13,7 @@ if __name__ == "__main__":
     import time
     tracker = Tracker()
     with open(todofile, "r") as reader:
-        tracker.deserialize("file", reader)
+        tracker.deserialize({"life": reader.read()})
 
     while True:
         querytext = raw_input("query: ")

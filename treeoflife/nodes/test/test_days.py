@@ -126,7 +126,7 @@ class TestMakeSkeleton(object):
 
         assert tracker.root.active_node is target
 
-        assert match(tracker.serialize("str"), (
+        assert match(tracker.serialize()["life"], (
             "days#?????\n"
             "    day#?????: 1\n"
             "    day#?????: 2\n"
@@ -161,7 +161,7 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         assert tracker.root.active_node is target
-        assert match(tracker.serialize("str"), (
+        assert match(tracker.serialize()["life"], (
             "days#?????\n"
             "    day#?????: 1\n"
             "    day#?????: 2\n"
@@ -192,7 +192,7 @@ class TestMakeSkeleton(object):
         Days.make_skeleton(tracker.root)
 
         assert tracker.root.active_node is target
-        assert match(tracker.serialize("str"), (
+        assert match(tracker.serialize()["life"], (
             "days#?????\n"
             "    day#?????: 1\n"
             "    day#?????: 2\n"
@@ -218,7 +218,7 @@ class TestMakeSkeleton(object):
 
         Days.make_skeleton(tracker.root)
 
-        assert match(tracker.serialize("str"), (
+        assert match(tracker.serialize()["life"], (
             "days#?????\n"
             "    day#?????: December 19, 2012 (Wednesday, 3 days ago)\n"
             "    day#?????: December 20, 2012 (Thursday, 2 days ago)\n"
@@ -256,7 +256,7 @@ def test_out_of_order(setdt):
     days_node.addchild(GenericActivate("archived", "20 out of order a"))
     days_node.addchild(GenericActivate("archived", "20 out of order b"))
 
-    result = tracker.serialize("str")
+    result = tracker.serialize()["life"]
     assert match(result, (
         "days#?????\n"
         "    day#?????: December 19, 2012 (Wednesday, *)\n"
@@ -469,11 +469,11 @@ class TestSleepNode(object):
         setdt(2013, 1, 30, hour)
         tracker = Tracker(skeleton=False)
 
-        tracker.deserialize("str",
+        tracker.deserialize({"life":
             "days\n"
             "    day: today\n"
             "        @active\n"
-        )
+        })
 
         days_node = tracker.root.children.next_neighbor
         node = days_node.find('sleep: today').one()
@@ -530,11 +530,11 @@ class TestSleepNode(object):
     def test_activation_no_time(self):
         tracker = Tracker(skeleton=False)
 
-        tracker.deserialize("str",
+        tracker.deserialize({"life":
             "days\n"
             "    day: today\n"
             "        @active\n"
-        )
+        })
 
         tracker.root.activate_next()
 
@@ -547,13 +547,13 @@ def test_searchhooks(setdt, monkeypatch):
     setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "task: something\n"
         "days\n"
         "    day: today\n"
         "    day: tomorrow\n"
         "    day: September 20, 2014\n"
-    )
+    })
 
     something = tracker.root.find("something").one()
     assert something.find("today").one().date == date(2014, 2, 19)
@@ -579,11 +579,11 @@ def test_searchhooks_mincreate(setdt, monkeypatch):
     setdt(2014, 2, 19, 12)
     tracker = Tracker(skeleton=False)
 
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "task: something\n"
         "days\n"
         "    day: today\n"
-    )
+    })
 
     query = searching.parse("today > does not exist, cannot create")
     assert query(tracker.root).actions().list() is not None
@@ -593,10 +593,10 @@ def test_duplicate_day(setdt):
     setdt(2014, 3, 19, 19, 40)
 
     tracker = Tracker(skeleton=False)
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "days\n"
         "    day: today\n"
-    )
+    })
 
     n = tracker.root.find("days").one()
     with pytest.raises(LoadError):
@@ -607,12 +607,12 @@ def test_faroff_activate(setdt):
     setdt(2014, 3, 19, 20, 17)
 
     tracker = Tracker(skeleton=False)
-    tracker.deserialize("str",
+    tracker.deserialize({"life":
         "days\n"
         "    day: today\n"
         "        @active\n"
         "    day: March 25, 2014\n"
-    )
+    })
 
     navigation._cmd("create", tracker.root, "March 25, 2014 > task: something")
 

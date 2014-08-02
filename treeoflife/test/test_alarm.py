@@ -184,7 +184,7 @@ class TestRootMixin(object):
         monkeypatch.setattr(alarms, "Alarm", DummyAlarm)
         tracker = DummyTracker(MixedRoot, InitAlarmNode)
 
-        tracker.deserialize("str", u"node: test")
+        tracker.deserialize({"life": u"node: test"})
 
         node = tracker.root.children.next_neighbor
         assert node.func_alarm.root is node.root
@@ -193,7 +193,7 @@ class TestRootMixin(object):
     def test_no_support_noop(self, monkeypatch):
         monkeypatch.setattr(alarms, "Alarm", DummyAlarm)
         tracker = SuperDummyTracker(MixedRoot, InitAlarmNode)
-        tracker.deserialize("str", u"node: test")
+        tracker.deserialize({"life": u"node: test"})
 
         node = tracker.root.children.next_neighbor
         assert node.func_alarm.root is node.root
@@ -289,7 +289,7 @@ class TestSetAlarm(object):
         # break the reference loop before throwing it away
         del tracker.root._root
         ref = weakref.ref(tracker.root)
-        tracker.deserialize("str", u"node: somenode")
+        tracker.deserialize({"life": u"node: somenode"})
         import gc; gc.collect()
         assert not ref()
 
@@ -318,7 +318,7 @@ class TestSetAlarm(object):
         root_anchor = tracker.root
         vars(root_anchor).clear()
 
-        tracker.deserialize("str", u"node: somenode")
+        tracker.deserialize({"life": u"node: somenode"})
 
         # to force an error should it not detect it via weakref
         vars(tracker).clear()
@@ -368,7 +368,7 @@ class TestSetAlarm(object):
         # make sure to hold the reference
         old_root = tracker.root
 
-        tracker.deserialize("str", u"node: somenode")
+        tracker.deserialize({"life": u"node: somenode"})
         import gc; gc.collect()
 
         reactortime.advance(31)

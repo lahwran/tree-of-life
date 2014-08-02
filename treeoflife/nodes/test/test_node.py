@@ -25,7 +25,7 @@ class TestNode(object):
             "                @active"
         )
 
-        tracker.deserialize("str", input_str)
+        tracker.deserialize({"life": input_str})
 
         expected_pairs = [
             ("_genactive", "3"),
@@ -534,12 +534,12 @@ class TestRootNode(object):
     def test_skeleton_load_integration(self, setdt):
         setdt(2013, 1, 30, 12)
         tracker = Tracker()
-        tracker.deserialize("str",
+        tracker.deserialize({"life":
             "days\n"
             "    day: today\n"
             "todo bucket\n"
             "fitness log"
-        )
+        })
         today = tracker.root.active_node.text
         tracker.root.active_node.started = None
         assert match(serialize_to_str(tracker.root), (
@@ -561,7 +561,7 @@ class TestRootNode(object):
     def test_skeleton_day_active(self, setdt):
         setdt(2013, 1, 30, 12)
         tracker = Tracker()
-        tracker.deserialize("str",
+        tracker.deserialize({"life":
             "days\n"
             "    day#bcdef: today\n"
             "        @started: September 23, 2012 11:00 AM\n"
@@ -570,7 +570,7 @@ class TestRootNode(object):
             "    sleep#defgh: today\n"
             "todo bucket#ghijk\n"
             "fitness log#hijkl"
-        )
+        })
         today = tracker.root.find("days > day: today").one()
         tracker.root.active_node.started = None
         assert match(serialize_to_str(tracker.root), (

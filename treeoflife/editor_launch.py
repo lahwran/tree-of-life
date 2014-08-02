@@ -39,20 +39,22 @@ class EditSession(object):
             ui.hide_all_clients()
 
         self.exceptions = []
-        self.original_text = ui.serialize("str")
+        self.original_data = ui.serialize()
         self.old_root = self.ui.root
 
-        self.editor = self.EditorType(self, self.original_text)
+        self.editor = self.EditorType(self, self.original_data["life"])
 
     def editor_done(self, edited_text):
-        if edited_text == self.original_text:
+        if edited_text == self.original_data["life"]:
             logger.info("text same, not loading")
             self.succeeded()
             return True
 
         try:
             with Profile("deserialize"):
-                self.ui.deserialize("str", edited_text)
+                data = dict(self.original_data)
+                data["life"] = edited_text
+                self.ui.deserialize(data)
         except Exception as e:
             logger.exception("Failure loading")
             self.source.capture_error(e)
@@ -215,7 +217,7 @@ class EmbeddedEditor(object):
             writer.write(json.dumps(data))
             writer.write('\n')
         if data is None:
-            data = self.session.original_text
+            data = self.session.original_data["life"]
         logger.info("attempting to stop embedded editor")
         if self.session.editor_done(data):
             self.session.source.sendmessage({"embedded_edit": None})

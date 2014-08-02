@@ -1,15 +1,19 @@
 from __future__ import unicode_literals, print_function
 
 import traceback
+import json
+import os
 
 from twisted.internet.defer import Deferred
 
 from treeoflife.exceptions import LoadError, ErrorContext
 from treeoflife.nodes.node import TreeRootNode, nodecreator
-from treeoflife.file_storage import loaders, serializers
+from treeoflife import file_storage
 
 
 class Tracker(object):
+    filenames = ["log", "life"]
+
     def __init__(self, skeleton=True, nodecreator=nodecreator,
             roottype=TreeRootNode):
         self.make_skeleton = skeleton
@@ -23,10 +27,14 @@ class Tracker(object):
         if self.make_skeleton:
             self.root.make_skeleton()
 
-    def deserialize(self, format, reader):
+    def deserialize(self, files):
         self.root = root = self.roottype(self, self.nodecreator,
                 loading_in_progress=True)
         root.loading_in_progress = True
+
+        #log_data = files.get('log', u'')
+        #self.root.log = <load_log>(log_data)
+
         stack = []
         lastnode = root
         lastindent = -1
@@ -35,7 +43,8 @@ class Tracker(object):
         error_context = ErrorContext()  # mutable thingy
 
         try:
-            parser = loaders.handlers[format](reader)
+            life_data = files.get('life', u'')
+            parser = file_storage.parse_string(life_data)
             parser.error_context = error_context
             for indent, is_metadata, nodeid, node_type, text in parser:
                 if node_type == "":
@@ -85,6 +94,35 @@ class Tracker(object):
         # enable instant load_finished() on node creation
         root.loading_in_progress = False
 
-    def serialize(self, format, *args, **keywords):
-        serializer = serializers.handlers[format]
-        return serializer(self.root, *args, **keywords)
+    def serialize(self):
+        return {
+            "life": file_storage.serialize_to_str(self.root),
+            #"log": <save_log>(self.root.log)
+        }
+
+    def load(self, save_dir):
+        config_path = os.path.join(save_dir, "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as reader:
+                self.config = json.loads(reader.read())
+
+        files = {}
+        for filename in self.filenames:
+            path = os.path.join(save_dir, filename)
+            if os.path.exists(path):
+                with open(path, "r") as reader:
+                    files[filename] = reader.read().decode("utf-8")
+
+        self.deserialize(files)
+
+    def save(self, save_dir):
+        config_path = os.path.join(save_dir, "config.json")
+        with open(config_path, "w") as writer:
+            json.dump(self.config, writer, sort_keys=True,
+                    indent=4)
+
+        files = self.serialize()
+        for filename, data in files.items():
+            path = os.path.join(save_dir, filename)
+            with open(path, "w") as writer:
+                writer.write(data.encode("utf-8"))
