@@ -269,7 +269,10 @@ class SavingInterface(CommandInterface):
         self.last_full_save = None
 
         now = datetime.datetime.now()
-        self.autosave_dir = now.strftime("_autosave/%Y-%m-%d/%H.%M.%S/")
+        self.autosave_dir = os.path.join(
+            self.save_dir,
+            now.strftime("_autosave/%Y-%m-%d/%H.%M.%S/")
+        )
         self.autosave_minutes = datetime.timedelta(minutes=5)
 
         self.git = Git(self.save_dir)
@@ -290,7 +293,7 @@ class SavingInterface(CommandInterface):
 
         CommandInterface.save(self, self.save_dir)
 
-        self.git.add(config_path)
+        self.git.add("config.json")
         for filename in self.filenames:
             self.git.add(os.path.join(self.save_dir, filename))
 
