@@ -1,8 +1,10 @@
 from __future__ import unicode_literals, print_function
 
+import datetime
+
 import pytest
 
-from treeoflife.file_storage import parse_line
+from treeoflife.file_storage import parse_line, dump_log, load_log
 from treeoflife.tracker import LoadError
 
 
@@ -122,3 +124,113 @@ class TestParseLine(object):
     def test_non_unicode(self):
         with pytest.raises(AssertionError):
             parse_line(b"herp: derp")
+
+
+def test_dump_log():
+    # create the log
+    log = [
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Nf01s', u'day', u'July 31, 2014 (Thursday, yesterday)')
+            ],
+            u'activation',
+            datetime.datetime(2014, 8, 1, 20, 27, 44, 650267)
+        )
+    ]
+    # dump the log
+    stringified = dump_log(log)
+    # check the result
+    assert stringified == (
+       '2014-08-01 20:27:44 Friday - activation - '
+       '["life#00000", "days#00001", '
+       '"day#Nf01s: July 31, 2014 (Thursday, yesterday)"]\n'
+    )
+
+def test_dump_log_plural():
+    log = [
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Nf01s', u'day', u'July 31, 2014 (Thursday, yesterday)')
+            ],
+            u'activation',
+            datetime.datetime(2014, 8, 1, 20, 27, 44, 650267)
+        ),
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Vdl4d', u'day', u'July 01, 2044 (Thursday, in a long time)')
+            ],
+            u'activation',
+            datetime.datetime(2044, 8, 1, 20, 27, 44, 650267)
+        )
+    ]
+    stringified = dump_log(log)
+    assert stringified == (
+        '2014-08-01 20:27:44 Friday - activation - '
+            '["life#00000", "days#00001", '
+            '"day#Nf01s: July 31, 2014 (Thursday, yesterday)"]\n'
+        '2044-08-01 20:27:44 Monday - activation - '
+            '["life#00000", "days#00001", '
+            '"day#Vdl4d: July 01, 2044 (Thursday, in a long time)"]\n'
+    )
+    
+def test_load_log():
+    # create the string
+    stringified = (
+       '2014-08-01 20:27:44 Friday - activation - '
+       '["life#00000", "days#00001", '
+       '"day#Nf01s: July 31, 2014 (Thursday - yesterday)"]\n'
+    )
+    # load the string
+    loaded_log = load_log(stringified)
+    # check the result
+    assert loaded_log == [
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Nf01s', u'day', u'July 31, 2014 (Thursday - yesterday)')
+            ],
+            u'activation',
+            datetime.datetime(2014, 8, 1, 20, 27, 44)
+        )
+    ]
+
+def test_load_log_plural():
+    # create the string
+    stringified = (
+        '2014-08-01 20:27:44 Friday - activation - '
+            '["life#00000", "days#00001", '
+            '"day#Nf01s: July 31, 2014 (Thursday, yesterday)"]\n'
+        '2044-08-01 20:27:44 Monday - activation - '
+            '["life#00000", "days#00001", '
+            '"day#Vdl4d: July 01, 2044 (Thursday, in a long time)"]\n'
+    )
+    # load the string
+    log = load_log(stringified)
+    # check the result
+    assert log == [
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Nf01s', u'day', u'July 31, 2014 (Thursday, yesterday)')
+            ],
+            u'activation',
+            datetime.datetime(2014, 8, 1, 20, 27, 44)
+        ),
+        (
+            [
+                (u'00000', u'life', None),
+                (u'00001', u'days', None),
+                (u'Vdl4d', u'day', u'July 01, 2044 (Thursday, in a long time)')
+            ],
+            u'activation',
+            datetime.datetime(2044, 8, 1, 20, 27, 44)
+        )
+    ]

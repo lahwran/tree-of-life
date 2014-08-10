@@ -28,6 +28,13 @@ class Tracker(object):
             self.root.make_skeleton()
 
     def deserialize(self, files):
+        """
+        files is a dictionary of filename to filedata.
+        
+        deserialize must allow for any key to be missing. If a file is not
+        present in that dictionary, it should be like an empty string in that
+        dictionary.
+        """
         self.root = root = self.roottype(self, self.nodecreator,
                 loading_in_progress=True)
         root.loading_in_progress = True
@@ -97,7 +104,7 @@ class Tracker(object):
     def serialize(self):
         return {
             "life": file_storage.serialize_to_str(self.root),
-            #"log": <save_log>(self.root.log)
+            # "log": <save_log>(self.root.log)
         }
 
     def load(self, save_dir):

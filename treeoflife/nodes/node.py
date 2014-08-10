@@ -657,6 +657,21 @@ class BooleanOption(object):
 
 
 class TreeRootNode(Node):
+    """
+    log is a list of events:
+    [
+        (path, eventtype, time),
+        (path, eventtype, time),
+        ...
+    ]
+    where path is a list of nodes:
+    [
+        (id, node_type, text),
+        (id, node_type, text),
+        ...
+    ]
+    and where eventtype is a string, and time is a datetime object.
+    """
     def __init__(self, tracker, nodecreator, loading_in_progress=False):
         self.ids = weakref.WeakValueDictionary()
         self.nodecreator = nodecreator

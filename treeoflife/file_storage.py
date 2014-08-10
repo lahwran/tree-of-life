@@ -1,8 +1,11 @@
 from __future__ import unicode_literals, print_function
 
+import string
+import json
+import datetime
+
 from treeoflife.exceptions import LoadError
 from treeoflife.util import HandlerDict
-import string
 
 
 # would making this a set speed it up?
@@ -157,3 +160,41 @@ def serialize(tree, is_root=False, one_line=False):
 def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
     return u'\n'.join(lines) + u"\n"
+
+def dump_log(log):
+    results = []
+    for entry in log:
+        path, event, date = entry
+        date_formatted = date.replace(microsecond=0).isoformat(' ')
+        date_formatted += date.strftime(' %A')
+        path_formatted = []
+        for id, type, text in path:
+            if text is None:
+                item = '{}#{}'.format(type, id)
+            else:
+                item = '{}#{}: {}'.format(type, id, text)
+            path_formatted.append(item)
+        dumped_path = json.dumps(path_formatted)
+        result = '{} - {} - {}\n'.format(date_formatted, event, dumped_path)
+        results.append(result)
+    return ''.join(results)
+
+def load_log(data):
+    lines = data.split('\n')
+    log = []
+    for line in lines:
+        if line == '':
+            continue
+        date_formatted, event, dumped_path = line.split(' - ', 2)
+        path_formatted = json.loads(dumped_path)
+        path = []
+        for item in path_formatted:
+            type, sep, id_and_text = item.partition('#')
+            id, sep, text = id_and_text.partition(': ')
+            if sep == '':
+                text = None
+            path.append((id, type, text))
+        date = datetime.datetime.strptime(date_formatted, '%Y-%m-%d %H:%M:%S %A')
+        entry = path, event, date
+        log.append(entry)
+    return log
