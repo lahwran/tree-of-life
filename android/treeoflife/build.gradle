@@ -1,3 +1,5 @@
+// vim: set filetype=groovy :
+
 apply plugin: 'android'
 
 android {
@@ -23,6 +25,146 @@ android {
     }
 }
 
+android.applicationVariants.all {
+    def ceylonModuleName = "treeoflife.android"
+    def ceylonExecutable = "/Users/lahwran/ceylonstuff/ceylon-dist/dist/bin/ceylon"
+
+    def kindname = name
+    File ceylonDir = new File(project.buildDir, "ceylon/${kindname}/").canonicalFile
+    File ceylonDirErase = new File(ceylonDir, "erase")
+
+    File ceylonSrc = new File(ceylonDirErase, "src")
+    File ceylonInRepo = new File(ceylonDirErase, "inrepo")
+    File ceylonOutRepo = new File(ceylonDirErase, "outrepo")
+    File ceylonDepDir = new File(ceylonDir, "extractedjars")
+
+    print "ceylon source dir: "
+    println ceylonSrc
+    print "ceylon in repo dir: "
+    println ceylonInRepo
+    print "ceylon out repo dir: "
+    println ceylonOutRepo
+    def destinationDirectory = javaCompile.destinationDir
+    print "dest dir: "
+    println destinationDirectory
+
+    def javaCompileDeps = javaCompile.dependsOn.clone()
+
+    File blobjar = new File(ceylonDir, "blob.jar")
+
+    if (ceylonDirErase.exists()) {
+        // WARNING: many java directory-deletion things appear to FOLLOW SYMLINKS!
+        // (following symlinks is potentially extremely dangerous)
+        // rm does not by default, so I'm using it instead for now
+        // but it's not cross platform, needs replacement
+        println "deleting"
+        ["rm", "-rf", ceylonDirErase.canonicalPath].execute().waitFor()
+        println "done deleting"
+    }
+
+    task "ceylon${kindname}prepare" {
+        dependsOn javaCompileDeps
+        doFirst {
+            println "making dirs"
+            ceylonDir.mkdirs()
+            ceylonInRepo.mkdirs()
+            ceylonOutRepo.mkdirs()
+            ceylonSrc.mkdirs()
+            println "done making dirs"
+        }
+    }
+    task "ceylon${kindname}copysource" {
+        dependsOn "ceylon${kindname}prepare"
+        doFirst {
+            println "copying source"
+            def source = javaCompile.source + fileTree('src/main/java').include('**/*.ceylon')
+            source.visit { x ->
+                if (x.directory) {
+                    return
+                }
+                println x
+                File target = new File(ceylonSrc, x.path)
+                File parent = target.parentFile
+                if (parent != null) {
+                    parent.mkdirs()
+                }
+                target.bytes = x.file.bytes
+            }
+            println "done copying source"
+        }
+    }
+    task "ceylon${kindname}extractdeps" {
+        dependsOn "ceylon${kindname}prepare"
+        def classpath = javaCompile.classpath
+        def runtimeJars = plugins.findPlugin(com.android.build.gradle.AppPlugin).runtimeJars
+        classpath = files(runtimeJars) + classpath
+
+        inputs.files classpath
+        outputs.dir ceylonDepDir.canonicalFile
+
+        doFirst {
+            println "extracting deps"
+            blobjar.delete()
+            println "deleted jar"
+            for (thing in classpath) {
+                println("copying ${thing}...")
+                copy {
+                    from(zipTree(thing))
+                    into(ceylonDepDir.canonicalFile)
+                }
+            }
+            println "done extracting deps"
+        }
+    }
+    task "ceylon${kindname}blobjar"(type: Jar) {
+        dependsOn "ceylon${kindname}extractdeps"
+        from fileTree(ceylonDepDir.canonicalFile)
+        outputs.upToDateWhen {
+            return blobjar.exists()
+        }
+        archiveName = "blob.jar"
+        destinationDir = ceylonDir.canonicalFile
+        entryCompression = ZipEntryCompression.STORED
+    }
+    task "ceylon${kindname}importdeps"(type: Exec) {
+        dependsOn "ceylon${kindname}blobjar"
+        println new File(ceylonDir, "blob.jar").canonicalPath
+
+        commandLine ceylonExecutable, "import-jar",\
+                    "--force",\
+                    "--out", ceylonInRepo.canonicalPath,\
+                    "gradleCeylonBuild.gradleDependencies/combinedJar",\
+                    blobjar.canonicalPath
+    }
+    task "ceylon${kindname}compile"(type: Exec) {
+        dependsOn "ceylon${kindname}importdeps"
+        dependsOn "ceylon${kindname}copysource"
+        commandLine ceylonExecutable, \
+            "compile",\
+            "--out", ceylonOutRepo.canonicalPath,\
+            "--rep", ceylonInRepo.canonicalPath,\
+            "--source", ceylonSrc.canonicalPath,\
+            ceylonModuleName
+        doLast {
+            fileTree(ceylonOutRepo.canonicalFile).include("**/*.car").visit { x ->
+                if (!x.name.endsWith(".car")) {
+                    println "hey, so, apparently include doesn't filter out everything or something"
+                    return
+                }
+                copy {
+                    from(zipTree(x.file.canonicalFile))
+                    into(destinationDirectory.canonicalFile)
+                }
+                println "compile step done"
+            }
+        }
+    }
+
+    javaCompile.dependsOn("ceylon${kindname}compile")
+    //javaCompile.enabled = false
+}
+
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'com.google.code.gson:gson:2.2.+'
 }
