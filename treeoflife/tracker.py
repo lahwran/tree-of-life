@@ -39,8 +39,8 @@ class Tracker(object):
                 loading_in_progress=True)
         root.loading_in_progress = True
 
-        #log_data = files.get('log', u'')
-        #self.root.log = <load_log>(log_data)
+        log_data = files.get('log', u'')
+        self.root.log = file_storage.load_log(log_data)
 
         stack = []
         lastnode = root
@@ -104,7 +104,7 @@ class Tracker(object):
     def serialize(self):
         return {
             "life": file_storage.serialize_to_str(self.root),
-            # "log": <save_log>(self.root.log)
+            "log": file_storage.dump_log(self.root.log)
         }
 
     def load(self, save_dir):

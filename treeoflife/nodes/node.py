@@ -705,7 +705,6 @@ class TreeRootNode(Node):
                 for node in list(deepestnode.iter_parents())[::-1]]
         logitem = (path, "activation", datetime.datetime.now())
         self.log.append(logitem)
-        import pprint; pprint.pprint(self.log)
 
     def activate(self, node, force=False):
         # jump to a particular node as active
