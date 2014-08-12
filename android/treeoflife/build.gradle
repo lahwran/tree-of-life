@@ -27,27 +27,21 @@ android {
 
 android.applicationVariants.all {
     def ceylonModuleName = "treeoflife.android"
+    def ceylonModuleVersion = "1"  // TODO: this should be autodetected :(
     def ceylonExecutable = "/Users/lahwran/ceylonstuff/ceylon-dist/dist/bin/ceylon"
+    def ceylonVersion = "1.1.0"
 
-    def kindname = name
-    File ceylonDir = new File(project.buildDir, "ceylon/${kindname}/").canonicalFile
+    def pfx = "ceylon-${name}-"
+    File ceylonDir = new File(project.buildDir, "ceylon/${name}/").canonicalFile
     File ceylonDirErase = new File(ceylonDir, "erase")
 
-    File ceylonSrc = new File(ceylonDirErase, "src")
-    File ceylonInRepo = new File(ceylonDirErase, "inrepo")
-    File ceylonOutRepo = new File(ceylonDirErase, "outrepo")
+    File ceylonSrc = new File(ceylonDir, "src")
+    File ceylonFinalRepo = new File(ceylonDirErase, "finalrepo")
+    File ceylonGradleRepo = new File(ceylonDirErase, "gradledepsrepo")
+    File ceylonOutRepo = new File(ceylonDir, "outrepo")
     File ceylonDepDir = new File(ceylonDir, "extractedjars")
 
-    print "ceylon source dir: "
-    println ceylonSrc
-    print "ceylon in repo dir: "
-    println ceylonInRepo
-    print "ceylon out repo dir: "
-    println ceylonOutRepo
     def destinationDirectory = javaCompile.destinationDir
-    print "dest dir: "
-    println destinationDirectory
-
     def javaCompileDeps = javaCompile.dependsOn.clone()
 
     File blobjar = new File(ceylonDir, "blob.jar")
@@ -57,32 +51,28 @@ android.applicationVariants.all {
         // (following symlinks is potentially extremely dangerous)
         // rm does not by default, so I'm using it instead for now
         // but it's not cross platform, needs replacement
-        println "deleting"
         ["rm", "-rf", ceylonDirErase.canonicalPath].execute().waitFor()
-        println "done deleting"
     }
 
-    task "ceylon${kindname}prepare" {
+    task "${pfx}prepare" {
         dependsOn javaCompileDeps
         doFirst {
-            println "making dirs"
             ceylonDir.mkdirs()
-            ceylonInRepo.mkdirs()
+            ceylonGradleRepo.mkdirs()
             ceylonOutRepo.mkdirs()
             ceylonSrc.mkdirs()
-            println "done making dirs"
         }
     }
-    task "ceylon${kindname}copysource" {
-        dependsOn "ceylon${kindname}prepare"
+    task "${pfx}copysource" {
+        dependsOn "${pfx}prepare"
+        def source = javaCompile.source + fileTree('src/main/java').include('**/*.ceylon')
+        inputs.files source
+        outputs.dir ceylonSrc
         doFirst {
-            println "copying source"
-            def source = javaCompile.source + fileTree('src/main/java').include('**/*.ceylon')
             source.visit { x ->
                 if (x.directory) {
                     return
                 }
-                println x
                 File target = new File(ceylonSrc, x.path)
                 File parent = target.parentFile
                 if (parent != null) {
@@ -90,11 +80,10 @@ android.applicationVariants.all {
                 }
                 target.bytes = x.file.bytes
             }
-            println "done copying source"
         }
     }
-    task "ceylon${kindname}extractdeps" {
-        dependsOn "ceylon${kindname}prepare"
+    task "${pfx}extractdeps" {
+        dependsOn "${pfx}prepare"
         def classpath = javaCompile.classpath
         def runtimeJars = plugins.findPlugin(com.android.build.gradle.AppPlugin).runtimeJars
         classpath = files(runtimeJars) + classpath
@@ -103,9 +92,7 @@ android.applicationVariants.all {
         outputs.dir ceylonDepDir.canonicalFile
 
         doFirst {
-            println "extracting deps"
             blobjar.delete()
-            println "deleted jar"
             for (thing in classpath) {
                 println("copying ${thing}...")
                 copy {
@@ -113,11 +100,10 @@ android.applicationVariants.all {
                     into(ceylonDepDir.canonicalFile)
                 }
             }
-            println "done extracting deps"
         }
     }
-    task "ceylon${kindname}blobjar"(type: Jar) {
-        dependsOn "ceylon${kindname}extractdeps"
+    task "${pfx}blobjar"(type: Jar) {
+        dependsOn "${pfx}extractdeps"
         from fileTree(ceylonDepDir.canonicalFile)
         outputs.upToDateWhen {
             return blobjar.exists()
@@ -126,42 +112,67 @@ android.applicationVariants.all {
         destinationDir = ceylonDir.canonicalFile
         entryCompression = ZipEntryCompression.STORED
     }
-    task "ceylon${kindname}importdeps"(type: Exec) {
-        dependsOn "ceylon${kindname}blobjar"
-        println new File(ceylonDir, "blob.jar").canonicalPath
+    task "${pfx}importdeps"(type: Exec) {
+        dependsOn "${pfx}blobjar"
 
         commandLine ceylonExecutable, "import-jar",\
                     "--force",\
-                    "--out", ceylonInRepo.canonicalPath,\
+                    "--out", ceylonGradleRepo.canonicalPath,\
                     "gradleCeylonBuild.gradleDependencies/combinedJar",\
                     blobjar.canonicalPath
     }
-    task "ceylon${kindname}compile"(type: Exec) {
-        dependsOn "ceylon${kindname}importdeps"
-        dependsOn "ceylon${kindname}copysource"
+    task "${pfx}compile"(type: Exec) {
+        dependsOn "${pfx}importdeps"
+        dependsOn "${pfx}copysource"
         commandLine ceylonExecutable, \
             "compile",\
             "--out", ceylonOutRepo.canonicalPath,\
-            "--rep", ceylonInRepo.canonicalPath,\
+            "--rep", ceylonGradleRepo.canonicalPath,\
             "--source", ceylonSrc.canonicalPath,\
             ceylonModuleName
+    }
+    task "${pfx}appmodule"(type: Exec) {
+        dependsOn "${pfx}compile"
+
+        commandLine ceylonExecutable, \
+            "copy",\
+            "--out", ceylonFinalRepo.canonicalPath,\
+            "--rep", ceylonOutRepo.canonicalPath,\
+            "--rep", ceylonGradleRepo.canonicalPath,\
+            "--jvm",\
+            "--recursive",\
+            "${ceylonModuleName}/${ceylonModuleVersion}"
+    }
+    task "${pfx}languagemodule"(type: Exec) {
+        dependsOn "${pfx}prepare"
+
+        commandLine ceylonExecutable, \
+            "copy",\
+            "--out", ceylonFinalRepo.canonicalPath,\
+            "--jvm",\
+            "ceylon.language/${ceylonVersion}"
+    }
+
+    task "${pfx}build" {
+        dependsOn "${pfx}languagemodule"
+        dependsOn "${pfx}appmodule"
         doLast {
-            fileTree(ceylonOutRepo.canonicalFile).include("**/*.car").visit { x ->
-                if (!x.name.endsWith(".car")) {
-                    println "hey, so, apparently include doesn't filter out everything or something"
+            fileTree(ceylonFinalRepo.canonicalFile).include("**/*.car").include("**/*.jar").visit { x ->
+                if (!x.name.endsWith(".car") && !x.name.endsWith(".jar")) {
                     return
                 }
+                print "copying to output: "
+                println x.name
                 copy {
                     from(zipTree(x.file.canonicalFile))
                     into(destinationDirectory.canonicalFile)
                 }
-                println "compile step done"
             }
         }
     }
 
-    javaCompile.dependsOn("ceylon${kindname}compile")
-    //javaCompile.enabled = false
+    javaCompile.dependsOn("${pfx}build")
+    javaCompile.enabled = false
 }
 
 dependencies {
