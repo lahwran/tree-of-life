@@ -104,6 +104,16 @@ android.applicationVariants.all {
             copy {
                 from(source)
                 into(ceylonSrc)
+                include '**/R.java'
+                filter { line ->
+                    line = line.replaceAll(~/(    public static final class )([^ ]+)/,
+                                            '    public static final _$2 $2 = new _$2();\n$1_$2')
+                }
+            }
+            copy {
+                from(source)
+                into(ceylonSrc)
+                exclude '**/R.java'
             }
         }
     }
