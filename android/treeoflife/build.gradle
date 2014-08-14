@@ -59,11 +59,18 @@ android.applicationVariants.all {
 
         doFirst {
             blobjar.delete()
+            def blacklist = new HashSet()
+            file("blacklist").eachLine { line ->
+                blacklist.add(line.trim())
+            }
             for (thing in classpath) {
                 println("copying ${thing}...")
                 copy {
                     from(zipTree(thing))
                     into(ceylonDepDir.canonicalFile)
+                    exclude { item ->
+                        return blacklist.contains(item.path)
+                    }
                 }
             }
         }
