@@ -384,37 +384,7 @@ class Days(Node):
 
     @classmethod
     def make_skeleton(cls, root):
-        root.days = root.find("days", True).first() or root.createchild('days')
-
-        do_activate = False
-        if root.active_node is None:
-            do_activate = True
-        else:
-            for parent in root.active_node.iter_parents():
-                if (parent.node_type in task_types and
-                        parent.acceptable()):
-                    break
-            else:
-                do_activate = True
-
-        if do_activate:
-            acceptables = []
-            for child in root.days.children:
-                if child.node_type in task_types:
-                    acceptability = child.acceptable()
-                    if acceptability:
-                        if not child.can_activate:
-                            logger.warn("node was acceptable but"
-                                " could not activate: %r", child)
-                            continue
-                        acceptables.append((acceptability, child))
-
-            if acceptables:
-                acceptables = sorted(acceptables, key=lambda x: x[0])
-                root.activate(acceptables[-1][1])
-            else:
-                today = root.days.createchild("day", "today")
-                root.activate(today)
+        root.days = root.find("days", True).first()
 
     def addchild(self, child, before=None, after=None):
         if child.node_type in task_types:
@@ -449,28 +419,6 @@ class Days(Node):
                 child = child.detach()
                 self.addchild(Archived.fromnode(child, parent=self),
                         before=next_node, after=prev_node)
-
-    def ui_dictify(self, result=None):
-        if result is None:
-            result = {}
-
-        today = self.active_child()
-        past_days = []
-        future_days = []
-        current = past_days
-        for node in self.children:
-            if node is today:
-                current = future_days
-            current.append(node)
-
-        if "hidden_children" not in result and past_days:
-            hidden = [child.id for child in past_days]
-            result["hidden_children"] = hidden
-        if "children" not in result and future_days:
-            children = [child.id for child in future_days]
-            result["children"] = children
-
-        return super(Days, self).ui_dictify(result)
 
 
 class _DayMatcher(searching.Matcher):

@@ -187,6 +187,7 @@ def test_done_parents(donecmd_nodes):
     command = navigation.DoneCommand(tracker.root)
     assert command.results == [
         searching._NodeResult(origin.parent, ["finishactivate"]),
+        searching._NodeResult(tracker.root, ["finishactivate"]),
     ]
     command.execute()
     assert tracker.root.active_node is origin.parent

@@ -529,28 +529,21 @@ class TestRootNode(object):
         tracker.root.activate(node)
 
         navigation._cmd("done", tracker.root)
-        assert tracker.root.active_node is node
+        assert tracker.root.active_node is tracker.root
 
     def test_skeleton_load_integration(self, setdt):
         setdt(2013, 1, 30, 12)
         tracker = Tracker()
         tracker.deserialize({"life":
-            "days\n"
-            "    day: today\n"
             "todo bucket\n"
             "fitness log"
         })
-        today = tracker.root.active_node.text
-        tracker.root.active_node.started = None
+        assert tracker.root.active_node is tracker.root
         assert match(serialize_to_str(tracker.root), (
-            "days#?????\n"
-            "    day#?????: {0}\n"
-            "        @active\n"
-            "    sleep#?????: {0}\n"
             "todo bucket#?????\n"
             "fitness log#?????\n"
-        ).format(today))
-        assert len(tracker.root.ids) == 6
+        ))
+        assert len(tracker.root.ids) == 3
         assert tracker.root.id == "00000"
         assert "00000" in tracker.root.ids
         assert tracker.root.ids["00000"] is tracker.root
