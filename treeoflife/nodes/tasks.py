@@ -111,7 +111,6 @@ class BaseTask(Node):
 
         result["started"] = bool(self.started)
         result["finished"] = bool(self.finished)
-        result["active_id"] = self.active_id
         return super(BaseTask, self).ui_dictify(result)
 
     def search_tags(self):
@@ -145,7 +144,7 @@ class Task(BaseTask):
 @nodecreator("category")
 class Category(Node):
     # should be passthrough
-    pass
+    can_activate = True
 
 
 @nodecreator("event")

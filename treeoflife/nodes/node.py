@@ -481,6 +481,7 @@ class Node(object):
         result["type"] = self.node_type
         result["text"] = self.text
         result["id"] = self.id
+        result["active_id"] = self.active_id
         return result
 
     def ui_graph(self):

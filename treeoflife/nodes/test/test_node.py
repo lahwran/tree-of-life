@@ -350,7 +350,8 @@ class TestNode(object):
             "children": ["12345"],
             "type": "child",
             "text": "childtext",
-            "id": "abcde"
+            "id": "abcde",
+            "active_id": "abcde"
         }
 
     def test_ui_graph(self):
@@ -364,12 +365,14 @@ class TestNode(object):
                 "children": ["12345"],
                 "type": "child",
                 "text": "childtext",
-                "id": "abcde"
+                "id": "abcde",
+                "active_id": "abcde"
             },
             "12345": {
                 "type": "child2",
                 "text": "child2text",
-                "id": "12345"
+                "id": "12345",
+                "active_id": "12345"
             },
         }
 

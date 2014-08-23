@@ -940,6 +940,7 @@ def test_ui_dictify(tracker, reftype):
             "type": "life",
             "text": None,
             "id": "00000",
+            "active_id": "00000",
             "children": ["targt", "rfrnc", "rfrn2"]
         }
     }
