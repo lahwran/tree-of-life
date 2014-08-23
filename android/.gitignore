@@ -4,3 +4,6 @@
 .DS_Store
 *.iml
 /.idea
+
+treeoflife/src/main/assets/listing
+treeoflife/src/main/assets/executables

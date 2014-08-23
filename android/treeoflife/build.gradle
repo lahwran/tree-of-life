@@ -23,6 +23,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+    aaptOptions {
+        ignoreAssetsPattern "!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
 }
 
 android.applicationVariants.all {
@@ -191,7 +194,43 @@ android.applicationVariants.all {
     javaCompile.enabled = false
 }
 
+task generateFileListing {
+    def ft = fileTree("src/main/assets")
+    ft.exclude "listing"
+    ft.exclude "executables"
+    ft.exclude "**/*.sw*"
+
+    inputs.files ft
+    outputs.file "src/main/assets/listing"
+    outputs.file "src/main/assets/executables"
+
+    doFirst {
+        def files = []
+        def executables = []
+        ft.visit { details ->
+            if (details.file.isDirectory()) {
+                if (details.name.startsWith("_")) {
+                    println details.file
+                    // wat, aapt? why can't I unignore them
+                    throw new RuntimeException("Can't start dirnames with _, unfortunately. rename to startunderscore_")
+                }
+                return
+            }
+            if (details.file.canExecute()) {
+                executables.add(details.path)
+            }
+            files.add(details.path)
+        };
+        file("src/main/assets/listing").text = files.join("\n")
+        file("src/main/assets/executables").text = executables.join("\n")
+    }
+}
+
+android.applicationVariants.all {
+    mergeAssets.dependsOn(generateFileListing)
+}
+
+
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.google.code.gson:gson:2.2.+'
 }
