@@ -148,6 +148,7 @@ def test_dump_log():
        '"day#Nf01s: July 31, 2014 (Thursday, yesterday)"]\n'
     )
 
+
 def test_dump_log_plural():
     log = [
         (
@@ -178,7 +179,8 @@ def test_dump_log_plural():
             '["life#00000", "days#00001", '
             '"day#Vdl4d: July 01, 2044 (Thursday, in a long time)"]\n'
     )
-    
+
+
 def test_load_log():
     # create the string
     stringified = (
@@ -200,6 +202,7 @@ def test_load_log():
             datetime.datetime(2014, 8, 1, 20, 27, 44)
         )
     ]
+
 
 def test_load_log_plural():
     # create the string

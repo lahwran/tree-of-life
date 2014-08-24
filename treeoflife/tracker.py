@@ -30,7 +30,7 @@ class Tracker(object):
     def deserialize(self, files):
         """
         files is a dictionary of filename to filedata.
-        
+
         deserialize must allow for any key to be missing. If a file is not
         present in that dictionary, it should be like an empty string in that
         dictionary.

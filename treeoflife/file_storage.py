@@ -161,11 +161,12 @@ def serialize_to_str(root, is_root=True):
     lines = serialize(root, is_root=is_root)
     return u'\n'.join(lines) + u"\n"
 
+
 def dump_log(log):
     results = []
     for entry in log:
         path, event, date = entry
-        date_formatted = date.replace(microsecond=0).isoformat(' ')
+        date_formatted = date.replace(microsecond=0).isoformat(b' ')
         date_formatted += date.strftime(' %A')
         path_formatted = []
         for id, type, text in path:
@@ -178,6 +179,7 @@ def dump_log(log):
         result = '{} - {} - {}\n'.format(date_formatted, event, dumped_path)
         results.append(result)
     return ''.join(results)
+
 
 def load_log(data):
     lines = data.split('\n')
@@ -194,7 +196,8 @@ def load_log(data):
             if sep == '':
                 text = None
             path.append((id, type, text))
-        date = datetime.datetime.strptime(date_formatted, '%Y-%m-%d %H:%M:%S %A')
+        date = datetime.datetime.strptime(date_formatted,
+                '%Y-%m-%d %H:%M:%S %A')
         entry = path, event, date
         log.append(entry)
     return log

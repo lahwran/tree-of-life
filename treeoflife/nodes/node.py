@@ -674,6 +674,7 @@ class TreeRootNode(Node):
     and where eventtype is a string, and time is a datetime object.
     """
     can_activate = True
+
     def __init__(self, tracker, nodecreator, loading_in_progress=False):
         self.ids = weakref.WeakValueDictionary()
         self.nodecreator = nodecreator
