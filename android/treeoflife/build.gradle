@@ -194,11 +194,33 @@ android.applicationVariants.all {
     javaCompile.enabled = false
 }
 
-task generateFileListing {
+task copytreeoflife(type: Copy) {
+    def target = file("src/main/assets/app/")
+    def gitroot = fileTree("../../");
+    gitroot.include "ui/"
+    gitroot.include "treeoflife/"
+    gitroot.include "bin/"
+
+    gitroot.exclude "**/__pycache__/"
+    gitroot.exclude "**/*.pyc"
+    gitroot.exclude "**/.git/"
+    gitroot.exclude "**/.travis.yml"
+
+    from gitroot
+    into target
+    doFirst {
+        if (target.exists()) {
+            ["rm", "-rf", target.canonicalPath].execute().waitFor()
+        }
+    }
+}
+
+task generateFileListing(dependsOn: copytreeoflife) {
     def ft = fileTree("src/main/assets")
     ft.exclude "listing"
     ft.exclude "executables"
     ft.exclude "**/*.sw*"
+    ft.exclude "**/__pycache__/"
 
     inputs.files ft
     outputs.file "src/main/assets/listing"

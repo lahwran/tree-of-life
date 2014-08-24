@@ -78,7 +78,7 @@ void installPython(Activity ctx) {
     }
 }
 
-Process runPython(Context ctx, String codepath) {
+Process runPython(Context ctx, String codepath, String* args) {
     // get environment
     value env = HashMap<JavaString,JavaString>(System.getenv());
 
@@ -123,7 +123,8 @@ Process runPython(Context ctx, String codepath) {
     value codefile = File(ctx.filesDir, codepath);
     Log.d(logtag, "``pythonbinary`` ``codefile``");
     value process = Runtime.runtime.exec(toJavaStrings({
-        pythonbinary.canonicalPath, codefile.canonicalPath
+        pythonbinary.canonicalPath, codefile.canonicalPath,
+        *args
     }), flattened);
     return process;
 }
@@ -137,7 +138,8 @@ shared class MainActivity() extends Activity() {
         testthing();
 
         installPython(this);
-        value process = runPython(this, "testthing.py");
+        value process = runPython(this, "app/bin/treeoflife-server",
+                "--android", filesDir.canonicalPath);
         this.theprocess = process;
         process.errorStream.close();
         process.inputStream.close();

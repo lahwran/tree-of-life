@@ -400,6 +400,7 @@ argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
 argparser.add_argument("-e", "--editor", default="embedded", dest="editor")
+argparser.add_argument("--android", default=None, dest="android_root")
 
 
 class Restarter(object):
@@ -546,6 +547,15 @@ def main(restarter, args):
     ))
     os.chdir(projectroot)
     config = argparser.parse_args(args)
+    use_git = True
+    if config.android_root:
+        config.ignore_tests = True
+        config.path = os.path.join(config.android_root, "data")
+        use_git = False
+
+    directory = os.path.realpath(os.path.expanduser(config.path))
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
     if not config.ignore_tests:
         import pytest
@@ -562,7 +572,9 @@ def main(restarter, args):
 
     import treeoflife.nodes.import_all
 
-    ui = RemoteInterface(config, restarter, config.path, config.mainfile,
+    ui = RemoteInterface(
+            config, restarter,
+            config.path, config.mainfile, use_git=use_git,
             reactor=reactor)
     ui.load()
     ui.config.setdefault("max_width", 500)

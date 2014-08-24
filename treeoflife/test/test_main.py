@@ -60,7 +60,7 @@ def tpc():
         port = 12345
 
     clock = Clock()
-    tracker = RemoteInterface(Config, None, None, None,
+    tracker = RemoteInterface(Config, None, None, None, False,
             reactor=clock)
     protocol = NoIOProtocol(tracker, clock, allowed={"update_editor_running"})
     tracker.listeners.append(protocol)
@@ -210,7 +210,7 @@ def test_edit_embedded():
         port = 12345
 
     clock = Clock()
-    tracker = RemoteInterface(Config, None, None, None,
+    tracker = RemoteInterface(Config, None, None, None, False,
             reactor=clock)
     protocol = NoIOProtocol(tracker, clock, allowed={"update_editor_running"})
     tracker.listeners.append(protocol)
@@ -262,7 +262,7 @@ def test_receive_long_message():
         port = 12345
 
     clock = Clock()
-    tracker = RemoteInterface(Config, None, None, None,
+    tracker = RemoteInterface(Config, None, None, None, False,
             reactor=clock)
     protocol = Derp(tracker, clock, allowed={"update_editor_running"})
 

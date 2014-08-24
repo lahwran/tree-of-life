@@ -257,7 +257,7 @@ class SavingInterface(CommandInterface):
 
     # TODO: move this somewhere more sensible (it's fine here for a while)
 
-    def __init__(self, directory, main_file, **kw):
+    def __init__(self, directory, main_file, use_git, **kw):
         super(SavingInterface, self).__init__(**kw)
 
         if directory is None:
@@ -275,7 +275,10 @@ class SavingInterface(CommandInterface):
         )
         self.autosave_minutes = datetime.timedelta(minutes=5)
 
-        self.git = Git(self.save_dir)
+        if use_git:
+            self.git = Git(self.save_dir)
+        else:
+            self.git = None
 
     def load(self):
         if self.save_dir is None:
@@ -289,19 +292,21 @@ class SavingInterface(CommandInterface):
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
-        self.git.init()
+        if self.git is not None:
+            self.git.init()
 
         CommandInterface.save(self, self.save_dir)
 
-        self.git.add("config.json")
-        for filename in self.filenames:
-            self.git.add(os.path.join(self.save_dir, filename))
+        if self.git is not None:
+            self.git.add("config.json")
+            for filename in self.filenames:
+                self.git.add(os.path.join(self.save_dir, filename))
 
-        self.git.gitignore(["_*"])
-        self.git.add(".gitignore")
+            self.git.gitignore(["_*"])
+            self.git.add(".gitignore")
 
-        self.git.commit("Full save %s" %
-                datetime.datetime.now().strftime("%A %B %d %H:%M:%S %Y"))
+            self.git.commit("Full save %s" %
+                    datetime.datetime.now().strftime("%A %B %d %H:%M:%S %Y"))
         self.last_full_save = datetime.datetime.now()
 
     def auto_save(self):
