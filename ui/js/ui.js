@@ -63,19 +63,6 @@ function ui_controller($scope, backend, handlers, $timeout) {
 }
 
 var nodetypes = {
-    days: {templateurl: "partials/node-days.html"},
-    day: {
-        controller: function($scope) {
-            $scope.$watch("node.text", function(text) {
-                var matches = text.match(/([^ ]{3})[^ ]* ([0-9]+), ([0-9]+) ?(.*)/);
-                $scope.m = matches[1];
-                $scope.d = matches[2];
-                $scope.y = matches[3];
-                $scope.info = matches[4];
-            });
-        },
-        templateurl: "partials/node-date.html"
-    },
     event: {
         templateurl: "partials/node-event.html",
         controller: function($scope) {
