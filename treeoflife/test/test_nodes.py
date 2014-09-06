@@ -56,16 +56,16 @@ def test_activate_deactivate(monkeypatch, setdt):
         "task: \xfc3\n"
     })
 
-    setdt(2012, 10, 25)
+    setdt(2012, 10, 24, 0, 5)
     navigation._cmd("done", tracker.root)
     navigation._cmd("done", tracker.root)
 
     assert match(tracker.serialize()["life"], (
         "task#?????: \xfc1\n"
-        "    @finished: 1d after October 24, 2012 12:00:00 AM\n"
+        "    @finished: 5m after October 24, 2012 12:00:00 AM\n"
         "task#?????: \xfc2\n"
-        "    @finished: 0s after October 25, 2012 12:00:00 AM\n"
+        "    @finished: 0s after October 24, 2012 12:05:00 AM\n"
         "task#?????: \xfc3\n"
-        "    @started: October 25, 2012 12:00:00 AM\n"
+        "    @started: October 24, 2012 12:05:00 AM\n"
         "    @active\n"
     ))

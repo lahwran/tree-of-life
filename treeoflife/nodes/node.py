@@ -703,10 +703,10 @@ class TreeRootNode(Node):
             if func:
                 func(self)
 
-    def log_activation(self, deepestnode):
+    def log_event(self, deepestnode, event_type):
         path = [(node.id, node.node_type, node.text)
                 for node in list(deepestnode.iter_parents())[::-1]]
-        logitem = (path, "activation", datetime.datetime.now())
+        logitem = (path, event_type, datetime.datetime.now())
         self.log.append(logitem)
 
     def activate(self, node, force=False):
@@ -721,7 +721,7 @@ class TreeRootNode(Node):
                 return
 
         self.active_node = node
-        self.log_activation(self.active_node)
+        self.log_event(self.active_node, "activation")
         for parent_node in list(node.iter_parents())[::-1]:
             try:
                 parent_node.start()

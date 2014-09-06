@@ -2,29 +2,6 @@ import itertools
 from collections import deque
 from treeoflife.tracker import Tracker
 
-tracker = Tracker()
-tracker.deserialize({"life": open("/Users/lahwran/.treeoflife/life").read()})
-
-
-def by_iterator(node):
-    """
-    does not deal with any kind of changes at all.
-    - nodes becoming finished
-    - nodes being added
-    - nodes being removed
-    - nodes being moved
-
-    also doesn't deal with being read very well
-    """
-    generators = [(by_iterator(subnode)
-                    if len(subnode.children)
-                    else itertools.repeat(subnode))
-                    for subnode in node.children]
-
-    while True:
-        for g in generators:
-            yield g.next()
-
 
 def pairs(iterable):
     "from liblahwran"
@@ -40,10 +17,11 @@ def pairs(iterable):
 class ByLog(object):
     # this is currently not the same as by_iterator.
     # WHYYYYYYYYYYYYY???? I DONT GET IT PLS
-    def __init__(self, rootnode):
-        self.log = []
+    def __init__(self, rootnode, log):
+        self.local_log = []
         self._cache = {}
         self.rootnode = rootnode
+        self.main_log = log
 
     def next(self):
         # note: THIS IS AN INFINITE ITERATOR THAT LOGS EACH PASS
@@ -86,19 +64,27 @@ class ByLog(object):
         except KeyError:
             pass
 
-        for logitem in reversed(self.log):
+        iterator = itertools.chain(
+            reversed(self.local_log),
+            reversed(self.main_log)
+        )
+        # local log and main log are formatted differently
+        for logitem in iterator:
             path = logitem[0]
             maxindex = len(path) - 1
-            try:
-                index = path.index(parentid)
-            except ValueError:
+            index = None
+            for pathindex, pathitem in enumerate(path):
+                if pathitem[0] == parentid:
+                    index = pathindex
+                    break
+            if index is None:
                 continue
             if index == maxindex:
                 # last time the node's path was active, it was the active node;
                 # keep looking, maybe there was a time before that where
                 # its child was active
                 continue
-            result = path[index + 1]
+            result = path[index + 1][0]
             if not self._ischild(parentid, result):
                 # found a node that was active, but it's been moved or deleted
                 continue
@@ -109,21 +95,23 @@ class ByLog(object):
         return result
 
     def _logpath(self, deepestnode):
-        path = [node.id for node in list(deepestnode.iter_parents())[::-1]]
+        path = [(node.id,) for node in list(deepestnode.iter_parents())[::-1]]
         # later I'll want more things in the log items, like date scheduled
         # and stuff. log items will be added by node activation.
         logitem = [path]
-        self.log.append(logitem)
+        self.local_log.append(logitem)
         for parentid, childid in pairs(path):
             self._cache[parentid] = childid
 
     def __iter__(self):
         return self
 
-
+'''
+# some test code for demonstraton
 for x in itertools.islice(ByLog(tracker.root), 10000):
     print u" > ".join(
         unicode(z)
         for z
         in list(x.iter_parents())[::-1]
     ).encode("utf-8")
+'''

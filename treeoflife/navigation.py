@@ -1,10 +1,12 @@
 # FIXME: this file is kinda verbose right now, can be derepeated...
 
 from __future__ import unicode_literals, print_function
+import datetime
 
 from treeoflife.userinterface import command, Command
 from treeoflife import searching
 from treeoflife.util import HandlerDict
+from scheduler import ByLog
 
 
 def _cmd(name, root, text=""):
@@ -187,17 +189,30 @@ class ForceActivateCommand(PreviewCommand):
             self.results.append(result)
 
 
+class JumpResult(searching._NodeResult):
+    def produce_node(self):
+        self.node.root.log_event(self.node, "jump")
+        return self.node
+
+
 @command("done")
 @command("next")
 class DoneCommand(PreviewCommand):
     def __init__(self, root):
+        self.bylog = ByLog(root, root.log)
         self.query1 = searching.parse_single("> * :{can_activate}")
         self.query2 = searching.parse_single("-> :{can_activate}")
         self.query3 = searching.parse_single("< :{can_activate}")
 
-        results = self.query1(root.active_node).actions(creates=False)
-
         self.results = []
+        if (datetime.datetime.now() - self.find_last_jump(root)
+                > datetime.timedelta(minutes=30)):
+            self.results.append(
+                JumpResult(self.bylog.next(),
+                    actions=["activate"])
+            )
+
+        results = self.query1(root.active_node).actions(creates=False)
 
         for result in results:
             assert result.exists
@@ -223,3 +238,12 @@ class DoneCommand(PreviewCommand):
             assert result.exists
             result.actions[:] = ["finishactivate"]
             self.results.append(result)
+
+    def find_last_jump(self, root):
+        for path, event_type, time in reversed(root.log):
+            if event_type == "jump":
+                return time
+        for path, event_type, time in root.log:
+            if event_type == "activation":
+                return time
+        return datetime.datetime.now()
