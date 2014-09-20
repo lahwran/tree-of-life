@@ -32,7 +32,7 @@ def full_match(regex, *args):
 class LogNode(Node):
     children_of = ["fitness log"]
     allowed_children = []
-    preferred_parent = "< :{last} > fitness log"
+    preferred_parent = "<< > fitness log"
 
     options = (
         timefmt.DatetimeOption("time"),

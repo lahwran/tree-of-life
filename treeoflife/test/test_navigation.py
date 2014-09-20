@@ -18,14 +18,11 @@ def s(command):
 
 def test_createauto_todo_integration():
     tracker = Tracker(skeleton=False)
-    days = tracker.root.createchild("days")
-    day = days.createchild("day", "today")
-    tracker.root.activate(day)
     tracker.root.createchild("todo bucket", None)
 
     command = navigation.CreateAutoCommand("todo: \xfctest", tracker.root)
     assert command.results == [
-        searching._CreateResult(s(command), 0, day,
+        searching._CreateResult(s(command), 0, tracker.root,
                 actions=["do_nothing"])
     ]
 
