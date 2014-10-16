@@ -67,8 +67,11 @@
           <div ng-repeat="error in backend.errors" class="error">
             {{ error }}
           </div>
+          <div class="error">
+            <input type="range" ng-model="zoom" value="50" min="10" max="1600" style="width: 80%;"/>
+          </div>
           <div class="row">
-            <d4-timeline nodes="backend.event_queue" pool="pool" zoom="50"></d4-timeline>
+            <d4-timeline nodes="backend.event_queue" pool="pool" zoom="zoomi"></d4-timeline>
           </div>
           <div class="footer">
             <node pool="pool" node="pool.ids.root" toplevel></node>

@@ -28,6 +28,10 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, backend, handlers, $timeout) {
+    $scope.zoom = "50";
+    $scope.$watch("zoom", function(x) {
+        $scope.zoomi = parseFloat(x);
+    });
     $scope.charttest = [
         1, 2, 3, 4, 5];
     $scope.root = {
