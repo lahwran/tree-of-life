@@ -6,7 +6,8 @@ from twisted.internet.task import Clock
 import pytest
 import pprint
 
-from treeoflife.main import JSONProtocol, RemoteInterface
+from treeoflife.main import RemoteInterface
+from treeoflife.protocols import UIProtocol
 from treeoflife import editor_launch
 from treeoflife.test import util
 from treeoflife import userinterface
@@ -14,10 +15,10 @@ from treeoflife import userinterface
 # TODO: need to monkeypatch tempfile() to not clutter os temp directory
 
 
-class NoIOProtocol(JSONProtocol):
+class NoIOProtocol(UIProtocol):
     def __init__(self, *a, **kw):
         self.allowed = kw.pop("allowed")
-        JSONProtocol.__init__(self, *a, **kw)
+        UIProtocol.__init__(self, *a, **kw)
         self._is_transient_connection = True
         self.sent_messages = []
         self.accepted_messages = []
@@ -30,15 +31,15 @@ class NoIOProtocol(JSONProtocol):
 
     def update(self):
         if "update" in self.allowed:
-            return JSONProtocol.update(self)
+            return UIProtocol.update(self)
 
     def update_all(self):
         if "update_all" in self.allowed:
-            return JSONProtocol.update_all(self)
+            return UIProtocol.update_all(self)
 
     def update_editor_running(self):
         if "update_editor_running" in self.allowed:
-            return JSONProtocol.update_editor_running(self)
+            return UIProtocol.update_editor_running(self)
 
     def sendmessage(self, message):
         self.sent_messages.append(message)
@@ -50,7 +51,7 @@ class NoIOProtocol(JSONProtocol):
         if self.do_raise:
             raise
         else:
-            JSONProtocol.capture_error(self, e, message)
+            UIProtocol.capture_error(self, e, message)
 
 
 @pytest.fixture
