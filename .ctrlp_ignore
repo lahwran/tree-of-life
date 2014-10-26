@@ -1,0 +1,7 @@
+^.*(
+gradle/
+|build/
+|python-install/
+|assets/app/
+).*$
+|\.png$
