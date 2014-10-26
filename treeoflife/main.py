@@ -133,7 +133,7 @@ class Server(Factory):
         self.reactor = reactor
 
     def buildProtocol(self, addr):
-        return self.protocolclass(self.interface, self.reactor)
+        return self.protocolclass(self.tracker, self.reactor)
 
 
 argparser = argparse.ArgumentParser(description="run server")
