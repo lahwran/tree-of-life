@@ -271,10 +271,12 @@ class SyncProtocol(LineOnlyReceiver):
 
     def __init__(self, datasource):
         self.datasource = datasource
-        self.remote_hash_history = self.datasource.hash_history[:]
-        self.init_send_hash = None
-        self.init_send_hash_index = None
+        self.diverged_data = None
 
+        self.remote_hashes = None
+        self.init_remote_hash = None
+        self.init_remote_hash_index = None
+        self.init_diverged = False
 
     def connectionMade(self):
         """
@@ -304,10 +306,6 @@ class SyncProtocol(LineOnlyReceiver):
         handler(data)
 
     def message_currenthash(self, remotehash):
-        """
-        IMPORTANT: processing of this message must not start until we've sent
-        our own copy of it!
-        """
         found_index = None
 
         for rindex, value in enumerate(reversed(self.datasource.hash_history)):
@@ -318,26 +316,33 @@ class SyncProtocol(LineOnlyReceiver):
         if found_index is None:
             self.command(b"please_send", remotehash)
         else:
-            self.init_send_hash_index = found_index
-            self.init_send_hash = remotehash
+            self.init_remote_hash_index = found_index
+            self.init_remote_hash = remotehash
+            self.remote_hashes = self.datasource.hash_history[:]
 
     def message_please_send(self, localhash):
         if localhash != self.datasource.hash_history[-1]:
-            assert 0, "what do we do here?"
+            self.disconnect()  # bad state. let reconnection and such handle it
+            return
 
         message = b""
-        if self.init_send_hash is not None:
-            idx = self.init_send_hash_index
+        if self.init_remote_hash is not None:
+            idx = self.init_remote_hash_index
             hashes = self.datasource.hash_history[idx:]
-            assert hashes[0] == self.init_send_hash
-            assert all(type(x) == str for x in hashes)
+            assert hashes[0] == self.init_remote_hash
             message += b" ".join(hashes)
             del hashes
+
+            self.remote_hashes = self.datasource.hash_history[:]
+        else:
+            # diverged!
+            self.init_diverged = True
+            message += b" ".join(self.datasource.hash_history)
 
         d = self.datasource.data.encode("utf-8")
         assert type(d) == str
         message += b" "
-        message += zlib.compress(d).encode("base64")
+        message += zlib.compress(d).encode("base64").replace(b'\n', b'')
         del d
         
         self.command(b"history_and_data", message)
@@ -358,8 +363,23 @@ class SyncProtocol(LineOnlyReceiver):
         del b64
 
         h = hashlib.sha256(uncompressed).hexdigest()
+        assert hashes[-1] == h, "the other end sent derped data"
 
-        assert hashes[0] == self.datasource.hash_history[-1]
-        self.datasource.hash_history.extend(hashes[1:])
+        data_unicode = uncompressed.decode("utf-8")
+        
 
-        self.datasource.data = uncompressed.decode("utf-8")
+        if not self.init_diverged:
+            if hashes[0] != self.datasource.hash_history[-1]:
+                assert 0, "what do we do here?"
+
+            self.datasource.hash_history.extend(hashes[1:])
+            self.remote_hashes = self.datasource.hash_history[:]
+
+            self.datasource.data = data_unicode
+        else:
+            self.remote_hashes = hashes
+            self.diverged_data = data_unicode
+
+    def disconnect(self):
+        self.transport.loseConnection()
+

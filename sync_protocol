@@ -14,42 +14,57 @@ answer: forever until further notice
 
 fast-forward:
     obi-wan: abc def ghi jkl mno pqr stu
-    yoda: abc def ghi jkl mno pqr stu vwx yz
+    obi-wan doesn't know what shaak has
+
+    shaak: abc def ghi jkl mno pqr stu vwx yz
+    shaak doesn't know what obi-wan has
 
     on connect:
         obi-wan: CURRENT HASH stu
-        yoda:    CURRENT HASH yz
+        shaak:    CURRENT HASH yz
         obi-wan: HASH NOT KNOWN yz
-        yoda:    HASHES SINCE stu: vwx yz
-        yoda:    CURRENT DATA <blah blah>
+        shaak:    HASHES SINCE stu: vwx yz
+        shaak:    CURRENT DATA <blah blah>
         (obi-wan: acknowledge data?)
         init finished
 
     obi-wan: abc def ghi jkl mno pqr stu vwx yz
-    yoda: abc def ghi jkl mno pqr stu vwx yz
+    obi-wan knows what shaak has
+
+    shaak: abc def ghi jkl mno pqr stu vwx yz
+    shaak knows what obi-wan has
 
 equal:
     obi-wan: abc def ghi jkl mno pqr stu vwx yz
-    yoda: abc def ghi jkl mno pqr stu vwx yz
+    obi-wan doesn't know what shaak has
+
+    shaak: abc def ghi jkl mno pqr stu vwx yz
+    shaak doesn't know what obi-wan has
 
     on connect:
         obi-wan: CURRENT HASH yz
-        yoda:    CURRENT HASH yz
+        shaak:    CURRENT HASH yz
         init finished
 
-    obi-wan: abc def ghi jkl mno pqr stu vwx yz
-    yoda: abc def ghi jkl mno pqr stu vwx yz
+    obi-wan:    abc def ghi jkl mno pqr stu vwx yz
+    obi-wan knows what shaak has
+
+    shaak:      abc def ghi jkl mno pqr stu vwx yz
+    shaak knows what obi-wan has
 
 
 diverged:
     obi-wan: abc def ghi jkl mno pqr stu 123 456
-    yoda: abc def ghi jkl mno pqr stu vwx yz
+    obi-wan doesn't know what shaak has
+
+    shaak: abc def ghi jkl mno pqr stu vwx yz
+    shaak doesn't know what obi-wan has
 
     on connect:
         obi-wan: CURRENT HASH 456
-        yoda:    CURRENT HASH yz
+        shaak:    CURRENT HASH yz
         obi-wan: HASH NOT KNOWN yz
-        yoda:    HASH NOT KNOWN 456
+        shaak:    HASH NOT KNOWN 456
         -> if a node receives a hash not known and sent one, diverge is
             known
             -> this depends on current hash being the first message sent,
@@ -57,10 +72,10 @@ diverged:
                 emergent behavior will be correct.
         obi-wan: CURRENT DATA <blah blah>
                     AND HASH HISTORY <abc def ... vwx yz>
-        yoda:    CURRENT DATA <blah blah>
+        shaak:    CURRENT DATA <blah blah>
                     AND HASH HISTORY <abc def ... 123 456>
         (obi-wan: acknowledge data?)
-        (yoda: acknowledge data?)
+        (shaak: acknowledge data?)
         notify user of failed sync. store remote hash history and latest data.
 
     TODO: need to have hashes! binary search? log(n) back-and-forths!?
@@ -74,71 +89,74 @@ diverged:
             (send x[-1], x[-2], x[-4], x[-8], x[-16], x[-32]...)
 
     obi-wan: abc def ghi jkl mno pqr stu 123 456
-    yoda:    abc def ghi jkl mno pqr stu vwx yz
+    obi-wan knows what shaak has
+
+    shaak:    abc def ghi jkl mno pqr stu vwx yz
+    shaak knows what obi-wan has
 
     goal after resolve:
 
     obi-wan: abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
-    yoda:    abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+    shaak:    abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
 
 connected already-diverged user update:
-    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx
+    obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx
     obi-wan:                  abc def ghi jkl mno pqr stu 123
 
-    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
-    yoda:                     abc def ghi jkl mno pqr stu vwx +yz
+    shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
+    shaak:                     abc def ghi jkl mno pqr stu vwx +yz
 
     on event:
-        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [vwx]
+        shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [vwx]
 
-    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz
+    obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx yz
     obi-wan:                  abc def ghi jkl mno pqr stu 123
 
-    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
-    yoda:                     abc def ghi jkl mno pqr stu vwx yz
+    shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
+    shaak:                     abc def ghi jkl mno pqr stu vwx yz
 
 connected correct fast forward user update:
     obi-wan:  abc def ghi jkl mno pqr stu
-    yoda:     abc def ghi jkl mno pqr stu +vwx
+    shaak:     abc def ghi jkl mno pqr stu +vwx
 
     on event:
-        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
+        shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
     
     obi-wan:  abc def ghi jkl mno pqr stu vwx
-    yoda:     abc def ghi jkl mno pqr stu vwx
+    shaak:     abc def ghi jkl mno pqr stu vwx
 
 connected INCORRECT fast forward user update:
     (this will only happen if there's a bug, but those do happen)
 
-    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu oops
+    obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu oops
     obi-wan:                  abc def ghi jkl mno pqr stu oops
 
-    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu
-    yoda:                     abc def ghi jkl mno pqr stu +vwx
+    shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu
+    shaak:                     abc def ghi jkl mno pqr stu +vwx
 
 
     on event:
-        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
+        shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
         <obi-wan disconnects and reconnects>
 
 connected diverge resolve (resolving commit is 'asdf'):
-    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz
+    obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx yz
     obi-wan:                  abc def ghi jkl mno pqr stu 123 456
 
-    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456
-    yoda:                     abc def ghi jkl mno pqr stu vwx yz +123 +456 +asdf
+    shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456
+    shaak:                     abc def ghi jkl mno pqr stu vwx yz +123 +456 +asdf
 
     on event:
-        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [456, yz]
+        shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [456, yz]
         (obi-wan appends any missing hashes from
             chronologically-first - NOT LAST - common parent, in case
             of uncommunicated independent convergence)
 
-    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+    obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
     obi-wan:                  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
 
-    yoda:                     abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
-    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
+    shaak:                     abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+    shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
 
 note: current hash **ALWAYS** refers to the last user-induced change hash!
 **NEVER** to the hash of the current serialized data!
