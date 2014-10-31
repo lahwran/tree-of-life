@@ -1,6 +1,8 @@
 from __future__ import unicode_literals, print_function
 
 import time
+import hashlib
+import zlib
 import json
 import logging
 import datetime
@@ -48,6 +50,9 @@ class JSONProtocol(LineOnlyReceiver):
     def capture_error(self, err, message):
         pass
 
+    def sendmessage(self, message):
+        self.send_line(json.dumps(message))
+
     def line_received(self, line):
         try:
             document = json.loads(line)
@@ -92,9 +97,6 @@ class UIProtocol(JSONProtocol):
             except ValueError:
                 logger.exception("Error removing listener from listeners")
             logger.info("connection lost: %r", reason)
-
-    def sendmessage(self, message):
-        self.send_line(json.dumps(message))
 
     def update(self):
         if self.update_timeout is not None and self.update_timeout.active():
@@ -260,3 +262,104 @@ class UIProtocol(JSONProtocol):
             self.tracker.listeners.append(self)
         except Exception:
             logger.exception("Error sending info on connection")
+
+
+class SyncProtocol(LineOnlyReceiver):
+    """
+    See /sync_protocol for more information
+    """
+
+    def __init__(self, datasource):
+        self.datasource = datasource
+        self.remote_hash_history = self.datasource.hash_history[:]
+        self.init_send_hash = None
+        self.init_send_hash_index = None
+
+
+    def connectionMade(self):
+        """
+        send CURRENT HASH message
+        """
+
+        # REMEMBER: can't send binary hashes over line-based protocol, we'd
+        #           have a ((256-1)/256) ** 32 chance of cutting the hash,
+        #           about 11%, it'd break about one in 10
+        self.command(b"currenthash", self.datasource.hash_history[-1])
+
+    def command(self, command, data):
+        assert type(command) == str
+        assert type(data) == str
+        self.send_line(b"%s %s" % (command, data))
+
+    def line_received(self, line):
+        command, space, data = line.partition(b' ')
+        del line
+        
+        try:
+            handler = getattr(self, "message_%s" % command)
+        except AttributeError:
+            logger.error("Unrecognized sync message: %s", line)
+            return
+
+        handler(data)
+
+    def message_currenthash(self, remotehash):
+        """
+        IMPORTANT: processing of this message must not start until we've sent
+        our own copy of it!
+        """
+        found_index = None
+
+        for rindex, value in enumerate(reversed(self.datasource.hash_history)):
+            if value == remotehash:
+                found_index = len(self.datasource.hash_history) - (rindex + 1)
+                break
+
+        if found_index is None:
+            self.command(b"please_send", remotehash)
+        else:
+            self.init_send_hash_index = found_index
+            self.init_send_hash = remotehash
+
+    def message_please_send(self, localhash):
+        if localhash != self.datasource.hash_history[-1]:
+            assert 0, "what do we do here?"
+
+        message = b""
+        if self.init_send_hash is not None:
+            idx = self.init_send_hash_index
+            hashes = self.datasource.hash_history[idx:]
+            assert hashes[0] == self.init_send_hash
+            assert all(type(x) == str for x in hashes)
+            message += b" ".join(hashes)
+            del hashes
+
+        d = self.datasource.data.encode("utf-8")
+        assert type(d) == str
+        message += b" "
+        message += zlib.compress(d).encode("base64")
+        del d
+        
+        self.command(b"history_and_data", message)
+
+    def message_history_and_data(self, message):
+        # this can reach like 
+        values = message.split(b' ')
+        del message
+
+        data = values[-1]
+        hashes = values[:-1]
+        del values
+
+        b64 = data.decode("base64")
+        del data
+
+        uncompressed = zlib.decompress(b64)
+        del b64
+
+        h = hashlib.sha256(uncompressed).hexdigest()
+
+        assert hashes[0] == self.datasource.hash_history[-1]
+        self.datasource.hash_history.extend(hashes[1:])
+
+        self.datasource.data = uncompressed.decode("utf-8")

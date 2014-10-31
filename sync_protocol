@@ -1,0 +1,184 @@
+- multi-writer(!!!)
+- non-locking
+- transfer data to other nodes as soon as possible
+    - when connected, send a diff relative to a hash immediately, along with the hash of the new data
+- uses hash history, optionally with hash data for fast fast-forward deltas
+    - hash of data, not including parent hash
+- consider it a change ONLY WHEN USER-INDUCED! automatically triggered stuff is expected to be the same
+    across devices, so don't consider that to be a change
+
+
+TODO: how long should history be kept before we no longer try to do fast-forwards?
+answer: forever until further notice
+
+
+fast-forward:
+    obi-wan: abc def ghi jkl mno pqr stu
+    yoda: abc def ghi jkl mno pqr stu vwx yz
+
+    on connect:
+        obi-wan: CURRENT HASH stu
+        yoda:    CURRENT HASH yz
+        obi-wan: HASH NOT KNOWN yz
+        yoda:    HASHES SINCE stu: vwx yz
+        yoda:    CURRENT DATA <blah blah>
+        (obi-wan: acknowledge data?)
+        init finished
+
+    obi-wan: abc def ghi jkl mno pqr stu vwx yz
+    yoda: abc def ghi jkl mno pqr stu vwx yz
+
+equal:
+    obi-wan: abc def ghi jkl mno pqr stu vwx yz
+    yoda: abc def ghi jkl mno pqr stu vwx yz
+
+    on connect:
+        obi-wan: CURRENT HASH yz
+        yoda:    CURRENT HASH yz
+        init finished
+
+    obi-wan: abc def ghi jkl mno pqr stu vwx yz
+    yoda: abc def ghi jkl mno pqr stu vwx yz
+
+
+diverged:
+    obi-wan: abc def ghi jkl mno pqr stu 123 456
+    yoda: abc def ghi jkl mno pqr stu vwx yz
+
+    on connect:
+        obi-wan: CURRENT HASH 456
+        yoda:    CURRENT HASH yz
+        obi-wan: HASH NOT KNOWN yz
+        yoda:    HASH NOT KNOWN 456
+        -> if a node receives a hash not known and sent one, diverge is
+            known
+            -> this depends on current hash being the first message sent,
+                period. further timing/ordering guarantees are unnecessary,
+                emergent behavior will be correct.
+        obi-wan: CURRENT DATA <blah blah>
+                    AND HASH HISTORY <abc def ... vwx yz>
+        yoda:    CURRENT DATA <blah blah>
+                    AND HASH HISTORY <abc def ... 123 456>
+        (obi-wan: acknowledge data?)
+        (yoda: acknowledge data?)
+        notify user of failed sync. store remote hash history and latest data.
+
+    TODO: need to have hashes! binary search? log(n) back-and-forths!?
+            that's probably fine... maybe powers of two historical data?
+            or even screw it and send everything, let the other end figure
+            it out
+
+        ** based on the idea that the hashes will be small enough to not
+            worry about saving in the first place, just send them. if it
+            becomes a bottleneck, perhaps use powers of two optimization?
+            (send x[-1], x[-2], x[-4], x[-8], x[-16], x[-32]...)
+
+    obi-wan: abc def ghi jkl mno pqr stu 123 456
+    yoda:    abc def ghi jkl mno pqr stu vwx yz
+
+    goal after resolve:
+
+    obi-wan: abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
+    yoda:    abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+
+connected already-diverged user update:
+    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx
+    obi-wan:                  abc def ghi jkl mno pqr stu 123
+
+    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
+    yoda:                     abc def ghi jkl mno pqr stu vwx +yz
+
+    on event:
+        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [vwx]
+
+    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz
+    obi-wan:                  abc def ghi jkl mno pqr stu 123
+
+    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
+    yoda:                     abc def ghi jkl mno pqr stu vwx yz
+
+connected correct fast forward user update:
+    obi-wan:  abc def ghi jkl mno pqr stu
+    yoda:     abc def ghi jkl mno pqr stu +vwx
+
+    on event:
+        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
+    
+    obi-wan:  abc def ghi jkl mno pqr stu vwx
+    yoda:     abc def ghi jkl mno pqr stu vwx
+
+connected INCORRECT fast forward user update:
+    (this will only happen if there's a bug, but those do happen)
+
+    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu oops
+    obi-wan:                  abc def ghi jkl mno pqr stu oops
+
+    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu
+    yoda:                     abc def ghi jkl mno pqr stu +vwx
+
+
+    on event:
+        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
+        <obi-wan disconnects and reconnects>
+
+connected diverge resolve (resolving commit is 'asdf'):
+    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz
+    obi-wan:                  abc def ghi jkl mno pqr stu 123 456
+
+    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456
+    yoda:                     abc def ghi jkl mno pqr stu vwx yz +123 +456 +asdf
+
+    on event:
+        yoda: CURRENT DATA <blah blah> WITH PARENT HASHES [456, yz]
+        (obi-wan appends any missing hashes from
+            chronologically-first - NOT LAST - common parent, in case
+            of uncommunicated independent convergence)
+
+    obi-wan thinks yoda has:  abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+    obi-wan:                  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
+
+    yoda:                     abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
+    yoda thinks obi-wan has:  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
+
+note: current hash **ALWAYS** refers to the last user-induced change hash!
+**NEVER** to the hash of the current serialized data!
+
+procedural protocol:
+    on HASH ``hash`` UNKNOWN, PLEASE SEND DATA message:
+        if we requested data ourselves:
+            diverged data!
+            save that we had diverged data on connection init
+
+        send CURRENT DATA message
+
+    on HASHES SINCE hash ARE hashes:
+        assert that hash is our most recent hash
+        append hashes to our hash history
+
+    on CURRENT DATA message:
+        TODO: rebroadcast (for 3+ nodes)
+        if we had diverged data on connection init:
+            save to "diverged data" staging area, warn user
+        otherwise:
+            set our current data to received current data
+            append remote current hash to our hash history
+
+    on user-induced data change:
+        send CURRENT DATA WITH PARENT HASHES message
+
+    on CURRENT DATA WITH PARENT HASH[ES] message:
+        TODO: rebroadcast (for 3+ nodes)
+        if our current hash is not in the provided hashes:
+            reconnect, let connection init fix it
+        otherwise:
+            set our current data to received current data
+            append remote current hash to our hash history
+            
+    on DIVERGED DATA message:
+        save remote diverged data to staging area, warn user
+
+
+    to resolve diverged data:
+        add both parent hashes to history, if not already present
+        add newly repaired data to end
+        send CURRENT DATA WITH PARENT HASHES message
