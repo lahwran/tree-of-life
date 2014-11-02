@@ -12,7 +12,7 @@ TODO: how long should history be kept before we no longer try to do fast-forward
 answer: forever until further notice
 
 
-fast-forward:
+IMPLEMENTED: fast-forward:
     obi-wan: abc def ghi jkl mno pqr stu
     obi-wan doesn't know what shaak has
 
@@ -34,7 +34,7 @@ fast-forward:
     shaak: abc def ghi jkl mno pqr stu vwx yz
     shaak knows what obi-wan has
 
-equal:
+IMPLEMENTED: equal:
     obi-wan: abc def ghi jkl mno pqr stu vwx yz
     obi-wan doesn't know what shaak has
 
@@ -53,7 +53,7 @@ equal:
     shaak knows what obi-wan has
 
 
-diverged:
+IMPLEMENTED: diverged:
     obi-wan: abc def ghi jkl mno pqr stu 123 456
     obi-wan doesn't know what shaak has
 
@@ -115,13 +115,13 @@ connected already-diverged user update:
     shaak thinks obi-wan has:  abc def ghi jkl mno pqr stu 123
     shaak:                     abc def ghi jkl mno pqr stu vwx yz
 
-connected correct fast forward user update:
+IMPLEMENTED: connected correct fast forward user update:
     obi-wan:  abc def ghi jkl mno pqr stu
     shaak:     abc def ghi jkl mno pqr stu +vwx
 
     on event:
         shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [stu]
-    
+
     obi-wan:  abc def ghi jkl mno pqr stu vwx
     shaak:     abc def ghi jkl mno pqr stu vwx
 
@@ -161,7 +161,7 @@ connected diverge resolve (resolving commit is 'asdf'):
 note: current hash **ALWAYS** refers to the last user-induced change hash!
 **NEVER** to the hash of the current serialized data!
 
-procedural protocol:
+procedural protocol notes:
     on HASH ``hash`` UNKNOWN, PLEASE SEND DATA message:
         if we requested data ourselves:
             diverged data!
@@ -182,7 +182,7 @@ procedural protocol:
             append remote current hash to our hash history
 
     on user-induced data change:
-        send CURRENT DATA WITH PARENT HASHES message
+         fullsend CURRENT DATA WITH PARENT HASHES message
 
     on CURRENT DATA WITH PARENT HASH[ES] message:
         TODO: rebroadcast (for 3+ nodes)

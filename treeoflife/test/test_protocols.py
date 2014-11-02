@@ -38,26 +38,14 @@ def transmit(source, dest):
     print()
 
 
+def makesyncdata(name, history):
+    return treeoflife.protocols.SyncData(name,
+            [usha256(x) for x in history], history[-1])
+
+
 def usha256(data):
     assert type(data) == unicode
     return hashlib.sha256(data.encode("utf-8")).hexdigest()
-
-
-class DataSource(object):
-    def __init__(self, name, data_history):
-        # doesn't keep any but the latest data
-
-        self.name = name
-        self.hash_history = [usha256(x) for x in data_history]
-        self.data = data_history[-1]
-
-    def update(self, newdata):
-        self.data = newdata
-        self.hash_history.append(usha256(newdata))
-
-    def __eq__(self, other):
-        return (other.hash_history == self.hash_history
-                and self.data == other.data)
 
 
 # TODO: later reconvergence can have weird effects, where both sides know each
@@ -67,7 +55,7 @@ class DataSource(object):
 def test_sync_init():
     # easier to keep track of story characters mentally
 
-    shaakti_data = DataSource("shaakti",
+    shaakti_data = makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",
@@ -78,7 +66,7 @@ def test_sync_init():
     shaakti.connectionMade()
     assert shaakti.remote_hashes is None
 
-    obiwan_data = DataSource("obiwan",
+    obiwan_data = makesyncdata("obiwan",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data"]
@@ -109,9 +97,16 @@ def test_sync_init():
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == []
 
+    assert obiwan_data == makesyncdata("expected",
+        ["\u2028 first data",
+        "\u2028 second data",
+        "\u2028 third data",
+        "\u2028 fourth data",
+        "\u2028 fifth data",]
+    )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 5
-    assert obiwan_data.data == "\u2028 fifth data"
+    assert obiwan_data.data == "\u2028 fifth data".encode("utf-8")
     assert obiwan.remote_hashes == shaakti.remote_hashes
 
     assert obiwan.remote_hashes is not obiwan_data.hash_history
@@ -121,7 +116,7 @@ def test_sync_init():
 def test_sync_init_uptodate():
     # easier to keep track of story characters mentally
 
-    shaakti_data = DataSource("shaakti",
+    shaakti_data = makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",]
@@ -130,7 +125,7 @@ def test_sync_init_uptodate():
     shaakti.connectionMade()
     assert shaakti.remote_hashes is None
 
-    obiwan_data = DataSource("obiwan",
+    obiwan_data = makesyncdata("obiwan",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data"]
@@ -151,9 +146,14 @@ def test_sync_init_uptodate():
     transmit(obiwan, shaakti)
     assert shaakti.mqueue == []
 
+    assert obiwan_data == makesyncdata("expected",
+        ["\u2028 first data",
+        "\u2028 second data",
+        "\u2028 third data",]
+    )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 3
-    assert obiwan_data.data == "\u2028 third data"
+    assert obiwan_data.data == "\u2028 third data".encode("utf-8")
     assert obiwan.remote_hashes == shaakti.remote_hashes
 
     assert obiwan.remote_hashes is not obiwan_data.hash_history
@@ -161,7 +161,7 @@ def test_sync_init_uptodate():
 
 
 def test_sync_please_send_race():
-    shaakti_data = DataSource("shaakti",
+    shaakti_data = makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",
@@ -170,7 +170,7 @@ def test_sync_please_send_race():
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
 
-    obiwan_data = DataSource("obiwan",
+    obiwan_data = makesyncdata("obiwan",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data"]
@@ -191,7 +191,7 @@ def test_sync_please_send_race():
 
 
 def test_init_diverged():
-    shaakti_data = DataSource("shaakti",
+    shaakti_data = makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",
@@ -201,7 +201,7 @@ def test_init_diverged():
     shaakti = SyncProtocol(shaakti_data)
 
     
-    obiwan_data = DataSource("obiwan",
+    obiwan_data = makesyncdata("obiwan",
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",
@@ -238,8 +238,8 @@ def test_init_diverged():
     transmit(obiwan, shaakti)
     assert shaakti.remote_hashes == obiwan_data.hash_history
     assert shaakti.init_diverged
-    assert shaakti.diverged_data == "\u2028 other diverged two"
-    assert shaakti_data.data == "\u2028 diverged two"
+    assert shaakti.diverged_data == "\u2028 other diverged two".encode("utf-8")
+    assert shaakti_data.data == "\u2028 diverged two".encode("utf-8")
 
     expected_data = zlib.compress("\u2028 diverged two".encode("utf-8"))
     assert shaakti.mqueue == [
@@ -250,6 +250,47 @@ def test_init_diverged():
     ]
 
     transmit(shaakti, obiwan)
-    assert obiwan.diverged_data == "\u2028 diverged two"
+    assert obiwan.diverged_data == "\u2028 diverged two".encode("utf-8")
     assert obiwan.remote_hashes == shaakti_data.hash_history
-    assert obiwan_data.data == "\u2028 other diverged two"
+    assert obiwan_data.data == "\u2028 other diverged two".encode("utf-8")
+
+
+def test_connected_update():
+    init_data = ["\u2028 first data",
+        "\u2028 second data",
+        "\u2028 third data",]
+    shaakti_data = makesyncdata("shaakti", list(init_data))
+    shaakti = SyncProtocol(shaakti_data)
+    shaakti.connectionMade()
+
+    obiwan_data = makesyncdata("obiwan", list(init_data))
+    obiwan = SyncProtocol(obiwan_data)
+    obiwan.connectionMade()
+
+    transmit(shaakti, obiwan)
+    transmit(obiwan, shaakti)
+
+    assert shaakti.mqueue == []
+
+    # ... some time later ...
+
+    shaakti_data.update("\u2028 fourth data")
+    expected_data = zlib\
+            .compress("\u2028 fourth data".encode("utf-8"))\
+            .encode("base64").replace(b'\n', b'')
+    assert shaakti.mqueue == [
+        b"new_data {parenthash} {compressed_data}".format(
+            parenthash=usha256("\u2028 third data"),
+            compressed_data=expected_data,
+        )
+    ]
+    transmit(shaakti, obiwan)
+    assert obiwan.mqueue == []
+
+    assert obiwan_data == makesyncdata("expected",
+        ["\u2028 first data",
+        "\u2028 second data",
+        "\u2028 third data",
+        "\u2028 fourth data",]
+    )
+    assert obiwan_data == shaakti_data
