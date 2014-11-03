@@ -470,7 +470,7 @@ class SyncData(object):
         assert type(data) == unicode
         self.data = data.encode('utf-8')
         self.hash_history = hash_history
-        self.sync_connections = []
+        self.connections = {}
 
     def update(self, newdata, resolve_diverge=None):
         # TODO: call this from user updates
@@ -488,7 +488,7 @@ class SyncData(object):
         self.hash_history.append(
             hashlib.sha256(self.data).hexdigest()
         )
-        for connection in self.sync_connections:
+        for connection in self.connections.values():
             # TODO: this compresses and base64-encodes once per connection.
             # is it better to compress and b64-encode on user change?
             # TODO: don't send if we think it's up to date
