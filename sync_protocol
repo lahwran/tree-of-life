@@ -99,7 +99,7 @@ IMPLEMENTED: diverged:
     obi-wan: abc def ghi jkl mno pqr stu 123 456 vwx yz asdf
     shaak:    abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
 
-connected already-diverged user update:
+IMPLEMENTED: connected already-diverged user update:
     obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx
     obi-wan:                  abc def ghi jkl mno pqr stu 123
 
@@ -125,7 +125,7 @@ IMPLEMENTED: connected correct fast forward user update:
     obi-wan:  abc def ghi jkl mno pqr stu vwx
     shaak:     abc def ghi jkl mno pqr stu vwx
 
-connected INCORRECT fast forward user update:
+IMPLEMENTED: connected INCORRECT fast forward user update:
     (this will only happen if there's a bug, but those do happen)
 
     obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu oops
@@ -148,9 +148,6 @@ connected diverge resolve (resolving commit is 'asdf'):
 
     on event:
         shaak: CURRENT DATA <blah blah> WITH PARENT HASHES [456, yz]
-        (obi-wan appends any missing hashes from
-            chronologically-first - NOT LAST - common parent, in case
-            of uncommunicated independent convergence)
 
     obi-wan thinks shaak has:  abc def ghi jkl mno pqr stu vwx yz 123 456 asdf
     obi-wan:                  abc def ghi jkl mno pqr stu 123 456 vwx yz asdf

@@ -276,7 +276,10 @@ class SyncProtocol(LineOnlyReceiver):
         self.remote_hashes = None
         self.init_remote_hash = None
         self.init_remote_hash_index = None
-        self.init_diverged = False
+        self.diverged = False
+
+        self.remote_name = None
+        self.initializing = True
 
     def connectionMade(self):
         """
@@ -286,16 +289,36 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
+        protocolversions = b"1"
+        self.command(b"connect", self.datasource.name.encode("utf-8")
+                                + " " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
-        self.datasource.sync_connections.append(self)
 
     def connectionLost(self, reason):
-        self.datasource.sync_connections.remove(self)
+        if self.datasource.connections.get(self.remote_name, None) is self:
+            del self.datasource.connections[self.remote_name]
 
     def command(self, command, data):
         assert type(command) == str
         assert type(data) == str
         self.send_line(b"%s %s" % (command, data))
+
+    def init_finished(self, hashes=None):
+        if self.remote_name is None:
+            # failure to send connect message
+            self.disconnect()
+            raise BadProtocolWhatever
+
+        if hashes is not None:
+            self.remote_hashes = hashes
+        else:
+            self.remote_hashes = self.datasource.hash_history[:]
+
+        existing = self.datasource.connections.get(self.remote_name, None)
+        if existing is not None:
+            # TODO: disconnect existing or...?
+            pass
+        self.datasource.connections[self.remote_name] = self
 
     def line_received(self, line):
         command, space, data = line.partition(b' ')
@@ -308,6 +331,17 @@ class SyncProtocol(LineOnlyReceiver):
             return
 
         handler(data)
+
+    #
+    #     MESSAGE HANDLERS
+    #
+
+    def message_connect(self, remote_info):
+        remote_name, space, protocolversions = remote_info.partition(b' ')
+        self.remote_name = remote_name.decode("utf-8")
+
+        # if ever needed: versions = protocolversions.split(',')
+        # ... then do something with it ...
 
     def message_currenthash(self, remotehash):
         found_index = None
@@ -337,10 +371,10 @@ class SyncProtocol(LineOnlyReceiver):
             message += b" ".join(hashes)
             del hashes
 
-            self.remote_hashes = self.datasource.hash_history[:]
+            self.init_finished()
         else:
             # diverged!
-            self.init_diverged = True
+            self.diverged = True
             message += b" ".join(self.datasource.hash_history)
 
         message += b" "
@@ -364,17 +398,19 @@ class SyncProtocol(LineOnlyReceiver):
         h = hashlib.sha256(uncompressed).hexdigest()
         assert hashes[-1] == h, "the other end sent derped data"
 
-        if not self.init_diverged:
+        if not self.diverged:
             if hashes[0] != self.datasource.hash_history[-1]:
                 assert 0, "what do we do here?"
 
             self.datasource.hash_history.extend(hashes[1:])
-            self.remote_hashes = self.datasource.hash_history[:]
+            self.init_finished()
 
             self.datasource.data = uncompressed
+            # TODO: parse data into tree
         else:
             # TODO: set self.datasource.diverges[self.remote_name]
-            self.remote_hashes = hashes
+            # TODO: save to diverged data dir, inform user, etc
+            self.init_finished(hashes)
             self.diverged_data = uncompressed
 
     def message_new_data(self, message):
@@ -382,22 +418,25 @@ class SyncProtocol(LineOnlyReceiver):
         uncompressed = _decode_data(data)
         h = hashlib.sha256(uncompressed).hexdigest()
 
-        if not self.init_diverged:
+        if not self.diverged:
             if self.datasource.hash_history[-1] not in hashes:
-                assert 0, "what do we do here?"
+                # TODO: big flashy warning somewhere!
+                self.disconnect()
+                return
 
             self.datasource.hash_history.append(h)
             self.remote_hashes.append(h)
 
             self.datasource.data = uncompressed
+            # TODO: parse data into tree
         else:
             # TODO: set self.datasource.diverges[self.remote_name]
+            # TODO: update diverged data dir, blah blah etc
             self.remote_hashes.append(h)
             self.diverged_data = uncompressed
 
-    def data_changed(self):
+    def data_changed(self, parents):
         d = _encode_data(self.datasource.data)
-        parents = [self.datasource.hash_history[-2]]
 
         self.command(b"new_data",
                 b" ".join(parents) + b" " + d)
@@ -426,15 +465,26 @@ class SyncData(object):
     def __init__(self, name, hash_history, data):
         # doesn't keep any but the latest data
 
+        self.diverges = {}
         self.name = name
         assert type(data) == unicode
         self.data = data.encode('utf-8')
         self.hash_history = hash_history
         self.sync_connections = []
 
-    def update(self, newdata):
+    def update(self, newdata, resolve_diverge=None):
+        # TODO: call this from user updates
         assert type(newdata) == unicode
         self.data = newdata.encode("utf-8")
+
+        parents = [self.hash_history[-1]]
+
+        if resolve_diverge:
+            connection = self.connections[resolve_diverge]
+            hashes = self.slice_common_parent(connection)
+            parents.append(hashes[-1])
+            self.hash_history.extend(hashes)
+
         self.hash_history.append(
             hashlib.sha256(self.data).hexdigest()
         )
@@ -442,9 +492,11 @@ class SyncData(object):
             # TODO: this compresses and base64-encodes once per connection.
             # is it better to compress and b64-encode on user change?
             # TODO: don't send if we think it's up to date
-            connection.data_changed()
+            connection.data_changed(parents)
 
-    # TODO: rebroadcast
+    def 
+
+    # TODO: rebroadcast to other nodes
 
     def __eq__(self, other):
         return (other.hash_history == self.hash_history
