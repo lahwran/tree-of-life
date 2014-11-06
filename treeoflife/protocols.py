@@ -264,6 +264,11 @@ class UIProtocol(JSONProtocol):
             logger.exception("Error sending info on connection")
 
 
+def sha256(data):
+    assert type(data) == str
+    return hashlib.sha256(data).hexdigest()[:8]
+
+
 class SyncProtocol(LineOnlyReceiver):
     """
     See /sync_protocol for more information
@@ -291,7 +296,7 @@ class SyncProtocol(LineOnlyReceiver):
         #           about 11%, it'd break about one in 10
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
-                                + " " + protocolversions)
+                                + b" " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
 
     def connectionLost(self, reason):
@@ -356,7 +361,7 @@ class SyncProtocol(LineOnlyReceiver):
         else:
             self.init_remote_hash_index = found_index
             self.init_remote_hash = remotehash
-            self.remote_hashes = self.datasource.hash_history[:]
+            self.init_finished()
 
     def message_please_send(self, localhash):
         if localhash != self.datasource.hash_history[-1]:
@@ -395,7 +400,7 @@ class SyncProtocol(LineOnlyReceiver):
         data, hashes = self._unpack_update(message)
         uncompressed = _decode_data(data)
 
-        h = hashlib.sha256(uncompressed).hexdigest()
+        h = sha256(uncompressed)
         assert hashes[-1] == h, "the other end sent derped data"
 
         if not self.diverged:
@@ -416,19 +421,26 @@ class SyncProtocol(LineOnlyReceiver):
     def message_new_data(self, message):
         data, hashes = self._unpack_update(message)
         uncompressed = _decode_data(data)
-        h = hashlib.sha256(uncompressed).hexdigest()
+        h = sha256(uncompressed)
 
-        if not self.diverged:
-            if self.datasource.hash_history[-1] not in hashes:
-                # TODO: big flashy warning somewhere!
-                self.disconnect()
-                return
+        if self.datasource.hash_history[-1] in hashes:
+            if self.diverged:
+                self.diverged = False
+                self.diverged_data = None
+                sliced = slice_common_parent(
+                        self.datasource.hash_history,
+                        self.remote_hashes)
+                self.datasource.hash_history.extend(sliced)
 
             self.datasource.hash_history.append(h)
             self.remote_hashes.append(h)
 
             self.datasource.data = uncompressed
             # TODO: parse data into tree
+        elif not self.diverged:
+            # TODO: big flashy warning somewhere!
+            self.disconnect()
+            return
         else:
             # TODO: set self.datasource.diverges[self.remote_name]
             # TODO: update diverged data dir, blah blah etc
@@ -460,6 +472,21 @@ def _decode_data(base64_bytes):
     del b64
     return uncompressed
 
+def _hash_age_dictionary(hash_history):
+    return dict((value, index)
+            for (index, value)
+            in enumerate(hash_history))
+
+def slice_common_parent(local_history, remote_history):
+    # have to be able to deal with unaligned ordering
+    # dict() will use the last value if there are multiple, thereby giving us maximum
+    # index, which is exactly what we want
+    theirs = _hash_age_dictionary(remote_history)
+    ours = _hash_age_dictionary(local_history)
+    overlap = theirs.viewkeys() & ours.viewkeys()
+    maxval = max(theirs[key] for key in overlap)
+    return remote_history[maxval+1:]
+
 
 class SyncData(object):
     def __init__(self, name, hash_history, data):
@@ -481,20 +508,21 @@ class SyncData(object):
 
         if resolve_diverge:
             connection = self.connections[resolve_diverge]
-            hashes = self.slice_common_parent(connection)
-            parents.append(hashes[-1])
-            self.hash_history.extend(hashes)
+            hashes = slice_common_parent(
+                    self.hash_history,
+                    connection.remote_hashes)
+            if hashes:
+                parents.append(hashes[-1])
+                self.hash_history.extend(hashes)
 
         self.hash_history.append(
-            hashlib.sha256(self.data).hexdigest()
+            sha256(self.data)
         )
         for connection in self.connections.values():
             # TODO: this compresses and base64-encodes once per connection.
             # is it better to compress and b64-encode on user change?
             # TODO: don't send if we think it's up to date
             connection.data_changed(parents)
-
-    def 
 
     # TODO: rebroadcast to other nodes
 

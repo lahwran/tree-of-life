@@ -7,6 +7,10 @@ import treeoflife.protocols
 disconnected = object()
 
 class SyncProtocol(treeoflife.protocols.SyncProtocol):
+    def connectionMade(self):
+        treeoflife.protocols.SyncProtocol.connectionMade(self)
+        print()
+
     def send_line(self, line):
         self.mqueue = getattr(self, "mqueue", [])
         assert disconnected not in self.mqueue
@@ -20,13 +24,15 @@ class SyncProtocol(treeoflife.protocols.SyncProtocol):
 
 def check_disconnect(source, dest):
     if disconnected in dest.mqueue and disconnected not in source.mqueue:
+        print(dest.datasource.name.upper(), "DISCONNECTED")
+        print()
+
         source.mqueue = [disconnected]
         source.connectionLost(None)
         return True
     return False
 
 def transmit(source, dest):
-    print()
     for message in source.mqueue:
         if check_disconnect(source, dest):
             break
@@ -37,7 +43,6 @@ def transmit(source, dest):
     else:
         source.mqueue = []
         check_disconnect(source, dest)
-    print()
 
 
 def makesyncdata(name, history):
@@ -47,7 +52,7 @@ def makesyncdata(name, history):
 
 def usha256(data):
     assert type(data) == unicode
-    return hashlib.sha256(data.encode("utf-8")).hexdigest()
+    return hashlib.sha256(data.encode("utf-8")).hexdigest()[:8]
 
 
 # TODO: later reconvergence can have weird effects, where both sides know each
@@ -145,11 +150,18 @@ def test_sync_init_uptodate():
     assert obiwan.remote_hashes is None
 
     # TODO: this leaves possibility of ordering bugs
-    assert obiwan.mqueue == [b"currenthash %s" % usha256("\u2028 third data")]
-    assert shaakti.mqueue == [b"currenthash %s" % usha256("\u2028 third data")]
+    assert obiwan.mqueue == [
+        b"connect obiwan 1",
+        b"currenthash %s" % usha256("\u2028 third data")
+    ]
+    assert shaakti.mqueue == [
+        b"connect shaakti 1",
+        b"currenthash %s" % usha256("\u2028 third data")
+    ]
 
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == [
+        b"connect obiwan 1",
         b"currenthash {0}".format(usha256("\u2028 third data")),
     ]
 
@@ -234,7 +246,7 @@ def test_init_diverged():
     ]
 
     transmit(obiwan, shaakti)
-    assert shaakti.mqueue[1:] == [
+    assert shaakti.mqueue[2:] == [
         b"please_send {0}".format(usha256("\u2028 other diverged two"))
     ]
     assert shaakti.remote_hashes is None
@@ -484,17 +496,15 @@ def test_disconnected_diverge_resolve():
     transmit(shaakti, obiwan)
     transmit(obiwan, shaakti)
     transmit(shaakti, obiwan)
-    obiwan.disconnect()
     shaakti.disconnect()
     transmit(obiwan, shaakti)
     assert shaakti.mqueue == [disconnected]
     assert obiwan.mqueue == [disconnected]
-    assert shaakti not in shaakti_data.sync_connections
-    assert obiwan not in obiwan_data.sync_connections
+    assert not shaakti_data.connections
+    assert not obiwan_data.connections
 
 
     # some time later...
-
     shaakti_data.update("\u2028 resolve divergence",
             resolve_diverge="obiwan")
 
