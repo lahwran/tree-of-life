@@ -266,7 +266,10 @@ def test_init_diverged():
     transmit(obiwan, shaakti)
     assert shaakti.remote_hashes == obiwan_data.hash_history
     assert shaakti.diverged
-    assert shaakti.diverged_data == "\u2028 other diverged two".encode("utf-8")
+    assert shaakti_data.diverges["obiwan"] == {
+        "data": "\u2028 other diverged two".encode("utf-8"),
+        "history": obiwan_data.hash_history
+    }
     assert shaakti_data.data == "\u2028 diverged two".encode("utf-8")
 
     expected_data = zlib.compress("\u2028 diverged two".encode("utf-8"))
@@ -278,7 +281,11 @@ def test_init_diverged():
     ]
 
     transmit(shaakti, obiwan)
-    assert obiwan.diverged_data == "\u2028 diverged two".encode("utf-8")
+    assert obiwan_data.diverges["shaakti"] == {
+        "data": "\u2028 diverged two".encode("utf-8"),
+        "history": shaakti_data.hash_history,
+    }
+
     assert obiwan.remote_hashes == shaakti_data.hash_history
     assert obiwan_data.data == "\u2028 other diverged two".encode("utf-8")
 
@@ -368,7 +375,10 @@ def test_connected_already_diverged_update():
     transmit(obiwan, shaakti)
 
     assert shaakti.mqueue == []
-    assert shaakti.diverged_data == "\u2028 other diverged three".encode("utf-8")
+    assert shaakti_data.diverges["obiwan"] == {
+        "data": "\u2028 other diverged three".encode("utf-8"),
+        "history": obiwan_data.hash_history
+    }
     assert shaakti.remote_hashes == obiwan_data.hash_history
 
 
@@ -525,7 +535,7 @@ def test_disconnected_diverge_resolve():
 
     transmit(shaakti, obiwan)
 
-    assert obiwan.mqueue[-1] == [
+    assert obiwan.mqueue[-1:] == [
         b"please_send {0}".format(usha256("\u2028 resolve divergence"))
     ]
     transmit(obiwan, shaakti)

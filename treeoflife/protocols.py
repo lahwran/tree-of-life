@@ -276,7 +276,6 @@ class SyncProtocol(LineOnlyReceiver):
 
     def __init__(self, datasource):
         self.datasource = datasource
-        self.diverged_data = None
 
         self.remote_hashes = None
         self.init_remote_hash = None
@@ -318,6 +317,7 @@ class SyncProtocol(LineOnlyReceiver):
             self.remote_hashes = hashes
         else:
             self.remote_hashes = self.datasource.hash_history[:]
+            self.datasource.not_diverged(self)
 
         existing = self.datasource.connections.get(self.remote_name, None)
         if existing is not None:
@@ -413,10 +413,9 @@ class SyncProtocol(LineOnlyReceiver):
             self.datasource.data = uncompressed
             # TODO: parse data into tree
         else:
-            # TODO: set self.datasource.diverges[self.remote_name]
             # TODO: save to diverged data dir, inform user, etc
             self.init_finished(hashes)
-            self.diverged_data = uncompressed
+            self.datasource.record_diverge(self, uncompressed)
 
     def message_new_data(self, message):
         data, hashes = self._unpack_update(message)
@@ -424,13 +423,7 @@ class SyncProtocol(LineOnlyReceiver):
         h = sha256(uncompressed)
 
         if self.datasource.hash_history[-1] in hashes:
-            if self.diverged:
-                self.diverged = False
-                self.diverged_data = None
-                sliced = slice_common_parent(
-                        self.datasource.hash_history,
-                        self.remote_hashes)
-                self.datasource.hash_history.extend(sliced)
+            self.datasource.not_diverged(self)
 
             self.datasource.hash_history.append(h)
             self.remote_hashes.append(h)
@@ -442,10 +435,10 @@ class SyncProtocol(LineOnlyReceiver):
             self.disconnect()
             return
         else:
-            # TODO: set self.datasource.diverges[self.remote_name]
             # TODO: update diverged data dir, blah blah etc
+            assert self.remote_hashes[-1] in hashes
             self.remote_hashes.append(h)
-            self.diverged_data = uncompressed
+            self.datasource.record_diverge(self, uncompressed)
 
     def data_changed(self, parents):
         d = _encode_data(self.datasource.data)
@@ -507,10 +500,10 @@ class SyncData(object):
         parents = [self.hash_history[-1]]
 
         if resolve_diverge:
-            connection = self.connections[resolve_diverge]
+            remote = self.diverges[resolve_diverge]
             hashes = slice_common_parent(
                     self.hash_history,
-                    connection.remote_hashes)
+                    remote["history"])
             if hashes:
                 parents.append(hashes[-1])
                 self.hash_history.extend(hashes)
@@ -523,6 +516,24 @@ class SyncData(object):
             # is it better to compress and b64-encode on user change?
             # TODO: don't send if we think it's up to date
             connection.data_changed(parents)
+
+    def record_diverge(self, connection, data):
+        self.diverges[connection.remote_name] = {
+            "data": data,
+            "history": connection.remote_hashes
+        }
+
+    def not_diverged(self, connection):
+        connection.diverged = False
+
+        stuff = self.diverges.get(connection.remote_name)
+        if not stuff:
+            return
+
+        sliced = slice_common_parent(
+                self.hash_history,
+                connection.remote_hashes)
+        self.hash_history.extend(sliced)
 
     # TODO: rebroadcast to other nodes
 
