@@ -328,7 +328,7 @@ class SyncProtocol(LineOnlyReceiver):
     def line_received(self, line):
         command, space, data = line.partition(b' ')
         del line
-        
+
         try:
             handler = getattr(self, "message_%s" % command)
         except AttributeError:
@@ -337,6 +337,7 @@ class SyncProtocol(LineOnlyReceiver):
 
         handler(data)
 
+    # ======================================================================
     #
     #     MESSAGE HANDLERS
     #
@@ -384,7 +385,7 @@ class SyncProtocol(LineOnlyReceiver):
 
         message += b" "
         message += _encode_data(self.datasource.data)
-        
+
         self.command(b"history_and_data", message)
 
     def _unpack_update(self, message):
@@ -396,7 +397,7 @@ class SyncProtocol(LineOnlyReceiver):
         return data, hashes
 
     def message_history_and_data(self, message):
-        # this can reach like 
+        # this can use a lot of memory, careful
         data, hashes = self._unpack_update(message)
         uncompressed = _decode_data(data)
 
@@ -465,20 +466,22 @@ def _decode_data(base64_bytes):
     del b64
     return uncompressed
 
+
 def _hash_age_dictionary(hash_history):
     return dict((value, index)
             for (index, value)
             in enumerate(hash_history))
 
+
 def slice_common_parent(local_history, remote_history):
     # have to be able to deal with unaligned ordering
-    # dict() will use the last value if there are multiple, thereby giving us maximum
-    # index, which is exactly what we want
+    # dict() will use the last value if there are multiple,
+    # thereby giving us maximum index, which is exactly what we want
     theirs = _hash_age_dictionary(remote_history)
     ours = _hash_age_dictionary(local_history)
     overlap = theirs.viewkeys() & ours.viewkeys()
     maxval = max(theirs[key] for key in overlap)
-    return remote_history[maxval+1:]
+    return remote_history[maxval + 1:]
 
 
 class SyncData(object):

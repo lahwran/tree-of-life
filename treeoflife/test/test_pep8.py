@@ -28,17 +28,9 @@ ignore = [
     "E131",  # line continuation alignment - I'm pretty free with this
 ]
 
-try:
-    import __pypy__
-except ImportError:
-    __pypy__ = None
-
 
 def test_pep8():
     styleguide = pep8.StyleGuide(paths=paths, ignore=ignore,
             show_source=True, show_pep8=False)
-    if __pypy__ is None:  # pragma: no branch
-        report = styleguide.check_files()
-        assert not report.total_errors
-    else:
-        print("WARNING: did not run test due to pypy")  # pragma: no cover
+    report = styleguide.check_files()
+    assert not report.total_errors

@@ -6,6 +6,7 @@ import treeoflife.protocols
 
 disconnected = object()
 
+
 class SyncProtocol(treeoflife.protocols.SyncProtocol):
     def connectionMade(self):
         treeoflife.protocols.SyncProtocol.connectionMade(self)
@@ -31,6 +32,7 @@ def check_disconnect(source, dest):
         source.connectionLost(None)
         return True
     return False
+
 
 def transmit(source, dest):
     for message in source.mqueue:
@@ -67,7 +69,7 @@ def test_sync_init():
         "\u2028 second data",
         "\u2028 third data",
         "\u2028 fourth data",
-        "\u2028 fifth data",]
+        "\u2028 fifth data"]
     )
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
@@ -104,7 +106,9 @@ def test_sync_init():
     expected_data = zlib.compress("\u2028 fifth data".encode("utf-8"))
     assert shaakti.mqueue == [
         b'history_and_data {0} {1} {2} {data}'.format(
-            usha256("\u2028 third data"), usha256("\u2028 fourth data"), usha256("\u2028 fifth data"),
+            usha256("\u2028 third data"),
+            usha256("\u2028 fourth data"),
+            usha256("\u2028 fifth data"),
             data=expected_data.encode("base64").replace(b'\n', b'')
         )
     ]
@@ -117,7 +121,7 @@ def test_sync_init():
         "\u2028 second data",
         "\u2028 third data",
         "\u2028 fourth data",
-        "\u2028 fifth data",]
+        "\u2028 fifth data"]
     )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 5
@@ -134,7 +138,7 @@ def test_sync_init_uptodate():
     shaakti_data = makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
-        "\u2028 third data",]
+        "\u2028 third data"]
     )
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
@@ -171,7 +175,7 @@ def test_sync_init_uptodate():
     assert obiwan_data == makesyncdata("expected",
         ["\u2028 first data",
         "\u2028 second data",
-        "\u2028 third data",]
+        "\u2028 third data"]
     )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 3
@@ -202,7 +206,9 @@ def test_sync_please_send_race():
 
     transmit(obiwan, shaakti)
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == [b'please_send {}'.format(usha256('\u2028 fourth data'))]
+    assert obiwan.mqueue == [
+        b'please_send {}'.format(usha256('\u2028 fourth data'))
+    ]
 
     # this is the opening where something can go wrong, so let's make it!
 
@@ -222,7 +228,6 @@ def test_init_diverged():
     )
     shaakti = SyncProtocol(shaakti_data)
 
-    
     obiwan_data = makesyncdata("obiwan",
         ["\u2028 first data",
         "\u2028 second data",
@@ -231,7 +236,6 @@ def test_init_diverged():
         "\u2028 other diverged two"]
     )
     obiwan = SyncProtocol(obiwan_data)
-    
 
     shaakti.connectionMade()
     obiwan.connectionMade()
@@ -258,7 +262,7 @@ def test_init_diverged():
         b'history_and_data {history} {data}'.format(
             history=" ".join(obiwan_data.hash_history),
             data=expected_data.encode("base64").replace(b'\n', b'')
-       )
+        )
     ]
     assert obiwan.remote_hashes is None
     assert obiwan.diverged
@@ -277,7 +281,7 @@ def test_init_diverged():
         b'history_and_data {history} {data}'.format(
             history=" ".join(shaakti_data.hash_history),
             data=expected_data.encode("base64").replace(b'\n', b'')
-       )
+        )
     ]
 
     transmit(shaakti, obiwan)
@@ -293,7 +297,7 @@ def test_init_diverged():
 def test_connected_update():
     init_data = ["\u2028 first data",
         "\u2028 second data",
-        "\u2028 third data",]
+        "\u2028 third data"]
     shaakti_data = makesyncdata("shaakti", list(init_data))
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
@@ -326,7 +330,7 @@ def test_connected_update():
         ["\u2028 first data",
         "\u2028 second data",
         "\u2028 third data",
-        "\u2028 fourth data",]
+        "\u2028 fourth data"]
     )
     assert obiwan_data == shaakti_data
 
@@ -388,7 +392,7 @@ def test_diverge_since_connect():
 
     init_data = ["\u2028 first data",
         "\u2028 second data",
-        "\u2028 third data",]
+        "\u2028 third data"]
     shaakti_data = makesyncdata("shaakti", list(init_data))
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
@@ -469,7 +473,7 @@ def test_diverge_resolve():
         "\u2028 diverged two",
         "\u2028 resolve divergence"]
     )
-    
+
     assert shaakti_data == makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
@@ -512,7 +516,6 @@ def test_disconnected_diverge_resolve():
     assert obiwan.mqueue == [disconnected]
     assert not shaakti_data.connections
     assert not obiwan_data.connections
-
 
     # some time later...
     shaakti_data.update("\u2028 resolve divergence",
@@ -586,7 +589,7 @@ def test_disconnected_diverge_resolve():
         "\u2028 other diverged two",
         "\u2028 resolve divergence"]
     )
-    
+
     assert shaakti_data == makesyncdata("shaakti",
         ["\u2028 first data",
         "\u2028 second data",
@@ -600,5 +603,6 @@ def test_disconnected_diverge_resolve():
 
 
 # TODO: test three-node diverge scenario where [ab, c] diverges, c finds out
-# that both b and a are diverged from itself, it tracks both their diverges (separately? not? whatever),
-# and then c resolves the diverge relative to a while also connected to b.
+# that both b and a are diverged from itself, it tracks both their diverges
+# (separately? not? whatever), and then c resolves the diverge relative to a
+# while also connected to b.
