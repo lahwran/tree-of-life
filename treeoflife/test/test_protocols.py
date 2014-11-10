@@ -2,9 +2,19 @@ from __future__ import unicode_literals, print_function
 
 import hashlib
 import zlib
+
+import pytest
+
 import treeoflife.protocols
+from treeoflife import syncdata
 
 disconnected = object()
+
+
+@pytest.fixture(autouse=True)
+def shortened_sha(monkeypatch):
+    oldsha256 = syncdata.sha256
+    monkeypatch.setattr(syncdata, "sha256", lambda x: oldsha256(x)[:8])
 
 
 class SyncProtocol(treeoflife.protocols.SyncProtocol):
@@ -48,7 +58,7 @@ def transmit(source, dest):
 
 
 def makesyncdata(name, history):
-    return treeoflife.protocols.SyncData(name,
+    return syncdata.SyncData(name,
             [usha256(x) for x in history], history[-1])
 
 
