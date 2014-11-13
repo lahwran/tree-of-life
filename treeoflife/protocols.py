@@ -407,6 +407,7 @@ class SyncProtocol(LineOnlyReceiver):
             self.init_finished()
 
             self.datasource.data = uncompressed
+            self.datasource.updated_by_connection()
             # TODO: parse data into tree
         else:
             # TODO: save to diverged data dir, inform user, etc
@@ -425,6 +426,7 @@ class SyncProtocol(LineOnlyReceiver):
             self.remote_hashes.append(h)
 
             self.datasource.data = uncompressed
+            self.datasource.updated_by_connection()
             # TODO: parse data into tree
         elif not self.diverged:
             # TODO: big flashy warning somewhere!

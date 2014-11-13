@@ -2,6 +2,7 @@ from __future__ import unicode_literals, print_function
 
 import hashlib
 import zlib
+import json
 
 import pytest
 
@@ -57,38 +58,46 @@ def transmit(source, dest):
         check_disconnect(source, dest)
 
 
-def makesyncdata(name, history):
-    return syncdata.SyncData(name,
-            [usha256(x) for x in history], history[-1])
+def makesyncdata(tmpdir, name, history):
+    directory = tmpdir.join(name)
+    directory.ensure(dir=True)
+    data = dump(history[-1])
+    hashes = [usha256(x) for x in history]
+    directory.join("hash_history").write_binary("\n".join(hashes))
+    directory.join("last_data").write_binary(data)
+    return syncdata.SyncData(directory, name)
 
 
-def usha256(data):
-    assert type(data) == unicode
-    return hashlib.sha256(data.encode("utf-8")).hexdigest()[:8]
+def usha256(stuff):
+    return hashlib.sha256(dump(stuff)).hexdigest()[:8]
+
+
+def dump(stuff):
+    return json.dumps(stuff)
 
 
 # TODO: later reconvergence can have weird effects, where both sides know each
 # other's different hashes but only one is ahead
 # this is a required tradeoff of not using a merkle tree (merkle sequence?)
 
-def test_sync_init():
+def test_sync_init(tmpdir):
     # easier to keep track of story characters mentally
 
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 fourth data",
-        "\u2028 fifth data"]
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 fourth data"},
+        {"life": "\u2028 fifth data"}]
     )
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
     assert shaakti.remote_hashes is None
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
@@ -97,28 +106,28 @@ def test_sync_init():
     # TODO: this leaves possibility of ordering bugs
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash %s" % usha256("\u2028 third data")
+        b"currenthash %s" % usha256({"life": "\u2028 third data"})
     ]
     assert shaakti.mqueue == [
         b"connect shaakti 1",
-        b"currenthash %s" % usha256("\u2028 fifth data")
+        b"currenthash %s" % usha256({"life": "\u2028 fifth data"})
     ]
 
     transmit(shaakti, obiwan)
     assert obiwan.remote_name == "shaakti"
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash {0}".format(usha256("\u2028 third data")),
-        b"please_send {0}".format(usha256("\u2028 fifth data"))
+        b"currenthash {0}".format(usha256({"life": "\u2028 third data"})),
+        b"please_send {0}".format(usha256({"life": "\u2028 fifth data"}))
     ]
 
     transmit(obiwan, shaakti)
-    expected_data = zlib.compress("\u2028 fifth data".encode("utf-8"))
+    expected_data = zlib.compress(dump({"life": "\u2028 fifth data"}))
     assert shaakti.mqueue == [
         b'history_and_data {0} {1} {2} {data}'.format(
-            usha256("\u2028 third data"),
-            usha256("\u2028 fourth data"),
-            usha256("\u2028 fifth data"),
+            usha256({"life": "\u2028 third data"}),
+            usha256({"life": "\u2028 fourth data"}),
+            usha256({"life": "\u2028 fifth data"}),
             data=expected_data.encode("base64").replace(b'\n', b'')
         )
     ]
@@ -126,38 +135,38 @@ def test_sync_init():
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == []
 
-    assert obiwan_data == makesyncdata("expected",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 fourth data",
-        "\u2028 fifth data"]
+    assert obiwan_data == makesyncdata(tmpdir, "expected",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 fourth data"},
+        {"life": "\u2028 fifth data"}]
     )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 5
-    assert obiwan_data.data == "\u2028 fifth data".encode("utf-8")
+    assert obiwan_data.data == dump({"life": "\u2028 fifth data"})
     assert obiwan.remote_hashes == shaakti.remote_hashes
 
     assert obiwan.remote_hashes is not obiwan_data.hash_history
     assert shaakti.remote_hashes is not shaakti_data.hash_history
 
 
-def test_sync_init_uptodate():
+def test_sync_init_uptodate(tmpdir):
     # easier to keep track of story characters mentally
 
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
     )
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
     assert shaakti.remote_hashes is None
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
@@ -166,50 +175,50 @@ def test_sync_init_uptodate():
     # TODO: this leaves possibility of ordering bugs
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash %s" % usha256("\u2028 third data")
+        b"currenthash %s" % usha256({"life": "\u2028 third data"})
     ]
     assert shaakti.mqueue == [
         b"connect shaakti 1",
-        b"currenthash %s" % usha256("\u2028 third data")
+        b"currenthash %s" % usha256({"life": "\u2028 third data"})
     ]
 
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash {0}".format(usha256("\u2028 third data")),
+        b"currenthash {0}".format(usha256({"life": "\u2028 third data"})),
     ]
 
     transmit(obiwan, shaakti)
     assert shaakti.mqueue == []
 
-    assert obiwan_data == makesyncdata("expected",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
+    assert obiwan_data == makesyncdata(tmpdir, "expected",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
     )
     assert obiwan_data == shaakti_data
     assert len(obiwan_data.hash_history) == 3
-    assert obiwan_data.data == "\u2028 third data".encode("utf-8")
+    assert obiwan_data.data == dump({"life": "\u2028 third data"})
     assert obiwan.remote_hashes == shaakti.remote_hashes
 
     assert obiwan.remote_hashes is not obiwan_data.hash_history
     assert shaakti.remote_hashes is not shaakti_data.hash_history
 
 
-def test_sync_please_send_race():
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 fourth data"]
+def test_sync_please_send_race(tmpdir):
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 fourth data"}]
     )
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
@@ -217,33 +226,33 @@ def test_sync_please_send_race():
     transmit(obiwan, shaakti)
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == [
-        b'please_send {}'.format(usha256('\u2028 fourth data'))
+        b'please_send {}'.format(usha256({"life": '\u2028 fourth data'}))
     ]
 
     # this is the opening where something can go wrong, so let's make it!
 
-    shaakti_data.update("\u2028 fifth data")
+    shaakti_data.update({"life": "\u2028 fifth data"})
 
     transmit(obiwan, shaakti)
     assert shaakti.mqueue[-1] is disconnected
 
 
-def test_init_diverged():
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two"]
+def test_init_diverged(tmpdir):
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"}]
     )
     shaakti = SyncProtocol(shaakti_data)
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"}]
     )
     obiwan = SyncProtocol(obiwan_data)
 
@@ -252,23 +261,23 @@ def test_init_diverged():
 
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash %s" % usha256("\u2028 other diverged two")
+        b"currenthash %s" % usha256({"life": "\u2028 other diverged two"})
     ]
     assert shaakti.mqueue == [
         b"connect shaakti 1",
-        b"currenthash %s" % usha256("\u2028 diverged two")
+        b"currenthash %s" % usha256({"life": "\u2028 diverged two"})
     ]
 
     transmit(obiwan, shaakti)
     assert shaakti.mqueue[2:] == [
-        b"please_send {0}".format(usha256("\u2028 other diverged two"))
+        b"please_send {0}".format(usha256({"life": "\u2028 other diverged two"}))
     ]
     assert shaakti.remote_hashes is None
 
     transmit(shaakti, obiwan)
-    expected_data = zlib.compress("\u2028 other diverged two".encode("utf-8"))
+    expected_data = zlib.compress(dump({"life": "\u2028 other diverged two"}))
     assert obiwan.mqueue == [
-        b"please_send {0}".format(usha256("\u2028 diverged two")),
+        b"please_send {0}".format(usha256({"life": "\u2028 diverged two"})),
         b'history_and_data {history} {data}'.format(
             history=" ".join(obiwan_data.hash_history),
             data=expected_data.encode("base64").replace(b'\n', b'')
@@ -280,13 +289,16 @@ def test_init_diverged():
     transmit(obiwan, shaakti)
     assert shaakti.remote_hashes == obiwan_data.hash_history
     assert shaakti.diverged
-    assert shaakti_data.diverges["obiwan"] == {
-        "data": "\u2028 other diverged two".encode("utf-8"),
-        "history": obiwan_data.hash_history
-    }
-    assert shaakti_data.data == "\u2028 diverged two".encode("utf-8")
+    diverge_dir = tmpdir.join("shaakti").join("diverge-obiwan")
+    assert diverge_dir.check(dir=True)
+    assert diverge_dir.join("data").read_binary() == dump(
+        {"life": "\u2028 other diverged two"}
+    )
+    assert diverge_dir.join("hash_history")\
+            .read_binary().split() == obiwan_data.hash_history
+    assert shaakti_data.data == dump({"life": "\u2028 diverged two"})
 
-    expected_data = zlib.compress("\u2028 diverged two".encode("utf-8"))
+    expected_data = zlib.compress(dump({"life": "\u2028 diverged two"}))
     assert shaakti.mqueue == [
         b'history_and_data {history} {data}'.format(
             history=" ".join(shaakti_data.hash_history),
@@ -295,24 +307,27 @@ def test_init_diverged():
     ]
 
     transmit(shaakti, obiwan)
-    assert obiwan_data.diverges["shaakti"] == {
-        "data": "\u2028 diverged two".encode("utf-8"),
-        "history": shaakti_data.hash_history,
-    }
+    diverge_dir = tmpdir.join("obiwan").join("diverge-shaakti")
+    assert diverge_dir.check(dir=True)
+    assert diverge_dir.join("data").read_binary() == dump(
+        {"life": "\u2028 diverged two"}
+    )
+    assert diverge_dir.join("hash_history")\
+            .read_binary().split() == shaakti_data.hash_history
 
     assert obiwan.remote_hashes == shaakti_data.hash_history
-    assert obiwan_data.data == "\u2028 other diverged two".encode("utf-8")
+    assert obiwan_data.data == dump({"life": "\u2028 other diverged two"})
 
 
-def test_connected_update():
-    init_data = ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
-    shaakti_data = makesyncdata("shaakti", list(init_data))
+def test_connected_update(tmpdir):
+    init_data = [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
+    shaakti_data = makesyncdata(tmpdir, "shaakti", list(init_data))
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
 
-    obiwan_data = makesyncdata("obiwan", list(init_data))
+    obiwan_data = makesyncdata(tmpdir, "obiwan", list(init_data))
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
 
@@ -323,44 +338,44 @@ def test_connected_update():
 
     # ... some time later ...
 
-    shaakti_data.update("\u2028 fourth data")
+    shaakti_data.update({"life": "\u2028 fourth data"})
     expected_data = zlib\
-            .compress("\u2028 fourth data".encode("utf-8"))\
+            .compress(dump({"life": "\u2028 fourth data"}))\
             .encode("base64").replace(b'\n', b'')
     assert shaakti.mqueue == [
         b"new_data {parenthash} {compressed_data}".format(
-            parenthash=usha256("\u2028 third data"),
+            parenthash=usha256({"life": "\u2028 third data"}),
             compressed_data=expected_data,
         )
     ]
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == []
 
-    assert obiwan_data == makesyncdata("expected",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 fourth data"]
+    assert obiwan_data == makesyncdata(tmpdir, "expected",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 fourth data"}]
     )
     assert obiwan_data == shaakti_data
 
 
-def test_connected_already_diverged_update():
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two"]
+def test_connected_already_diverged_update(tmpdir):
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"}]
     )
     shaakti = SyncProtocol(shaakti_data)
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
@@ -374,14 +389,14 @@ def test_connected_already_diverged_update():
 
     # some time later...
 
-    obiwan_data.update("\u2028 other diverged three")
+    obiwan_data.update({"life": "\u2028 other diverged three"})
 
     expected_data = zlib\
-            .compress("\u2028 other diverged three".encode("utf-8"))\
+            .compress(dump({"life": "\u2028 other diverged three"}))\
             .encode("base64").replace(b'\n', b'')
     assert obiwan.mqueue == [
         b"new_data {parenthash} {compressed_data}".format(
-            parenthash=usha256("\u2028 other diverged two"),
+            parenthash=usha256({"life": "\u2028 other diverged two"}),
             compressed_data=expected_data,
         )
     ]
@@ -389,25 +404,28 @@ def test_connected_already_diverged_update():
     transmit(obiwan, shaakti)
 
     assert shaakti.mqueue == []
-    assert shaakti_data.diverges["obiwan"] == {
-        "data": "\u2028 other diverged three".encode("utf-8"),
-        "history": obiwan_data.hash_history
-    }
+    diverge_dir = tmpdir.join("shaakti").join("diverge-obiwan")
+    assert diverge_dir.check(dir=True)
+    assert diverge_dir.join("data").read_binary() == dump(
+        {"life": "\u2028 other diverged three"}
+    )
+    assert diverge_dir.join("hash_history")\
+            .read_binary().split() == obiwan_data.hash_history
     assert shaakti.remote_hashes == obiwan_data.hash_history
 
 
-def test_diverge_since_connect():
+def test_diverge_since_connect(tmpdir):
     # diverge since connect SHOULD BE IMPOSSIBLE.
     # this test is to make sure we kinda sorta recover anyway.
 
-    init_data = ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data"]
-    shaakti_data = makesyncdata("shaakti", list(init_data))
+    init_data = [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"}]
+    shaakti_data = makesyncdata(tmpdir, "shaakti", list(init_data))
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
 
-    obiwan_data = makesyncdata("obiwan", list(init_data))
+    obiwan_data = makesyncdata(tmpdir, "obiwan", list(init_data))
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
 
@@ -418,31 +436,31 @@ def test_diverge_since_connect():
 
     # ...at some point something goes silently wrong...
     obiwan_data.hash_history.append(usha256("uhoh"))
-    obiwan_data.data = b"uhoh"
+    obiwan_data.data = dump("uhoh")
 
     # ... some time later ...
 
-    shaakti_data.update("\u2028 fourth data")
+    shaakti_data.update({"life": "\u2028 fourth data"})
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == [disconnected]
 
 
-def test_diverge_resolve():
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two"]
+def test_diverge_resolve(tmpdir):
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"}]
     )
     shaakti = SyncProtocol(shaakti_data)
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
@@ -454,18 +472,25 @@ def test_diverge_resolve():
 
     assert obiwan.mqueue == []
 
+    diverge_dir = shaakti_data.directory.join("diverge-obiwan")
+    assert diverge_dir.join("data").read_binary() == obiwan_data.data
+    assert diverge_dir.join("hash_history").read_binary().split() == (
+            obiwan_data.hash_history)
+
     # some time later...
 
-    shaakti_data.update("\u2028 resolve divergence",
-            resolve_diverge="obiwan")
+    diverge_dir.join("merged").write_binary(
+            dump({"life": "\u2028 resolve divergence"}))
+    shaakti_data.resolve_diverge("obiwan")
+    assert not diverge_dir.check()
 
     expected_data = zlib\
-            .compress("\u2028 resolve divergence".encode("utf-8"))\
+            .compress(dump({"life": "\u2028 resolve divergence"}))\
             .encode("base64").replace(b'\n', b'')
     assert shaakti.mqueue == [
         b"new_data {parenthash} {remoteparent} {compressed_data}".format(
-            parenthash=usha256("\u2028 diverged two"),
-            remoteparent=usha256("\u2028 other diverged two"),
+            parenthash=usha256({"life": "\u2028 diverged two"}),
+            remoteparent=usha256({"life": "\u2028 other diverged two"}),
             compressed_data=expected_data,
         )
     ]
@@ -473,45 +498,45 @@ def test_diverge_resolve():
     transmit(shaakti, obiwan)
     assert obiwan.mqueue == []
 
-    assert obiwan_data == makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two",
-        "\u2028 diverged one",
-        "\u2028 diverged two",
-        "\u2028 resolve divergence"]
+    assert obiwan_data == makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"},
+        {"life": "\u2028 resolve divergence"}]
     )
 
-    assert shaakti_data == makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two",
-        "\u2028 resolve divergence"]
+    assert shaakti_data == makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"},
+        {"life": "\u2028 resolve divergence"}]
     )
 
 
-def test_disconnected_diverge_resolve():
-    shaakti_data = makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two"]
+def test_disconnected_diverge_resolve(tmpdir):
+    shaakti_data = makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"}]
     )
     shaakti = SyncProtocol(shaakti_data)
 
-    obiwan_data = makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two"]
+    obiwan_data = makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"}]
     )
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
@@ -528,8 +553,11 @@ def test_disconnected_diverge_resolve():
     assert not obiwan_data.connections
 
     # some time later...
-    shaakti_data.update("\u2028 resolve divergence",
-            resolve_diverge="obiwan")
+    diverge_dir = shaakti_data.directory.join("diverge-obiwan")
+    diverge_dir.join("merged").write_binary(
+            dump({"life": "\u2028 resolve divergence"}))
+    shaakti_data.resolve_diverge("obiwan")
+    assert not diverge_dir.check()
 
     # ... then reestablish the connection ...
     obiwan = SyncProtocol(obiwan_data)
@@ -539,28 +567,28 @@ def test_disconnected_diverge_resolve():
 
     assert obiwan.mqueue == [
         b"connect obiwan 1",
-        b"currenthash %s" % usha256("\u2028 other diverged two")
+        b"currenthash %s" % usha256({"life": "\u2028 other diverged two"})
     ]
     assert shaakti.mqueue == [
         b"connect shaakti 1",
-        b"currenthash %s" % usha256("\u2028 resolve divergence")
+        b"currenthash %s" % usha256({"life": "\u2028 resolve divergence"})
     ]
 
     transmit(shaakti, obiwan)
 
     assert obiwan.mqueue[-1:] == [
-        b"please_send {0}".format(usha256("\u2028 resolve divergence"))
+        b"please_send {0}".format(usha256({"life": "\u2028 resolve divergence"}))
     ]
     transmit(obiwan, shaakti)
 
     expected_data = zlib\
-            .compress("\u2028 resolve divergence".encode("utf-8"))\
+            .compress(dump({"life": "\u2028 resolve divergence"}))\
             .encode("base64").replace(b'\n', b'')
     assert shaakti.mqueue == [
         b"history_and_data {history} {compressed_data}".format(
             history=b" ".join([
-                usha256("\u2028 other diverged two"),
-                usha256("\u2028 resolve divergence"),
+                usha256({"life": "\u2028 other diverged two"}),
+                usha256({"life": "\u2028 resolve divergence"}),
             ]),
             compressed_data=expected_data,
         )
@@ -591,24 +619,24 @@ def test_disconnected_diverge_resolve():
     # remember that we were diverged with a remote and do the diverge resolve
     # on-receipt append operation.
 
-    assert obiwan_data == makesyncdata("obiwan",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two",
-        "\u2028 resolve divergence"]
+    assert obiwan_data == makesyncdata(tmpdir, "obiwan",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"},
+        {"life": "\u2028 resolve divergence"}]
     )
 
-    assert shaakti_data == makesyncdata("shaakti",
-        ["\u2028 first data",
-        "\u2028 second data",
-        "\u2028 third data",
-        "\u2028 diverged one",
-        "\u2028 diverged two",
-        "\u2028 other diverged one",
-        "\u2028 other diverged two",
-        "\u2028 resolve divergence"]
+    assert shaakti_data == makesyncdata(tmpdir, "shaakti",
+        [{"life": "\u2028 first data"},
+        {"life": "\u2028 second data"},
+        {"life": "\u2028 third data"},
+        {"life": "\u2028 diverged one"},
+        {"life": "\u2028 diverged two"},
+        {"life": "\u2028 other diverged one"},
+        {"life": "\u2028 other diverged two"},
+        {"life": "\u2028 resolve divergence"}]
     )
 
 

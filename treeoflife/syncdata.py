@@ -1,5 +1,8 @@
 import zlib
+import shutil
 import hashlib
+import json
+import py
 
 
 def sha256(data):
@@ -8,52 +11,98 @@ def sha256(data):
 
 
 class SyncData(object):
-    def __init__(self, name, hash_history, data):
+    def __init__(self, directory, name, init_stuff=None):
         # doesn't keep any but the latest data
-
-        self.diverges = {}
         self.name = name
-        assert type(data) == unicode
-        self.data = data.encode('utf-8')
-        self.hash_history = hash_history
+
         self.connections = {}
 
-    def update(self, newdata, resolve_diverge=None):
-        # TODO: call this from user updates
-        assert type(newdata) == unicode
-        self.data = newdata.encode("utf-8")
+        self.directory = py.path.local(directory)
+        self.directory.ensure(dir=True)
+        self.datafile = self.directory.join("last_data")
+        self.hashfile = self.directory.join("hash_history")
 
+        try:
+            self.data = self.datafile.read_binary()
+            self.hash_history = self.hashfile.read_binary().split()
+        except py.error.ENOENT:
+            self.data = ""
+            self.hash_history = [sha256(self.data)]
+            if init_stuff is not None:
+                self.data = self.dump(init_stuff)
+                self.hash_history.append(sha256(self.data))
+            self.write()
+
+    def write(self):
+        self.datafile.write_binary(self.data)
+        self.hashfile.write_binary("\n".join(self.hash_history))
+
+    def resolve_diverge(self, remote_name):
         parents = [self.hash_history[-1]]
 
-        if resolve_diverge:
-            remote = self.diverges[resolve_diverge]
-            hashes = slice_common_parent(
-                    self.hash_history,
-                    remote["history"])
-            if hashes:
-                parents.append(hashes[-1])
-                self.hash_history.extend(hashes)
+        remote = self.directory.join("diverge-" + remote_name)
+        remote_history = remote.join("hash_history").read_binary().split()
+        repaired_data = remote.join("merged").read_binary()
+
+        hashes = slice_common_parent(
+                self.hash_history,
+                remote_history)
+        if hashes:
+            parents.append(hashes[-1])
+            self.hash_history.extend(hashes)
+
+        self.data = repaired_data
 
         self.hash_history.append(
             sha256(self.data)
         )
+        self.write()
+        self.broadcast_changed(parents)
+        shutil.rmtree(str(remote))
+
+    def update(self, newstuff):
+        # TODO: call this from user updates
+        self.data = self.dump(newstuff)
+
+        parents = [self.hash_history[-1]]
+
+        self.hash_history.append(
+            sha256(self.data)
+        )
+        self.write()
+        self.broadcast_changed(parents)
+
+    def updated_by_connection(self):
+        self.write()
+        self.broadcast_changed([self.hash_history[-1]])
+
+    def broadcast_changed(self, parents):
         for connection in self.connections.values():
             # TODO: this compresses and base64-encodes once per connection.
             # is it better to compress and b64-encode on user change?
-            # TODO: don't send if we think it's up to date
+            if self.hash_history[-1] == connection.remote_hashes[-1]:
+                continue
             connection.data_changed(parents)
 
+    def dump(self, stuff):
+        data = json.dumps(stuff)
+        assert type(data) == str
+        return data
+
     def record_diverge(self, connection, data):
-        self.diverges[connection.remote_name] = {
-            "data": data,
-            "history": connection.remote_hashes
-        }
+        diverge_dir = self.directory.join(
+                "diverge-" + connection.remote_name)
+        diverge_dir.ensure(dir=True)
+        diverge_dir.join("data").write_binary(data)
+        diverge_dir.join("hash_history")\
+                .write_binary("\n".join(connection.remote_hashes))
 
     def not_diverged(self, connection):
         connection.diverged = False
 
-        stuff = self.diverges.get(connection.remote_name)
-        if not stuff:
+        diverge_dir = self.directory.join(
+                "diverge-" + connection.remote_name)
+        if not diverge_dir.check(dir=True):
             return
 
         sliced = slice_common_parent(
