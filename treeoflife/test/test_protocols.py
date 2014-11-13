@@ -270,7 +270,9 @@ def test_init_diverged(tmpdir):
 
     transmit(obiwan, shaakti)
     assert shaakti.mqueue[2:] == [
-        b"please_send {0}".format(usha256({"life": "\u2028 other diverged two"}))
+        b"please_send {0}".format(usha256(
+            {"life": "\u2028 other diverged two"}
+        ))
     ]
     assert shaakti.remote_hashes is None
 
@@ -577,7 +579,9 @@ def test_disconnected_diverge_resolve(tmpdir):
     transmit(shaakti, obiwan)
 
     assert obiwan.mqueue[-1:] == [
-        b"please_send {0}".format(usha256({"life": "\u2028 resolve divergence"}))
+        b"please_send {0}".format(usha256(
+            {"life": "\u2028 resolve divergence"}
+        ))
     ]
     transmit(obiwan, shaakti)
 
