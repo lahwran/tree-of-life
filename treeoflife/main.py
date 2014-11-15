@@ -16,7 +16,7 @@ from txws import WebSocketFactory
 
 from treeoflife.userinterface import SavingInterface, command
 from treeoflife.util import Profile, setter
-from treeoflife.protocols import UIProtocol, SyncProtocol
+from treeoflife.protocols import UIProtocol, SyncProtocol, DiscoveryProtocol
 from treeoflife import syncdata
 import treeoflife.editor_launch
 
@@ -73,6 +73,7 @@ class RemoteInterface(SavingInterface):
             name = config.sync_name
             self.syncdata = syncdata.SyncData(
                     os.path.join(self.save_dir, "sync"),
+                    "default_group",  # TODO: actual groups
                     name, replace_data=self.sync_replace_data)
         else:
             self.syncdata = None
@@ -186,9 +187,11 @@ argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
 argparser.add_argument("-e", "--editor", default="embedded", dest="editor")
 argparser.add_argument("--android", default=None, dest="android_root")
-argparser.add_argument("--sync-remote", default=(), action="append",
-        dest="sync_remotes")
 argparser.add_argument("--sync-name", default=None, dest="sync_name")
+argparser.add_argument("--sync-announce-interval", default=2, type=float,
+        dest="sync_interval")
+#argparser.add_argument("--sync-group", default=2, type=float,
+#        dest="sync_group")
 
 
 class Restarter(object):
@@ -225,6 +228,7 @@ class Restarter(object):
 
 
 def init_sentry():
+    return
     try:
         sentryurl = open("sentryurl", "r").read().strip()
     except IOError:
@@ -327,15 +331,6 @@ class NoCacheFile(twisted.web.static.File):
     render_HEAD = render_GET
 
 
-def connect_sync(syncdata, reactor, remotes):
-    for remote in remotes:
-        protocol = SyncProtocol(syncdata, reactor=reactor)
-        host, port = remote.split(":")
-        endpoint = TCP4ClientEndpoint(reactor, host, int(port))
-        logger.info("Connecting sync to %s", remote)
-        connectProtocol(endpoint, protocol)
-
-
 def main(restarter, args):
     from twisted.internet import reactor
 
@@ -382,11 +377,21 @@ def main(restarter, args):
     reactor.listenTCP(config.port + 2,
             WebSocketFactory(factory), interface=config.listen_iface)
 
-    reactor.listenTCP(config.port + 6,
+    sync_port = config.port + 6
+    reactor.listenTCP(sync_port,
             SyncServer(ui.syncdata, reactor=reactor),
             interface=config.listen_iface)
-    reactor.callLater(3, connect_sync,
-            ui.syncdata, reactor, config.sync_remotes)
+
+    def connect_sync(host):
+        protocol = SyncProtocol(ui.syncdata, reactor=reactor)
+        endpoint = TCP4ClientEndpoint(reactor, host, sync_port)
+        logger.info("Connecting sync to %s", host)
+        connectProtocol(endpoint, protocol)
+
+    discovery_port = config.port + 7
+    discovery = DiscoveryProtocol(ui.syncdata, discovery_port, connect_sync,
+            interval=config.sync_interval)
+    reactor.listenUDP(discovery_port, discovery)
 
     # serve ui directory
     ui_dir = os.path.join(projectroot, b"ui")

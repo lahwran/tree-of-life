@@ -65,7 +65,7 @@ def makesyncdata(tmpdir, name, history):
     hashes = [usha256(x) for x in history]
     directory.join("hash_history").write_binary("\n".join(hashes))
     directory.join("last_data").write_binary(data)
-    return syncdata.SyncData(directory, name)
+    return syncdata.SyncData(directory, "test_group", name)
 
 
 def usha256(stuff):

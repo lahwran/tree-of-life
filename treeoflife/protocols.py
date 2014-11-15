@@ -4,8 +4,11 @@ import time
 import json
 import logging
 import datetime
+import random
+import string
 
-from twisted.internet.protocol import Protocol
+from twisted.internet.protocol import Protocol, DatagramProtocol
+from twisted.internet.task import LoopingCall
 from treeoflife import syncdata
 
 logger = logging.getLogger(__name__)
@@ -338,13 +341,16 @@ class SyncProtocol(LineOnlyReceiver):
     #
 
     # TODO: reconnect. omg reconnect.
-    # TODO: udp discovery
+    #      - partially solved by local discovery
     # TODO: auto-timeout, pings, keepalive
     # TODO: relay, relay upgrade
 
     def message_connect(self, remote_info):
         remote_name, space, protocolversions = remote_info.partition(b' ')
         self.remote_name = remote_name.decode("utf-8")
+        if self.remote_name == self.datasource.name:
+            # oops, connected to self
+            self.disconnect()
 
         existing = self.datasource.connections.get(self.remote_name, None)
         if existing is not None:
@@ -458,3 +464,89 @@ class SyncProtocol(LineOnlyReceiver):
 
     def disconnect(self):
         self.transport.loseConnection()
+
+
+class DiscoveryProtocol(DatagramProtocol):
+    def __init__(self, syncdata, port, connect_callback, interval=2):
+        self.syncdata = syncdata
+        self.port = port
+        self.connect_callback = connect_callback
+        self.looping_call = LoopingCall(self.announce)
+        self.interval = interval
+        self.cooldown = {}
+
+    def startProtocol(self):
+        self.transport.setBroadcastAllowed(True)
+        if not self.looping_call.running:
+            self.looping_call.start(self.interval)
+
+    def stopProtocol(self):
+        self.looping_call.stop()
+
+    def announce(self):
+        print("broadcasting")
+        self.command(b"<broadcast>", b"announce",
+                b"%s %s" % (
+                    self.syncdata.group.encode("utf-8"),
+                    self.syncdata.name.encode("utf-8")))
+
+    def command(self, address, command, data):
+        assert all(type(x) == str for x in (address, command, data))
+        mid = b"".join(random.choice(string.lowercase)
+                for x in range(15))
+        self.transport.write(
+                b"%s %s %s\n" % (mid, command, data),
+                (address, self.port))
+
+    def datagramReceived(self, datagram, addr):
+        mid, space, message = datagram.strip().partition(b' ')
+        command, space, data = message.partition(b' ')
+
+        try:
+            handler = getattr(self, "message_%s" % command)
+        except AttributeError:
+            logger.error("Unrecognized sync-announce message: %s", datagram)
+            return
+
+        # ignore remote port, assume it's the same. if it's not, err...
+        handler(addr[0], data)
+
+    def discovered(self, address, remote_name):
+        if remote_name in self.syncdata.connections:
+            # TODO: this ignores relay-upgrade and connections going bad
+            return
+        last_attempt = self.cooldown.get((address, remote_name), 0)
+        now = time.time()
+        if last_attempt > now - 30:
+            # this is an expected state, between the time a node is
+            # discovered and the time it's connected and init is finished
+            logger.debug("attempting to reconnect too fast: %s (%s): %f",
+                remote_name, address, now - last_attempt)
+            return
+
+        self.cooldown[(address, remote_name)] = now
+
+        self.connect_callback(address)
+
+    def message_announce(self, address, data):
+        group, _, remote_name = data.partition(b' ')
+        group = group.decode("utf-8")
+        remote_name = remote_name.decode("utf-8")
+
+        if group != self.syncdata.group:
+            # treeoflife node belonging to a different user
+            return
+
+        if remote_name == self.syncdata.name:
+            # whoops, got our own message. this is normal
+            return
+
+        self.discovered(address, remote_name)
+
+        self.command(address, b"announce_reply",
+                self.syncdata.name.encode("utf-8"))
+
+    def message_announce_reply(self, address, remote_name):
+        remote_name = remote_name.decode("utf-8")
+
+        self.discovered(address, remote_name)

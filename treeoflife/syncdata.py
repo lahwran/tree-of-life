@@ -11,10 +11,11 @@ def sha256(data):
 
 
 class SyncData(object):
-    def __init__(self, directory, name, init_stuff=None,
+    def __init__(self, directory, group, name, init_stuff=None,
             replace_data=lambda x: None):
         # doesn't keep any but the latest data
         self.name = name
+        self.group = group
 
         self.connections = {}
 
