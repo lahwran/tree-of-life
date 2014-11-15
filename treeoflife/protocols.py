@@ -484,7 +484,6 @@ class DiscoveryProtocol(DatagramProtocol):
         self.looping_call.stop()
 
     def announce(self):
-        print("broadcasting")
         self.command(b"<broadcast>", b"announce",
                 b"%s %s" % (
                     self.syncdata.group.encode("utf-8"),
