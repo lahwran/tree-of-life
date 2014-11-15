@@ -71,6 +71,7 @@ class EditSession(object):
         self.editor = None
         self.ui.edit_session = None
         self.ui.update_all()
+        self.ui.sync_commit()
         if self.EditorType.hide:
             self.ui.show_client(self.source)
 

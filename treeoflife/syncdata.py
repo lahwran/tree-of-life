@@ -11,11 +11,14 @@ def sha256(data):
 
 
 class SyncData(object):
-    def __init__(self, directory, name, init_stuff=None):
+    def __init__(self, directory, name, init_stuff=None,
+            replace_data=lambda x: None):
         # doesn't keep any but the latest data
         self.name = name
 
         self.connections = {}
+
+        self.replace_data_hook = replace_data
 
         self.directory = py.path.local(directory)
         self.directory.ensure(dir=True)
@@ -61,18 +64,20 @@ class SyncData(object):
         shutil.rmtree(str(remote))
 
     def update(self, newstuff):
-        # TODO: call this from user updates
         self.data = self.dump(newstuff)
+        h = sha256(self.data)
+
+        if h == self.hash_history[-1]:
+            return
 
         parents = [self.hash_history[-1]]
 
-        self.hash_history.append(
-            sha256(self.data)
-        )
+        self.hash_history.append(h)
         self.write()
         self.broadcast_changed(parents)
 
     def updated_by_connection(self):
+        self.replace_data_hook(json.loads(self.data))
         self.write()
         self.broadcast_changed([self.hash_history[-1]])
 

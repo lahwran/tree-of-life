@@ -234,6 +234,7 @@ class UIProtocol(JSONProtocol):
             final = time.time()
             logger.debug("command commit took: %r", final - initial)
             self.tracker.update_all()
+            self.tracker.sync_commit()
         self._update_command()
 
     def message_display(self, is_displayed):
@@ -269,13 +270,14 @@ class SyncProtocol(LineOnlyReceiver):
     See /sync_protocol for more information
     """
 
-    def __init__(self, datasource):
+    def __init__(self, datasource, reactor=None):
         self.datasource = datasource
 
         self.remote_hashes = None
         self.init_remote_hash = None
         self.init_remote_hash_index = None
         self.diverged = False
+        self.reactor = reactor
 
         self.remote_name = None
         self.initializing = True
@@ -288,14 +290,20 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
+        print(self.datasource.name, "++")
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
                                 + b" " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
 
     def connectionLost(self, reason):
+        print(self.datasource.name, "xx", self.remote_name)
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
+
+    def send_line(self, line):
+        print(self.datasource.name, "-> %s: %s" % (self.remote_name, line))
+        LineOnlyReceiver.send_line(self, line)
 
     def command(self, command, data):
         assert type(command) == str
@@ -303,6 +311,7 @@ class SyncProtocol(LineOnlyReceiver):
         self.send_line(b"%s %s" % (command, data))
 
     def init_finished(self, hashes=None):
+        self.initializing = False
         if self.remote_name is None:
             # failure to send connect message
             self.disconnect()
@@ -314,13 +323,8 @@ class SyncProtocol(LineOnlyReceiver):
             self.remote_hashes = self.datasource.hash_history[:]
             self.datasource.not_diverged(self)
 
-        existing = self.datasource.connections.get(self.remote_name, None)
-        if existing is not None:
-            # TODO: disconnect existing or...?
-            pass
-        self.datasource.connections[self.remote_name] = self
-
     def line_received(self, line):
+        print(self.datasource.name, "<- %s: %s" % (self.remote_name, line))
         command, space, data = line.partition(b' ')
         del line
 
@@ -337,9 +341,21 @@ class SyncProtocol(LineOnlyReceiver):
     #     MESSAGE HANDLERS
     #
 
+    # TODO: reconnect. omg reconnect.
+    # TODO: udp discovery
+    # TODO: auto-timeout, pings, keepalive
+    # TODO: relay, relay upgrade
+
     def message_connect(self, remote_info):
         remote_name, space, protocolversions = remote_info.partition(b' ')
         self.remote_name = remote_name.decode("utf-8")
+
+        existing = self.datasource.connections.get(self.remote_name, None)
+        if existing is not None:
+            self.disconnect()
+            return
+        else:
+            self.datasource.connections[self.remote_name] = self
 
         # if ever needed: versions = protocolversions.split(',')
         # ... then do something with it ...
@@ -427,13 +443,13 @@ class SyncProtocol(LineOnlyReceiver):
 
             self.datasource.data = uncompressed
             self.datasource.updated_by_connection()
-            # TODO: parse data into tree
+        elif self.remote_hashes[-1] == h:
+            return
         elif not self.diverged:
             # TODO: big flashy warning somewhere!
             self.disconnect()
             return
         else:
-            # TODO: update diverged data dir, blah blah etc
             assert self.remote_hashes[-1] in hashes
             self.remote_hashes.append(h)
             self.datasource.record_diverge(self, uncompressed)
@@ -445,4 +461,5 @@ class SyncProtocol(LineOnlyReceiver):
                 b" ".join(parents) + b" " + d)
 
     def disconnect(self):
+        print(self.datasource.name, "XX", self.remote_name)
         self.transport.loseConnection()

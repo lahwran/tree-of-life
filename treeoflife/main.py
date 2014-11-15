@@ -5,8 +5,10 @@ import os
 import argparse
 import shlex
 import logging
+import socket
 
 from twisted.internet.protocol import Factory
+from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -14,7 +16,8 @@ from txws import WebSocketFactory
 
 from treeoflife.userinterface import SavingInterface, command
 from treeoflife.util import Profile, setter
-from treeoflife.protocols import UIProtocol
+from treeoflife.protocols import UIProtocol, SyncProtocol
+from treeoflife import syncdata
 import treeoflife.editor_launch
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,14 @@ class RemoteInterface(SavingInterface):
         self.run_config = config
         self.restarter = restarter
         self.edit_session = None
+
+        if self.save_dir is not None:
+            name = config.sync_name
+            self.syncdata = syncdata.SyncData(
+                    os.path.join(self.save_dir, "sync"),
+                    name, replace_data=self.sync_replace_data)
+        else:
+            self.syncdata = None
 
     def deserialize(self, *a, **kw):
         SavingInterface.deserialize(self, *a, **kw)
@@ -125,6 +136,23 @@ class RemoteInterface(SavingInterface):
                 break
         return realresult
 
+    def sync_replace_data(self, files):
+        self.deserialize(files)
+        self.update_all()
+
+        if self.save_dir is None:
+            return
+        if not os.path.exists(self.save_dir):
+            os.makedirs(self.save_dir)
+
+        self._save_files(self.save_dir, files)
+
+    def sync_commit(self):
+        if self.syncdata is None:
+            return
+        dumped = self.serialize()
+        self.syncdata.update(dumped)
+
 
 class Server(Factory):
     def __init__(self, protocolclass, tracker, reactor):
@@ -135,6 +163,14 @@ class Server(Factory):
     def buildProtocol(self, addr):
         return self.protocolclass(self.tracker, self.reactor)
 
+
+class SyncServer(Factory):
+    def __init__(self, syncdata, reactor):
+        self.syncdata = syncdata
+        self.reactor = reactor
+
+    def buildProtocol(self, addr):
+        return SyncProtocol(self.syncdata, reactor=self.reactor)
 
 argparser = argparse.ArgumentParser(description="run server")
 argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
@@ -150,6 +186,9 @@ argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
 argparser.add_argument("-e", "--editor", default="embedded", dest="editor")
 argparser.add_argument("--android", default=None, dest="android_root")
+argparser.add_argument("--sync-remote", default=(), action="append",
+        dest="sync_remotes")
+argparser.add_argument("--sync-name", default=None, dest="sync_name")
 
 
 class Restarter(object):
@@ -288,6 +327,15 @@ class NoCacheFile(twisted.web.static.File):
     render_HEAD = render_GET
 
 
+def connect_sync(syncdata, reactor, remotes):
+    for remote in remotes:
+        protocol = SyncProtocol(syncdata, reactor=reactor)
+        host, port = remote.split(":")
+        endpoint = TCP4ClientEndpoint(reactor, host, int(port))
+        logger.info("Connecting sync to %s", remote)
+        connectProtocol(endpoint, protocol)
+
+
 def main(restarter, args):
     from twisted.internet import reactor
 
@@ -333,6 +381,12 @@ def main(restarter, args):
     reactor.listenTCP(config.port, factory, interface=config.listen_iface)
     reactor.listenTCP(config.port + 2,
             WebSocketFactory(factory), interface=config.listen_iface)
+
+    reactor.listenTCP(config.port + 6,
+            SyncServer(ui.syncdata, reactor=reactor),
+            interface=config.listen_iface)
+    reactor.callLater(3, connect_sync,
+            ui.syncdata, reactor, config.sync_remotes)
 
     # serve ui directory
     ui_dir = os.path.join(projectroot, b"ui")

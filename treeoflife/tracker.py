@@ -129,6 +129,9 @@ class Tracker(object):
                     indent=4)
 
         files = self.serialize()
+        self._save_files(save_dir, files)
+
+    def _save_files(self, save_dir, files):
         for filename, data in files.items():
             path = os.path.join(save_dir, filename)
             with open(path, "w") as writer:
