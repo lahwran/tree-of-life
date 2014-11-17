@@ -293,12 +293,14 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
+        logger.debug("Sync: %s", )
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
                                 + b" " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
 
     def connectionLost(self, reason):
+        logger.debug("Sync xx %s: %s", self.remote_name, reason)
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
 
@@ -308,6 +310,7 @@ class SyncProtocol(LineOnlyReceiver):
     def command(self, command, data):
         assert type(command) == str
         assert type(data) == str
+        logger.debug("Sync -> %s: %s", self.remote_name, command)
         self.send_line(b"%s %s" % (command, data))
 
     def init_finished(self, hashes=None):
@@ -326,6 +329,7 @@ class SyncProtocol(LineOnlyReceiver):
     def line_received(self, line):
         command, space, data = line.partition(b' ')
         del line
+        logger.debug("Sync <- %s: %s", self.remote_name, command)
 
         try:
             handler = getattr(self, "message_%s" % command)
@@ -464,7 +468,7 @@ class SyncProtocol(LineOnlyReceiver):
                 b" ".join(parents) + b" " + d)
 
     def disconnect(self, reason):
-        print(self.datasource.name, "XX", self.remote_name, reason)
+        logger.debug("Sync ~~ %s: %s", self.remote_name, reason)
         self.transport.loseConnection()
 
 
