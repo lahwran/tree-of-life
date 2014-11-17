@@ -31,7 +31,7 @@ android {
 android.applicationVariants.all {
     def ceylonModuleName = "treeoflife.android"
     def ceylonModuleVersion = "1"  // TODO: this should be autodetected :(
-    def ceylonExecutable = "/Users/lahwran/ceylonstuff/ceylon-dist/dist/bin/ceylon"
+    def ceylonExecutable = "ceylon"
     def ceylonVersion = "1.1.0"
 
     def pfx = "ceylon-${name}-"
@@ -159,7 +159,7 @@ android.applicationVariants.all {
             "--rep", ceylonOutRepo.canonicalPath,\
             "--rep", ceylonGradleRepo.canonicalPath,\
             "--jvm",\
-            "--recursive",\
+            "-r",\
             "${ceylonModuleName}/${ceylonModuleVersion}"
     }
     task "${pfx}languagemodule"(type: Exec, dependsOn: "${pfx}clear-final-repo") {
@@ -215,7 +215,28 @@ task copytreeoflife(type: Copy) {
     }
 }
 
-task generateFileListing(dependsOn: copytreeoflife) {
+task copycerts(type: Copy, dependsOn: [copytreeoflife]) {
+    def target = file("src/main/assets/app/tls/")
+    def keysDir = System.getenv("TLS_KEYS")
+    if (keysDir == null) {
+        throw new RuntimeException("TLS_KEYS environment variable required to build");
+    }
+    def tlsroot = fileTree(keysDir);
+    tlsroot.include "*.pem"
+
+    from tlsroot
+    into target
+
+    doFirst {
+        def nodename = System.getenv("NODE_NAME")
+        if (nodename == null) {
+            throw new RuntimeException("NODE_NAME environment variable required to build");
+        }
+        file("src/main/assets/app/name").text = nodename
+    }
+}
+
+task generateFileListing(dependsOn: [copytreeoflife, copycerts]) {
     def ft = fileTree("src/main/assets")
     ft.exclude "listing"
     ft.exclude "executables"
@@ -229,13 +250,23 @@ task generateFileListing(dependsOn: copytreeoflife) {
     doFirst {
         def files = []
         def executables = []
+        def torename = [];
+        ft.visit { details ->
+            if (details.file.isDirectory() && details.name.startsWith("_")) {
+                torename.add(details.file)
+            }
+        };
+        torename.reverseEach {
+            def file = new File(it.parentFile,
+                        "startunderscore" + it.name)
+            print "renaming "
+            print it.canonicalPath
+            print " to "
+            println file.canonicalPath
+            it.renameTo(file)
+        }
         ft.visit { details ->
             if (details.file.isDirectory()) {
-                if (details.name.startsWith("_")) {
-                    println details.file
-                    // wat, aapt? why can't I unignore them
-                    throw new RuntimeException("Can't start dirnames with _, unfortunately. rename to startunderscore_")
-                }
                 return
             }
             if (details.file.canExecute()) {

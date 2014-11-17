@@ -8,11 +8,14 @@ import logging
 import socket
 
 from twisted.internet.protocol import Factory
-from twisted.internet.endpoints import TCP4ClientEndpoint, connectProtocol
+from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
+        SSL4ServerEndpoint)
+from twisted.internet import ssl
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
 from txws import WebSocketFactory
+import py
 
 from treeoflife.userinterface import SavingInterface, command
 from treeoflife.util import Profile, setter
@@ -173,6 +176,34 @@ class SyncServer(Factory):
     def buildProtocol(self, addr):
         return SyncProtocol(self.syncdata, reactor=self.reactor)
 
+
+class TLSKeys(object):
+    def __init__(self, reactor, basedir):
+        self.reactor = reactor
+        clientdata = (
+            basedir.join("client.crt.pem").read_binary()
+            + basedir.join("client.key.pem").read_binary()
+        )
+        serverdata = (
+            basedir.join("server.crt.pem").read_binary()
+            + basedir.join("server.key.pem").read_binary()
+        )
+        cadata = basedir.join("ca.crt.pem").read()
+        self.server_cert = ssl.PrivateCertificate.loadPEM(serverdata)
+        self.client_cert = ssl.PrivateCertificate.loadPEM(clientdata)
+        self.ca_cert = ssl.Certificate.loadPEM(cadata)
+        self.client_options = self.client_cert.options(self.ca_cert)
+        self.server_options = self.server_cert.options(self.ca_cert)
+
+    def server(self, port):
+        return SSL4ServerEndpoint(self.reactor, port,
+                self.server_options)
+
+    def client(self, host, port):
+        return SSL4ClientEndpoint(self.reactor, host, port,
+                self.client_options)
+
+
 argparser = argparse.ArgumentParser(description="run server")
 argparser.add_argument("--dev", nargs="?", dest="dev", default="false",
         const="true", type=lambda s: s.lower() == "true")
@@ -186,12 +217,13 @@ argparser.add_argument("--interface", default="127.0.0.1", dest="listen_iface")
 argparser.add_argument("--ignore-tests", action="store_true",
         dest="ignore_tests")
 argparser.add_argument("-e", "--editor", default="embedded", dest="editor")
-argparser.add_argument("--android", default=None, dest="android_root")
+argparser.add_argument("--android", default=None, type=py.path.local,
+        dest="android_root")
 argparser.add_argument("--sync-name", default=None, dest="sync_name")
 argparser.add_argument("--sync-announce-interval", default=2, type=float,
         dest="sync_interval")
-#argparser.add_argument("--sync-group", default=2, type=float,
-#        dest="sync_group")
+argparser.add_argument("--sync-tls-dir", type=py.path.local,
+        default=None, dest="tls_directory")
 
 
 class Restarter(object):
@@ -341,8 +373,11 @@ def main(restarter, args):
     config = argparser.parse_args(args)
     use_git = True
     if config.android_root:
+        config.tls_directory = config.android_root.join("app/tls")
+        config.sync_name = config.android_root.join("app/name")\
+                            .read_binary().decode("utf-8")
         config.ignore_tests = True
-        config.path = os.path.join(config.android_root, "data")
+        config.path = str(config.android_root.join("data"))
         use_git = False
 
     directory = os.path.realpath(os.path.expanduser(config.path))
@@ -377,14 +412,14 @@ def main(restarter, args):
     reactor.listenTCP(config.port + 2,
             WebSocketFactory(factory), interface=config.listen_iface)
 
+    tls = TLSKeys(reactor, config.tls_directory)
+
     sync_port = config.port + 6
-    reactor.listenTCP(sync_port,
-            SyncServer(ui.syncdata, reactor=reactor),
-            interface=config.listen_iface)
+    tls.server(sync_port).listen(SyncServer(ui.syncdata, reactor=reactor))
 
     def connect_sync(host):
         protocol = SyncProtocol(ui.syncdata, reactor=reactor)
-        endpoint = TCP4ClientEndpoint(reactor, host, sync_port)
+        endpoint = tls.client(host, sync_port)
         logger.info("Connecting sync to %s", host)
         connectProtocol(endpoint, protocol)
 
