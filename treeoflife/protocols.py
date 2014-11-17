@@ -293,19 +293,16 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
-        print(self.datasource.name, "++")
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
                                 + b" " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
 
     def connectionLost(self, reason):
-        print(self.datasource.name, "xx", self.remote_name)
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
 
     def send_line(self, line):
-        print(self.datasource.name, "-> %s: %s" % (self.remote_name, line))
         LineOnlyReceiver.send_line(self, line)
 
     def command(self, command, data):
@@ -317,7 +314,7 @@ class SyncProtocol(LineOnlyReceiver):
         self.initializing = False
         if self.remote_name is None:
             # failure to send connect message
-            self.disconnect()
+            self.disconnect("connect message missed")
             raise BadProtocolWhatever
 
         if hashes is not None:
@@ -327,7 +324,6 @@ class SyncProtocol(LineOnlyReceiver):
             self.datasource.not_diverged(self)
 
     def line_received(self, line):
-        print(self.datasource.name, "<- %s: %s" % (self.remote_name, line))
         command, space, data = line.partition(b' ')
         del line
 
@@ -354,11 +350,11 @@ class SyncProtocol(LineOnlyReceiver):
         self.remote_name = remote_name.decode("utf-8")
         if self.remote_name == self.datasource.name:
             # oops, connected to self
-            self.disconnect()
+            self.disconnect("connected to self")
 
         existing = self.datasource.connections.get(self.remote_name, None)
         if existing is not None:
-            self.disconnect()
+            self.disconnect("connection already present")
             return
         else:
             self.datasource.connections[self.remote_name] = self
@@ -383,7 +379,8 @@ class SyncProtocol(LineOnlyReceiver):
 
     def message_please_send(self, localhash):
         if localhash != self.datasource.hash_history[-1]:
-            self.disconnect()  # bad state. let reconnection and such handle it
+            # bad state. let reconnection and such handle it
+            self.disconnect("data changed during init")
             return
 
         message = b""
@@ -453,7 +450,7 @@ class SyncProtocol(LineOnlyReceiver):
             return
         elif not self.diverged:
             # TODO: big flashy warning somewhere!
-            self.disconnect()
+            self.disconnect("bad state - runtime diverge")
             return
         else:
             assert self.remote_hashes[-1] in hashes
@@ -466,8 +463,8 @@ class SyncProtocol(LineOnlyReceiver):
         self.command(b"new_data",
                 b" ".join(parents) + b" " + d)
 
-    def disconnect(self):
-        print(self.datasource.name, "XX", self.remote_name)
+    def disconnect(self, reason):
+        print(self.datasource.name, "XX", self.remote_name, reason)
         self.transport.loseConnection()
 
 

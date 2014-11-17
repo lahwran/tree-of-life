@@ -28,7 +28,7 @@ class SyncProtocol(treeoflife.protocols.SyncProtocol):
         assert disconnected not in self.mqueue
         self.mqueue.append(line)
 
-    def disconnect(self):
+    def disconnect(self, reason):
         self.mqueue = getattr(self, "mqueue", [])
         self.mqueue.append(disconnected)
         self.connectionLost(None)
@@ -547,7 +547,7 @@ def test_disconnected_diverge_resolve(tmpdir):
     transmit(shaakti, obiwan)
     transmit(obiwan, shaakti)
     transmit(shaakti, obiwan)
-    shaakti.disconnect()
+    shaakti.disconnect("test")
     transmit(obiwan, shaakti)
     assert shaakti.mqueue == [disconnected]
     assert obiwan.mqueue == [disconnected]

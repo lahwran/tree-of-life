@@ -21,6 +21,7 @@ from treeoflife.userinterface import SavingInterface, command
 from treeoflife.util import Profile, setter
 from treeoflife.protocols import UIProtocol, SyncProtocol, DiscoveryProtocol
 from treeoflife import syncdata
+from treeoflife import searching
 import treeoflife.editor_launch
 
 logger = logging.getLogger(__name__)
@@ -373,6 +374,11 @@ def main(restarter, args):
     config = argparser.parse_args(args)
     use_git = True
     if config.android_root:
+        # pretend we're on pypy - this will make things slow
+        # TODO: this is an awful hack, and will slow things down
+        # a ton. need to migrate slow stuff into ceylon-controlled
+        # stuff (the GA thing).
+        searching.MAX_TICKS = 100000
         config.tls_directory = config.android_root.join("app/tls")
         config.sync_name = config.android_root.join("app/name")\
                             .read_binary().decode("utf-8")
