@@ -1,3 +1,16 @@
+THIS README IS OUT OF DATE: need to explain new required sync arguments
+    --sync-name and --sync-tls-dir, and how to generate certs for the
+    second. quick explanation: sync-name just needs to be a human-chosen
+    name for the computer. --sync-tls-dir must be a path to a directory
+    containing: client.crt.pem, client.key.pem, server.key.pem,
+    server.crt.pem, and ca.crt.pem. Generate those with habnabit's
+    instant-CA repo, plus this command to generate a cert:
+
+```shell
+openssl req -out incoming/$1.csr -new -newkey rsa:4096 -nodes -keyout incoming/$1.pem
+```
+
+
 Tree of Life
 ============
 
