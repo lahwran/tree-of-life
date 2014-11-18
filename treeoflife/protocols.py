@@ -240,7 +240,7 @@ class UIProtocol(JSONProtocol):
             self.capture_error(e)
         else:
             final = time.time()
-            logger.debug("command commit took: %r", final - initial)
+            logger.info("command commit took: %r", final - initial)
             self.tracker.update_all()
             self.tracker.sync_commit()
         self._update_command()
@@ -287,6 +287,12 @@ class SyncProtocol(LineOnlyReceiver):
         self.diverged = False
         self.reactor = reactor
 
+        self.waiting_pings = set()
+        self.ping_interval = 60
+
+        if self.reactor is not None:
+            self.pinger = LoopingCall(self.ping)
+
         self.remote_name = None
         self.initializing = True
 
@@ -298,25 +304,41 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
-        logger.debug("Sync: %s", )
+        logger.info("Sync connect")
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
                                 + b" " + protocolversions)
         self.command(b"currenthash", self.datasource.hash_history[-1])
 
+        if self.reactor is not None and not self.pinger.running:
+            self.pinger.start(self.ping_interval)
+
     def connectionLost(self, reason):
-        logger.debug("Sync xx %s: %s", self.remote_name, reason)
+        logger.info("Sync xx %s: %s", self.remote_name, reason)
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
+
+        if self.reactor is not None and self.pinger.running:
+            self.pinger.stop()
 
     def send_line(self, line):
         LineOnlyReceiver.send_line(self, line)
 
-    def command(self, command, data):
+    def command(self, command, data, silent=False):
         assert type(command) == str
         assert type(data) == str
-        logger.debug("Sync -> %s: %s", self.remote_name, command)
+        if not silent:
+            logger.info("Sync -> %s: %s", self.remote_name, command)
         self.send_line(b"%s %s" % (command, data))
+
+    def ping(self):
+        if len(self.waiting_pings):
+            self.disconnect("application-level ping timeout")
+            return
+
+        ping_id = rand_id()
+        self.waiting_pings.add(ping_id)
+        self.command(b"ping", ping_id, silent=True)
 
     def init_finished(self, hashes=None):
         self.initializing = False
@@ -334,7 +356,8 @@ class SyncProtocol(LineOnlyReceiver):
     def line_received(self, line):
         command, space, data = line.partition(b' ')
         del line
-        logger.debug("Sync <- %s: %s", self.remote_name, command)
+        if command not in [b"ping", b"pong"]:
+            logger.info("Sync <- %s: %s", self.remote_name, command)
 
         try:
             handler = getattr(self, "message_%s" % command)
@@ -351,8 +374,15 @@ class SyncProtocol(LineOnlyReceiver):
 
     # TODO: reconnect. omg reconnect.
     #      - partially solved by local discovery
-    # TODO: auto-timeout, pings, keepalive
     # TODO: relay, relay upgrade
+
+    def message_ping(self, ping_id):
+        self.command(b"pong", ping_id, silent=True)
+
+    def message_pong(self, ping_id):
+        if ping_id not in self.waiting_pings:
+            self.disconnect("invalid ping reply %s" % (ping_id,))
+        self.waiting_pings.remove(ping_id)
 
     def message_connect(self, remote_info):
         remote_name, space, protocolversions = remote_info.partition(b' ')
