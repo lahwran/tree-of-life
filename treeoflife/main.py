@@ -431,7 +431,7 @@ def main(restarter, args):
 
     discovery_port = config.port + 7
     discovery = DiscoveryProtocol(ui.syncdata, discovery_port, connect_sync,
-            interval=config.sync_interval)
+            reactor, interval=config.sync_interval)
     reactor.listenUDP(discovery_port, discovery)
 
     # serve ui directory

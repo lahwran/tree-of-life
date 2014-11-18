@@ -78,6 +78,11 @@ class JSONProtocol(LineOnlyReceiver):
                 self.capture_error(e, "UNEXPECTED, SEE CONSOLE")
 
 
+def rand_id():
+    return b"".join(random.choice(string.lowercase)
+                for x in range(15))
+
+
 class UIProtocol(JSONProtocol):
     def __init__(self, tracker, reactor):
         self.tracker = tracker
@@ -468,17 +473,18 @@ class SyncProtocol(LineOnlyReceiver):
                 b" ".join(parents) + b" " + d)
 
     def disconnect(self, reason):
-        logger.debug("Sync ~~ %s: %s", self.remote_name, reason)
+        logger.info("Sync ~~ %s: %s", self.remote_name, reason)
         self.transport.loseConnection()
 
 
 class DiscoveryProtocol(DatagramProtocol):
-    def __init__(self, syncdata, port, connect_callback, interval=2):
+    def __init__(self, syncdata, port, connect_callback, reactor, interval=2):
         self.syncdata = syncdata
         self.port = port
         self.connect_callback = connect_callback
         self.looping_call = LoopingCall(self.announce)
         self.interval = interval
+        self.reactor = reactor
         self.cooldown = {}
 
     def startProtocol(self):
@@ -497,8 +503,7 @@ class DiscoveryProtocol(DatagramProtocol):
 
     def command(self, address, command, data):
         assert all(type(x) == str for x in (address, command, data))
-        mid = b"".join(random.choice(string.lowercase)
-                for x in range(15))
+        mid = rand_id()
         self.transport.write(
                 b"%s %s %s\n" % (mid, command, data),
                 (address, self.port))
@@ -518,14 +523,31 @@ class DiscoveryProtocol(DatagramProtocol):
 
     def discovered(self, address, remote_name):
         if remote_name in self.syncdata.connections:
-            # TODO: this ignores relay-upgrade and connections going bad
+            # TODO: this ignores relay-upgrade
+            return
+
+        last_attempt = self.cooldown.get((address, remote_name), 0)
+        now = time.time()
+        if last_attempt > now - 30:
+            # this is an expected state, between the time a node is
+            # discovered and the time it's connected and init is finished
+            logger.info("attempting to reconnect too fast: %s (%s): %f",
+                remote_name, address, now - last_attempt)
+            return
+
+        self.reactor.callLater(random.random() * 10, self.do_connect,
+                address, remote_name)
+
+    def do_connect(self, address, remote_name):
+        if remote_name in self.syncdata.connections:
+            # TODO: this ignores relay-upgrade
             return
         last_attempt = self.cooldown.get((address, remote_name), 0)
         now = time.time()
         if last_attempt > now - 30:
             # this is an expected state, between the time a node is
             # discovered and the time it's connected and init is finished
-            logger.debug("attempting to reconnect too fast: %s (%s): %f",
+            logger.info("attempting to reconnect too fast: %s (%s): %f",
                 remote_name, address, now - last_attempt)
             return
 
