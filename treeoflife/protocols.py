@@ -523,7 +523,8 @@ class DiscoveryProtocol(DatagramProtocol):
             self.looping_call.start(self.interval)
 
     def stopProtocol(self):
-        self.looping_call.stop()
+        if self.looping_call.running:
+            self.looping_call.stop()
 
     def announce(self):
         self.command(b"<broadcast>", b"announce",
