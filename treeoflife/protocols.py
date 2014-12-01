@@ -287,6 +287,8 @@ class SyncProtocol(LineOnlyReceiver):
         self.diverged = False
         self.reactor = reactor
 
+        self.disconnected = False
+
         self.waiting_pings = set()
         self.ping_interval = 60
 
@@ -295,6 +297,8 @@ class SyncProtocol(LineOnlyReceiver):
 
         self.remote_name = None
         self.initializing = True
+        self.id = rand_id()
+        self.logger = logging.getLogger(__name__ + ".Sync-" + self.id)
 
     def connectionMade(self):
         """
@@ -304,7 +308,7 @@ class SyncProtocol(LineOnlyReceiver):
         # REMEMBER: can't send binary hashes over line-based protocol, we'd
         #           have a ((256-1)/256) ** 32 chance of cutting the hash,
         #           about 11%, it'd break about one in 10
-        logger.info("Sync connect")
+        self.logger.info("Sync connect")
         protocolversions = b"1"
         self.command(b"connect", self.datasource.name.encode("utf-8")
                                 + b" " + protocolversions)
@@ -314,7 +318,10 @@ class SyncProtocol(LineOnlyReceiver):
             self.pinger.start(self.ping_interval)
 
     def connectionLost(self, reason):
-        logger.info("Sync xx %s: %s", self.remote_name, reason)
+        self.logger.info("Sync xx %s: %s", self.remote_name, reason)
+        self.on_disconnect()
+
+    def on_disconnect(self):
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
 
@@ -322,13 +329,17 @@ class SyncProtocol(LineOnlyReceiver):
             self.pinger.stop()
 
     def send_line(self, line):
+        if self.disconnected:
+            return
         LineOnlyReceiver.send_line(self, line)
 
     def command(self, command, data, silent=False):
+        if self.disconnected:
+            return
         assert type(command) == str
         assert type(data) == str
         if not silent:
-            logger.info("Sync -> %s: %s", self.remote_name, command)
+            self.logger.info("Sync -> %s: %s", self.remote_name, command)
         self.send_line(b"%s %s" % (command, data))
 
     def ping(self):
@@ -354,15 +365,18 @@ class SyncProtocol(LineOnlyReceiver):
             self.datasource.not_diverged(self)
 
     def line_received(self, line):
+        if self.disconnected:
+            return
+
         command, space, data = line.partition(b' ')
         del line
         if command not in [b"ping", b"pong"]:
-            logger.info("Sync <- %s: %s", self.remote_name, command)
+            self.logger.info("Sync <- %s: %s", self.remote_name, command)
 
         try:
             handler = getattr(self, "message_%s" % command)
         except AttributeError:
-            logger.error("Unrecognized sync message: %s", line)
+            self.logger.error("Unrecognized sync message: %s", line)
             return
 
         handler(data)
@@ -503,8 +517,10 @@ class SyncProtocol(LineOnlyReceiver):
                 b" ".join(parents) + b" " + d)
 
     def disconnect(self, reason):
-        logger.info("Sync ~~ %s: %s", self.remote_name, reason)
+        self.logger.info("Sync ~~ %s: %s", self.remote_name, reason)
         self.transport.loseConnection()
+        self.disconnected = True
+        self.on_disconnect()
 
 
 class DiscoveryProtocol(DatagramProtocol):
