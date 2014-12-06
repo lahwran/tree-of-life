@@ -167,7 +167,7 @@ angular.module("treeoflife", ["d4"], function($rootScopeProvider) {
                 scope.addnodes = angular.isDefined(attrs.nodes);
                 scope.collapsed = angular.isDefined(attrs.collapsed);
                 attrs.$observe("text", function(text) {
-                    if (text) {
+                    if (angular.isDefined(text)) {
                         scope.collapsedtext = text;
                     } else {
                         scope.collapsedtext = "...";
