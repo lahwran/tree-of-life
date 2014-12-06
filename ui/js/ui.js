@@ -28,7 +28,7 @@ function on_calculate_height()          {return (_handlers.calculate_height     
 
 
 function ui_controller($scope, backend, handlers, $timeout) {
-    $scope.zoom = "50";
+    $scope.zoom = "30";
     $scope.$watch("zoom", function(x) {
         $scope.zoomi = parseFloat(x);
     });
