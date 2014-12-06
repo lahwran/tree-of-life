@@ -369,7 +369,6 @@ class SyncProtocol(LineOnlyReceiver):
             return
 
         command, space, data = line.partition(b' ')
-        del line
         if command not in [b"ping", b"pong"]:
             self.logger.info("Sync <- %s: %s", self.remote_name, command)
 
@@ -378,6 +377,7 @@ class SyncProtocol(LineOnlyReceiver):
         except AttributeError:
             self.logger.error("Unrecognized sync message: %s", line)
             return
+        del line
 
         handler(data)
 
@@ -411,6 +411,7 @@ class SyncProtocol(LineOnlyReceiver):
             return
         else:
             self.datasource.connections[self.remote_name] = self
+            self.datasource.on_synced_hook()
 
         # if ever needed: versions = protocolversions.split(',')
         # ... then do something with it ...
@@ -486,10 +487,15 @@ class SyncProtocol(LineOnlyReceiver):
             self.init_finished(hashes)
             self.datasource.record_diverge(self, uncompressed)
 
+        self.datasource.update_synced_time(self)
+        self.command(b"synced", h)
+
     def message_new_data(self, message):
         data, hashes = self._unpack_update(message)
         uncompressed = syncdata._decode_data(data)
         h = syncdata.sha256(uncompressed)
+        self.datasource.update_synced_time(self)
+        self.command(b"synced", h)
 
         if self.datasource.hash_history[-1] in hashes:
             self.datasource.not_diverged(self)
@@ -509,6 +515,10 @@ class SyncProtocol(LineOnlyReceiver):
             assert self.remote_hashes[-1] in hashes
             self.remote_hashes.append(h)
             self.datasource.record_diverge(self, uncompressed)
+
+    def message_synced(self, remote_hash):
+        assert remote_hash in self.datasource.hash_history[-10:]
+        self.datasource.update_synced_time(self)
 
     def data_changed(self, parents):
         d = syncdata._encode_data(self.datasource.data)

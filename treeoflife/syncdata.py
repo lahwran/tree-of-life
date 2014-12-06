@@ -1,8 +1,11 @@
+from __future__ import unicode_literals, print_function
+
 import zlib
 import shutil
 import hashlib
 import json
 import py
+import datetime
 
 
 def sha256(data):
@@ -12,41 +15,73 @@ def sha256(data):
 
 class SyncData(object):
     def __init__(self, directory, group, name, init_stuff=None,
-            replace_data=lambda x: None):
+            replace_data=lambda x: None,
+            on_synced=lambda: None):
         # doesn't keep any but the latest data
         self.name = name
         self.group = group
 
         self.connections = {}
+        self.last_synced = {}
 
         self.replace_data_hook = replace_data
+        self.on_synced_hook = on_synced
 
         self.directory = py.path.local(directory)
         self.directory.ensure(dir=True)
-        self.datafile = self.directory.join("last_data")
-        self.hashfile = self.directory.join("hash_history")
+        self.datafile = self.directory.join(u"last_data")
+        self.hashfile = self.directory.join(u"hash_history")
+        self.last_synced_file = self.directory.join(u"hash_history")
+
+        try:
+            self.last_synced = self.parse_last_synced(
+                    self.last_synced_file.read_binary())
+        except py.error.ENOENT:
+            self.last_synced = {}
 
         try:
             self.data = self.datafile.read_binary()
             self.hash_history = self.hashfile.read_binary().split()
         except py.error.ENOENT:
-            self.data = ""
+            self.data = b""
             self.hash_history = [sha256(self.data)]
+            self.last_synced = {}
             if init_stuff is not None:
                 self.data = self.dump(init_stuff)
                 self.hash_history.append(sha256(self.data))
             self.write()
 
+    def parse_last_synced(self, data):
+        pairs = (
+            line.partition(b' ')
+            for line in data.split(b"\n")
+            if line.strip()
+        )
+        return dict(
+            (name.decode("utf-8"), datetime.datetime.strptime(date,
+                b'%Y-%m-%d %H:%M:%S'))
+            for name, _, date in pairs
+            if name and date
+        )
+
+    def dump_last_synced(self, last_synced):
+        return b"\n".join(
+            b"{} {}".format(name.encode("utf-8"), date.isoformat(b' '))
+            for name, date in last_synced.iteritems()
+        )
+
     def write(self):
         self.datafile.write_binary(self.data)
-        self.hashfile.write_binary("\n".join(self.hash_history))
+        self.hashfile.write_binary(b"\n".join(self.hash_history))
+        self.last_synced_file.write_binary(
+                self.dump_last_synced(self.last_synced))
 
     def resolve_diverge(self, remote_name):
         parents = [self.hash_history[-1]]
 
-        remote = self.directory.join("diverge-" + remote_name)
-        remote_history = remote.join("hash_history").read_binary().split()
-        repaired_data = remote.join("merged").read_binary()
+        remote = self.directory.join(u"diverge-" + remote_name)
+        remote_history = remote.join(u"hash_history").read_binary().split()
+        repaired_data = remote.join(u"merged").read_binary()
 
         hashes = slice_common_parent(
                 self.hash_history,
@@ -90,6 +125,10 @@ class SyncData(object):
                 continue
             connection.data_changed(parents)
 
+    def update_synced_time(self, connection):
+        self.last_synced[connection.remote_name] = datetime.datetime.now()
+        self.on_synced_hook()
+
     def dump(self, stuff):
         data = json.dumps(stuff)
         assert type(data) == str
@@ -97,11 +136,11 @@ class SyncData(object):
 
     def record_diverge(self, connection, data):
         diverge_dir = self.directory.join(
-                "diverge-" + connection.remote_name)
+                u"diverge-" + connection.remote_name)
         diverge_dir.ensure(dir=True)
-        diverge_dir.join("data").write_binary(data)
-        diverge_dir.join("hash_history")\
-                .write_binary("\n".join(connection.remote_hashes))
+        diverge_dir.join(u"data").write_binary(data)
+        diverge_dir.join(u"hash_history")\
+                .write_binary(b"\n".join(connection.remote_hashes))
 
     def not_diverged(self, connection):
         connection.diverged = False

@@ -58,6 +58,15 @@ def transmit(source, dest):
         check_disconnect(source, dest)
 
 
+def stabilize(node1, node2, limit=10):
+    count = 0
+    while node1.mqueue or node2.mqueue:
+        transmit(node1, node2)
+        transmit(node2, node1)
+        count += 1
+        assert count < limit
+
+
 def makesyncdata(tmpdir, name, history):
     directory = tmpdir.join(name)
     directory.ensure(dir=True)
@@ -65,7 +74,15 @@ def makesyncdata(tmpdir, name, history):
     hashes = [usha256(x) for x in history]
     directory.join("hash_history").write_binary("\n".join(hashes))
     directory.join("last_data").write_binary(data)
-    return syncdata.SyncData(directory, "test_group", name)
+
+    def on_synced():
+        print("{} notify upate".format(name))
+        sdata.sync_time_notifies += 1
+
+    sdata = syncdata.SyncData(directory, "test_group", name,
+        on_synced=on_synced)
+    sdata.sync_time_notifies = 0
+    return sdata
 
 
 def usha256(stuff):
@@ -80,8 +97,9 @@ def dump(stuff):
 # other's different hashes but only one is ahead
 # this is a required tradeoff of not using a merkle tree (merkle sequence?)
 
-def test_sync_init(tmpdir):
+def test_sync_init(tmpdir, setdt):
     # easier to keep track of story characters mentally
+    setdt(2014, 12, 6, 0, 0)
 
     shaakti_data = makesyncdata(tmpdir, "shaakti",
         [{"life": "\u2028 first data"},
@@ -93,6 +111,8 @@ def test_sync_init(tmpdir):
     shaakti = SyncProtocol(shaakti_data)
     shaakti.connectionMade()
     assert shaakti.remote_hashes is None
+    assert shaakti_data.sync_time_notifies == 0
+    assert shaakti_data.last_synced == {}
 
     obiwan_data = makesyncdata(tmpdir, "obiwan",
         [{"life": "\u2028 first data"},
@@ -101,6 +121,8 @@ def test_sync_init(tmpdir):
     )
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
+    assert obiwan_data.sync_time_notifies == 0
+    assert obiwan_data.last_synced == {}
     assert obiwan.remote_hashes is None
 
     # TODO: this leaves possibility of ordering bugs
@@ -120,6 +142,8 @@ def test_sync_init(tmpdir):
         b"currenthash {0}".format(usha256({"life": "\u2028 third data"})),
         b"please_send {0}".format(usha256({"life": "\u2028 fifth data"}))
     ]
+    assert obiwan_data.sync_time_notifies == 1
+    assert obiwan_data.last_synced == {}
 
     transmit(obiwan, shaakti)
     expected_data = zlib.compress(dump({"life": "\u2028 fifth data"}))
@@ -131,9 +155,21 @@ def test_sync_init(tmpdir):
             data=expected_data.encode("base64").replace(b'\n', b'')
         )
     ]
+    assert shaakti_data.sync_time_notifies == 1
+    assert shaakti_data.last_synced == {}
 
+    now = setdt(2014, 12, 6, 8, 5).now()
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == []
+    assert obiwan.mqueue == [
+        b'synced %s' % usha256({"life": "\u2028 fifth data"})
+    ]
+    assert obiwan_data.sync_time_notifies == 2
+    assert obiwan_data.last_synced == {"shaakti": now}
+
+    transmit(obiwan, shaakti)
+    assert shaakti.mqueue == []
+    assert shaakti_data.last_synced == {"obiwan": now}
+    assert shaakti_data.sync_time_notifies == 2
 
     assert obiwan_data == makesyncdata(tmpdir, "expected",
         [{"life": "\u2028 first data"},
@@ -189,7 +225,10 @@ def test_sync_init_uptodate(tmpdir):
     ]
 
     transmit(obiwan, shaakti)
-    assert shaakti.mqueue == []
+    assert obiwan_data.sync_time_notifies == 1
+    assert shaakti_data.sync_time_notifies == 1
+    assert obiwan_data.last_synced == {}
+    assert shaakti_data.last_synced == {}
 
     assert obiwan_data == makesyncdata(tmpdir, "expected",
         [{"life": "\u2028 first data"},
@@ -269,6 +308,7 @@ def test_init_diverged(tmpdir):
     ]
 
     transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 1
     assert shaakti.mqueue[2:] == [
         b"please_send {0}".format(usha256(
             {"life": "\u2028 other diverged two"}
@@ -289,6 +329,7 @@ def test_init_diverged(tmpdir):
     assert obiwan.diverged
 
     transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 2
     assert shaakti.remote_hashes == obiwan_data.hash_history
     assert shaakti.diverged
     diverge_dir = tmpdir.join("shaakti").join("diverge-obiwan")
@@ -305,10 +346,20 @@ def test_init_diverged(tmpdir):
         b'history_and_data {history} {data}'.format(
             history=" ".join(shaakti_data.hash_history),
             data=expected_data.encode("base64").replace(b'\n', b'')
-        )
+        ),
+        b'synced {0}'.format(usha256({"life": "\u2028 other diverged two"})),
     ]
 
     transmit(shaakti, obiwan)
+    assert obiwan_data.sync_time_notifies == 3
+    assert obiwan.mqueue == [
+        b'synced {0}'.format(usha256({"life": "\u2028 diverged two"})),
+    ]
+
+    transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 3
+    assert shaakti.mqueue == []
+
     diverge_dir = tmpdir.join("obiwan").join("diverge-shaakti")
     assert diverge_dir.check(dir=True)
     assert diverge_dir.join("data").read_binary() == dump(
@@ -333,10 +384,10 @@ def test_connected_update(tmpdir):
     obiwan = SyncProtocol(obiwan_data)
     obiwan.connectionMade()
 
-    transmit(shaakti, obiwan)
-    transmit(obiwan, shaakti)
+    stabilize(shaakti, obiwan)
 
-    assert shaakti.mqueue == []
+    assert shaakti_data.sync_time_notifies == 1
+    assert obiwan_data.sync_time_notifies == 1
 
     # ... some time later ...
 
@@ -351,7 +402,14 @@ def test_connected_update(tmpdir):
         )
     ]
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == []
+    assert obiwan_data.sync_time_notifies == 2
+    assert obiwan.mqueue == [
+        b"synced {new_hash}".format(
+            new_hash=usha256({"life": "\u2028 fourth data"}))
+    ]
+
+    transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 2
 
     assert obiwan_data == makesyncdata(tmpdir, "expected",
         [{"life": "\u2028 first data"},
@@ -382,12 +440,9 @@ def test_connected_already_diverged_update(tmpdir):
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
     obiwan.connectionMade()
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
-
-    assert obiwan.mqueue == []
+    stabilize(shaakti, obiwan)
+    assert obiwan_data.sync_time_notifies == 3
+    assert shaakti_data.sync_time_notifies == 3
 
     # some time later...
 
@@ -404,8 +459,14 @@ def test_connected_already_diverged_update(tmpdir):
     ]
 
     transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 4
 
-    assert shaakti.mqueue == []
+    assert shaakti.mqueue == [
+        b"synced {}".format(usha256({"life": "\u2028 other diverged three"}))
+    ]
+    transmit(shaakti, obiwan)
+    assert obiwan_data.sync_time_notifies == 4
+
     diverge_dir = tmpdir.join("shaakti").join("diverge-obiwan")
     assert diverge_dir.check(dir=True)
     assert diverge_dir.join("data").read_binary() == dump(
@@ -444,7 +505,7 @@ def test_diverge_since_connect(tmpdir):
 
     shaakti_data.update({"life": "\u2028 fourth data"})
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == [disconnected]
+    assert obiwan.mqueue[-1] == disconnected
 
 
 def test_diverge_resolve(tmpdir):
@@ -467,12 +528,7 @@ def test_diverge_resolve(tmpdir):
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
     obiwan.connectionMade()
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
-
-    assert obiwan.mqueue == []
+    stabilize(obiwan, shaakti)
 
     diverge_dir = shaakti_data.directory.join("diverge-obiwan")
     assert diverge_dir.join("data").read_binary() == obiwan_data.data
@@ -498,7 +554,9 @@ def test_diverge_resolve(tmpdir):
     ]
 
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == []
+    assert obiwan.mqueue == [
+        b"synced {}".format(usha256({"life": "\u2028 resolve divergence"}))
+    ]
 
     assert obiwan_data == makesyncdata(tmpdir, "obiwan",
         [{"life": "\u2028 first data"},
@@ -543,16 +601,17 @@ def test_disconnected_diverge_resolve(tmpdir):
     obiwan = SyncProtocol(obiwan_data)
     shaakti.connectionMade()
     obiwan.connectionMade()
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
-    transmit(obiwan, shaakti)
-    transmit(shaakti, obiwan)
+
+    stabilize(shaakti, obiwan)
+
     shaakti.disconnect("test")
     transmit(obiwan, shaakti)
     assert shaakti.mqueue == [disconnected]
     assert obiwan.mqueue == [disconnected]
     assert not shaakti_data.connections
     assert not obiwan_data.connections
+    obiwan_data.sync_time_notifies = 0
+    shaakti_data.sync_time_notifies = 0
 
     # some time later...
     diverge_dir = shaakti_data.directory.join("diverge-obiwan")
@@ -577,6 +636,7 @@ def test_disconnected_diverge_resolve(tmpdir):
     ]
 
     transmit(shaakti, obiwan)
+    assert obiwan_data.sync_time_notifies == 1
 
     assert obiwan.mqueue[-1:] == [
         b"please_send {0}".format(usha256(
@@ -584,6 +644,7 @@ def test_disconnected_diverge_resolve(tmpdir):
         ))
     ]
     transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 1
 
     expected_data = zlib\
             .compress(dump({"life": "\u2028 resolve divergence"}))\
@@ -599,7 +660,12 @@ def test_disconnected_diverge_resolve(tmpdir):
     ]
 
     transmit(shaakti, obiwan)
-    assert obiwan.mqueue == []
+    assert obiwan_data.sync_time_notifies == 2
+    assert obiwan.mqueue == [
+        b"synced {}".format(usha256({"life": "\u2028 resolve divergence"}))
+    ]
+    transmit(obiwan, shaakti)
+    assert shaakti_data.sync_time_notifies == 2
 
     # NOTE HOW DIVERGED ONE AND DIVERGED TWO ARE MISSING! this is a compromise
     # by design, not a mistake. Feel free to extend the protocol to fix this,
