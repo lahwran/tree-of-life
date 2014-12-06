@@ -78,20 +78,20 @@
           </div>
         </div>
         <collapseable class="sidebar" text="" shown="sidebar_shown">
-          <div ng-show="browser_compat">
+          <div ng-show="browser_compat" class="simple-item">
             <div ng-include="'/partials/browser-compat.html'">
             </div>
           </div>
-          <div ng-show="notifications.length" class="notifications">
+          <div ng-show="notifications.length" class="notifications simple-item">
             <div ng-repeat="notification in notifications track by $index" class="notification">
               {{ notification }} <a ng-click="removeNotification($index)">x</a>
             </div>
           </div>
           <!-- insert other stuff here -->
-          <div ng-show="!browser_compat" class="control-utils">
+          <div ng-show="!browser_compat" class="control-utils simple-item">
             <div ng-click="_quit()"> quit popup </div>
           </div>
-          <nodes pool="pool" nodes="pool[pool.ids.todo_bucket].children"></nodes>
+          <nodes pool="pool" nodes="pool[pool.ids.todo_bucket].children" class="simple-item"></nodes>
         </collapseable>
       </div>
     </div>
