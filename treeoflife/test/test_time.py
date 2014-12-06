@@ -125,3 +125,110 @@ def test_approx_delta():
     assert approx_delta(now, datetime.date(2011, 12, 27)) == '12 months ago'
     assert approx_delta(now, datetime.date(2012, 12, 20)) == '6 days ago'
     assert approx_delta(now, datetime.date(2012, 12, 19)) == '1 week ago'
+
+
+def test_english_number():
+    assert timefmt.english_number(0) == "zero"
+    assert timefmt.english_number(1) == "one"
+    assert timefmt.english_number(2) == "two"
+    assert timefmt.english_number(3) == "three"
+    assert timefmt.english_number(4) == "four"
+    assert timefmt.english_number(5) == "five"
+    assert timefmt.english_number(6) == "six"
+    assert timefmt.english_number(7) == "seven"
+    assert timefmt.english_number(8) == "eight"
+    assert timefmt.english_number(9) == "nine"
+    assert timefmt.english_number(10) == "ten"
+    assert timefmt.english_number(11) == "eleven"
+    assert timefmt.english_number(12) == "twelve"
+    assert timefmt.english_number(13) == "thirteen"
+    assert timefmt.english_number(14) == "fourteen"
+    assert timefmt.english_number(15) == "fifteen"
+    assert timefmt.english_number(16) == "sixteen"
+    assert timefmt.english_number(17) == "seventeen"
+    assert timefmt.english_number(18) == "eighteen"
+    assert timefmt.english_number(19) == "nineteen"
+    assert timefmt.english_number(20) == "twenty"
+
+    assert timefmt.english_number(22) == "twenty two"
+    assert timefmt.english_number(25) == "twenty five"
+    assert timefmt.english_number(29) == "twenty nine"
+
+    assert timefmt.english_number(30) == "thirty"
+    assert timefmt.english_number(31) == "thirty one"
+    assert timefmt.english_number(40) == "fourty"
+    assert timefmt.english_number(41) == "fourty one"
+    assert timefmt.english_number(50) == "fifty"
+    assert timefmt.english_number(51) == "fifty one"
+    assert timefmt.english_number(60) == "sixty"
+    assert timefmt.english_number(61) == "sixty one"
+    assert timefmt.english_number(70) == "seventy"
+    assert timefmt.english_number(71) == "seventy one"
+    assert timefmt.english_number(80) == "eighty"
+    assert timefmt.english_number(81) == "eighty one"
+    assert timefmt.english_number(90) == "ninety"
+    assert timefmt.english_number(91) == "ninety one"
+
+    assert timefmt.english_number(100) == "one hundred"
+    assert timefmt.english_number(101) == "one hundred and one"
+    assert timefmt.english_number(110) == "one hundred and ten"
+    assert timefmt.english_number(119) == "one hundred and nineteen"
+    assert timefmt.english_number(120) == "one hundred twenty"
+    assert timefmt.english_number(121) == "one hundred twenty one"
+    assert timefmt.english_number(151) == "one hundred fifty one"
+
+    assert timefmt.english_number(200) == "two hundred"
+    assert timefmt.english_number(201) == "two hundred and one"
+    assert timefmt.english_number(220) == "two hundred twenty"
+
+    assert timefmt.english_number(300) == "three hundred"
+    assert timefmt.english_number(301) == "three hundred and one"
+
+    assert timefmt.english_number(400) == "four hundred"
+    assert timefmt.english_number(401) == "four hundred and one"
+
+    assert timefmt.english_number(500) == "five hundred"
+    assert timefmt.english_number(501) == "five hundred and one"
+
+    assert timefmt.english_number(600) == "six hundred"
+    assert timefmt.english_number(700) == "seven hundred"
+    assert timefmt.english_number(800) == "eight hundred"
+    assert timefmt.english_number(900) == "nine hundred"
+
+    assert timefmt.english_number(999) == "nine hundred ninety nine"
+
+    assert timefmt.english_number(1000) == "one thousand"
+    assert timefmt.english_number(1001) == "one thousand and one"
+    assert timefmt.english_number(1010) == "one thousand and ten"
+    assert timefmt.english_number(1019) == "one thousand and nineteen"
+
+    assert timefmt.english_number(1024) == "one thousand twenty four"
+    assert timefmt.english_number(1124) == (
+            "one thousand, one hundred, and twenty four")
+    assert timefmt.english_number(1500) == "one thousand five hundred"
+    assert timefmt.english_number(1501) == (
+            "one thousand, five hundred, and one")
+
+    assert timefmt.english_number(15001) == "fifteen thousand and one"
+
+    assert all(timefmt.english_number(x) for x in range(20000))
+    with pytest.raises(ValueError):
+        timefmt.english_number(20000)
+
+
+def test_small_approx_delta():
+    def sd(*a, **kw):
+        return timefmt.small_approx_delta(datetime.timedelta(*a, **kw))
+
+    assert sd(seconds=0) == "zero seconds"
+    assert sd(seconds=1) == "one second"
+    assert sd(seconds=59) == "fifty nine seconds"
+    assert sd(seconds=60) == "one minute"
+    assert sd(minutes=10) == "ten minutes"
+    assert sd(minutes=59) == "fifty nine minutes"
+    assert sd(minutes=60) == "one hour"
+    assert sd(hours=2) == "two hours"
+    assert sd(hours=23) == "twenty three hours"
+    assert sd(hours=24) == "one day"
+    assert sd(hours=28) == "one day"
+    assert sd(hours=48) == "two days"

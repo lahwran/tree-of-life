@@ -557,6 +557,9 @@ def test_diverge_resolve(tmpdir):
     assert obiwan.mqueue == [
         b"synced {}".format(usha256({"life": "\u2028 resolve divergence"}))
     ]
+    stabilize(shaakti, obiwan)
+
+    assert not obiwan_data.directory.join("diverge-shaakti").check()
 
     assert obiwan_data == makesyncdata(tmpdir, "obiwan",
         [{"life": "\u2028 first data"},
@@ -613,12 +616,16 @@ def test_disconnected_diverge_resolve(tmpdir):
     obiwan_data.sync_time_notifies = 0
     shaakti_data.sync_time_notifies = 0
 
+    assert obiwan_data.diverged_remotes == ["shaakti"]
+    assert shaakti_data.diverged_remotes == ["obiwan"]
+
     # some time later...
     diverge_dir = shaakti_data.directory.join("diverge-obiwan")
     diverge_dir.join("merged").write_binary(
             dump({"life": "\u2028 resolve divergence"}))
     shaakti_data.resolve_diverge("obiwan")
     assert not diverge_dir.check()
+    assert shaakti_data.diverged_remotes == []
 
     # ... then reestablish the connection ...
     obiwan = SyncProtocol(obiwan_data)
@@ -666,6 +673,9 @@ def test_disconnected_diverge_resolve(tmpdir):
     ]
     transmit(obiwan, shaakti)
     assert shaakti_data.sync_time_notifies == 2
+
+    assert not obiwan_data.directory.join("diverge-shaakti").check()
+    assert obiwan_data.diverged_remotes == []
 
     # NOTE HOW DIVERGED ONE AND DIVERGED TWO ARE MISSING! this is a compromise
     # by design, not a mistake. Feel free to extend the protocol to fix this,

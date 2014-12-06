@@ -2,10 +2,11 @@ angular.module("treeoflife")
 .directive("tlCommandbox", function($rootScope, backend) {
     return {
         restrict: "E",
-        template: '<input type="text" ng-model="command" ng-change="changed()" class="commandbox reset" tl-keys="keys" autofocus>',
+        template: '<input type="text" ng-model="command" ng-change="changed()" class="commandbox reset" tl-keys="keys" autofocus placeholder="{{syncStatus}}">',
         replace: true,
         scope: {
-            sendCommand: "="
+            sendCommand: "=",
+            syncStatus: "="
         },
         link: function($scope, $element, $attrs) {
             $scope.command = "";

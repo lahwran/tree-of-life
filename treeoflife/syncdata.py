@@ -31,7 +31,7 @@ class SyncData(object):
         self.directory.ensure(dir=True)
         self.datafile = self.directory.join(u"last_data")
         self.hashfile = self.directory.join(u"hash_history")
-        self.last_synced_file = self.directory.join(u"hash_history")
+        self.last_synced_file = self.directory.join(u"last_synced")
 
         try:
             self.last_synced = self.parse_last_synced(
@@ -66,7 +66,9 @@ class SyncData(object):
 
     def dump_last_synced(self, last_synced):
         return b"\n".join(
-            b"{} {}".format(name.encode("utf-8"), date.isoformat(b' '))
+            b"{} {}".format(
+                name.encode("utf-8"),
+                date.replace(microsecond=0).isoformat(b' '))
             for name, date in last_synced.iteritems()
         )
 
@@ -134,6 +136,12 @@ class SyncData(object):
         assert type(data) == str
         return data
 
+    @property
+    def diverged_remotes(self):
+        return [path.basename[len(u"diverge-"):]
+            for path in self.directory.listdir()
+            if path.basename.startswith(u"diverge-")]
+
     def record_diverge(self, connection, data):
         diverge_dir = self.directory.join(
                 u"diverge-" + connection.remote_name)
@@ -154,6 +162,7 @@ class SyncData(object):
                 self.hash_history,
                 connection.remote_hashes)
         self.hash_history.extend(sliced)
+        shutil.rmtree(str(diverge_dir))
 
     # TODO: rebroadcast to other nodes
 

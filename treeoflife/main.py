@@ -11,6 +11,7 @@ from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
         SSL4ServerEndpoint)
 from twisted.internet import ssl
+from twisted.internet.task import LoopingCall
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -78,7 +79,9 @@ class RemoteInterface(SavingInterface):
             self.syncdata = syncdata.SyncData(
                     os.path.join(self.save_dir, "sync"),
                     "default_group",  # TODO: actual groups
-                    name, replace_data=self.sync_replace_data)
+                    name,
+                    replace_data=self.sync_replace_data,
+                    on_synced=self.sync_notify)
         else:
             self.syncdata = None
 
@@ -157,6 +160,10 @@ class RemoteInterface(SavingInterface):
             return
         dumped = self.serialize()
         self.syncdata.update(dumped)
+
+    def sync_notify(self):
+        for listener in self.listeners:
+            listener.update_last_synced()
 
 
 class Server(Factory):
@@ -440,6 +447,10 @@ def main(restarter, args):
     static = twisted.web.server.Site(resource)
     reactor.listenTCP(config.port + 1, static,
             interface=str(config.listen_iface))
+
+    pinger = LoopingCall(ui.sync_notify)
+    pinger.start(90)
+
     try:
         reactor.run()
     finally:

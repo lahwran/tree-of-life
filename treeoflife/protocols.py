@@ -10,6 +10,7 @@ import string
 from twisted.internet.protocol import Protocol, DatagramProtocol
 from twisted.internet.task import LoopingCall
 from treeoflife import syncdata
+from treeoflife import timefmt
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +111,11 @@ class UIProtocol(JSONProtocol):
         if self.update_timeout is not None and self.update_timeout.active():
             self.update_timeout.cancel()
         self.update_timeout = self.reactor.callLater(600, self.update)
-        self.update_editor_running()
 
         try:
+            self.update_editor_running()
+            self.update_last_synced()
+
             reversed_displaychain = self.tracker.displaychain()[::-1]
             root = self.tracker.root
             pool = root.ui_graph()
@@ -153,6 +156,36 @@ class UIProtocol(JSONProtocol):
             except Exception:
                 logger.exception("Error sending update notification")
                 self.error("exception")
+
+    def update_last_synced(self):
+        if not self.tracker.syncdata:
+            return
+        messages = {}
+        now = datetime.datetime.now()
+
+        for remote in self.tracker.syncdata.diverged_remotes:
+            messages.setdefault(remote, []).append("diverged")
+
+        for connection in self.tracker.syncdata.connections.values():
+            messages.setdefault(connection.remote_name, []).append(
+                "connected"
+            )
+
+        for remote, dt in self.tracker.syncdata.last_synced.items():
+            td = now - dt
+            delta = timefmt.small_approx_delta(td)
+            messages.setdefault(remote, []).append(
+                "last synced {delta} ago".format(delta=delta)
+            )
+
+        final_message = "; ".join(sorted(
+            "{}: {}".format(remote, ", ".join(remote_messages))
+            for remote, remote_messages in messages.items()
+        ))
+
+        self.sendmessage({
+            "sync_status": final_message
+        })
 
     def update_editor_running(self):
         self.sendmessage({
@@ -324,6 +357,7 @@ class SyncProtocol(LineOnlyReceiver):
     def on_disconnect(self):
         if self.datasource.connections.get(self.remote_name, None) is self:
             del self.datasource.connections[self.remote_name]
+            self.datasource.on_synced_hook()
 
         if self.reactor is not None and self.pinger.running:
             self.pinger.stop()
@@ -392,11 +426,13 @@ class SyncProtocol(LineOnlyReceiver):
 
     def message_ping(self, ping_id):
         self.command(b"pong", ping_id, silent=True)
+        self.datasource.update_synced_time(self)
 
     def message_pong(self, ping_id):
         if ping_id not in self.waiting_pings:
             self.disconnect("invalid ping reply %s" % (ping_id,))
         self.waiting_pings.remove(ping_id)
+        self.datasource.update_synced_time(self)
 
     def message_connect(self, remote_info):
         remote_name, space, protocolversions = remote_info.partition(b' ')

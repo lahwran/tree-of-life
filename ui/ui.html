@@ -35,7 +35,7 @@
 
     <div ng-controller="ui_controller" class="window solo-reset">
       <div class="header">
-        <tl-commandbox send-command="sendcommand" ng-show="!backend.editor_running">
+        <tl-commandbox send-command="sendcommand" ng-show="!backend.editor_running" sync-status="backend.sync_status">
         </tl-commandbox>
         <div class="preview" ng-show="backend.command_preview">
           <strong>{{ backend.command_preview.name }}</strong>

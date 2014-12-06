@@ -473,6 +473,9 @@ angular.module("treeoflife", ["d4"], function($rootScopeProvider) {
         $rootScope.$on("message/notification", function(event, info) {
             backend.notifications.push(info);
         });
+        $rootScope.$on("message/sync_status", function(event, info) {
+            backend.sync_status = info;
+        });
         $rootScope.$on("message/max_width", function(event, maxwidth) {
             backend.max_width = maxwidth;
         });

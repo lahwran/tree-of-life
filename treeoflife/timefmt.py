@@ -152,6 +152,108 @@ def approx_delta(cur_date, other_date):
         return '%s %s' % (value, unit)
 
 
+def small_approx_delta(td):
+    minute = datetime.timedelta(minutes=1)
+    hour = datetime.timedelta(hours=1)
+    day = datetime.timedelta(days=1)
+
+    def pluralize(n, name):
+        n = int(n)
+        if n == 1:
+            return "{} {}".format(english_number(n), name)
+        return "{} {}s".format(english_number(n), name)
+
+    if td < minute:
+        return pluralize(td.total_seconds(), "second")
+    elif td < hour:
+        return pluralize(td.total_seconds() / 60, "minute")
+    elif td < day:
+        return pluralize(td.total_seconds() / (60 * 60), "hour")
+    else:
+        return pluralize(td.total_seconds() / (60 * 60 * 24), "day")
+
+
+def english_number(integer):
+    if integer >= 20000:
+        raise ValueError("english_number only supports up to 20k, sorry :<")
+
+    digits = [
+        "zero",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+    ]
+
+    small_numbers = digits + [
+        "ten",
+        "eleven",
+        "twelve",
+        "thirteen",
+        "fourteen",
+        "fifteen",
+        "sixteen",
+        "seventeen",
+        "eighteen",
+        "nineteen",
+    ]
+
+    tens = [
+        None,
+        None,
+        "twenty",
+        "thirty",
+        "fourty",
+        "fifty",
+        "sixty",
+        "seventy",
+        "eighty",
+        "ninety",
+    ]
+
+    result = []
+
+    if integer >= 1000:
+        result.append("{} thousand".format(small_numbers[integer / 1000]))
+        integer = integer % 1000
+        if integer == 0:
+            return "".join(result)
+        result.append(" ")
+
+    if integer >= 100:
+        result.append("{} hundred".format(small_numbers[integer / 100]))
+        integer = integer % 100
+        if integer == 0:
+            return "".join(result)
+        if ' ' in result:
+            result[1] = ', '
+            result.append(', ')
+        else:
+            result.append(' ')
+
+    if integer < 20:
+        if result:
+            result.append("and ")
+        result += small_numbers[integer]
+        return "".join(result)
+    elif ", " in result:
+        result.append("and ")
+
+    result.append(tens[integer / 10])
+    integer = integer % 10
+    if integer == 0:
+        return "".join(result)
+    result.append(" ")
+
+    result.append(digits[integer])
+    return "".join(result)
+
+
 class DatetimeOption(Option):
     incoming = staticmethod(str_to_datetime)
     outgoing = staticmethod(datetime_to_str)
