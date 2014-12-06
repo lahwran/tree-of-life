@@ -319,6 +319,7 @@ class SyncProtocol(LineOnlyReceiver):
         self.init_remote_hash_index = None
         self.diverged = False
         self.reactor = reactor
+        self.waiting_update = False
 
         self.disconnected = False
 
@@ -516,15 +517,24 @@ class SyncProtocol(LineOnlyReceiver):
             self.init_finished()
 
             self.datasource.data = uncompressed
-            self.datasource.updated_by_connection()
-            # TODO: parse data into tree
+            self.delay_update_notification()
         else:
-            # TODO: save to diverged data dir, inform user, etc
             self.init_finished(hashes)
             self.datasource.record_diverge(self, uncompressed)
 
         self.datasource.update_synced_time(self)
         self.command(b"synced", h)
+
+    def delay_update_notification(self):
+        if self.reactor is None:
+            self.datasource.updated_by_connection()
+            return
+
+        if self.waiting_update and self.waiting_update.active():
+            self.waiting_update.cancel()
+        dc = self.reactor.callLater(
+            3, self.datasource.updated_by_connection)
+        self.waiting_update = dc
 
     def message_new_data(self, message):
         data, hashes = self._unpack_update(message)
@@ -540,7 +550,7 @@ class SyncProtocol(LineOnlyReceiver):
             self.remote_hashes.append(h)
 
             self.datasource.data = uncompressed
-            self.datasource.updated_by_connection()
+            self.delay_update_notification()
         elif self.remote_hashes[-1] == h:
             return
         elif not self.diverged:
