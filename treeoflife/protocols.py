@@ -5,6 +5,7 @@ import json
 import logging
 import datetime
 import random
+import socket
 import string
 
 from twisted.internet.protocol import Protocol, DatagramProtocol
@@ -580,12 +581,14 @@ class SyncProtocol(LineOnlyReceiver):
 
 
 class DiscoveryProtocol(DatagramProtocol):
-    def __init__(self, syncdata, port, connect_callback, reactor, interval=2):
+    def __init__(self, syncdata, port, connect_callback,
+            reconnect, reactor, interval=2):
         self.syncdata = syncdata
         self.port = port
         self.connect_callback = connect_callback
         self.looping_call = LoopingCall(self.announce)
         self.interval = interval
+        self.reconnect = reconnect
         self.reactor = reactor
         self.cooldown = {}
 
@@ -607,9 +610,14 @@ class DiscoveryProtocol(DatagramProtocol):
     def command(self, address, command, data):
         assert all(type(x) == str for x in (address, command, data))
         mid = rand_id()
-        self.transport.write(
-                b"%s %s %s\n" % (mid, command, data),
-                (address, self.port))
+        try:
+            self.transport.write(
+                    b"%s %s %s\n" % (mid, command, data),
+                    (address, self.port))
+        except socket.error:
+            logger.exception("Got socket error trying to write udp message")
+            d = self.transport.stopListening()
+            d.addCallback(lambda *a, **kw: self.reconnect())
 
     def datagramReceived(self, datagram, addr):
         mid, space, message = datagram.strip().partition(b' ')

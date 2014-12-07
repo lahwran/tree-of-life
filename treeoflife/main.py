@@ -12,6 +12,7 @@ from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
         SSL4ServerEndpoint)
 from twisted.internet import ssl
 from twisted.internet.task import LoopingCall
+from twisted.internet.error import CannotListenError
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -436,10 +437,18 @@ def main(restarter, args):
         logger.info("Connecting sync to %s", host)
         connectProtocol(endpoint, protocol)
 
-    discovery_port = config.port + 7
-    discovery = DiscoveryProtocol(ui.syncdata, discovery_port, connect_sync,
-            reactor, interval=config.sync_interval)
-    reactor.listenUDP(discovery_port, discovery)
+    def connect_discovery():
+        logger.info("Starting udp broadcast announce")
+        discovery_port = config.port + 7
+        discovery = DiscoveryProtocol(ui.syncdata, discovery_port,
+                connect_sync, connect_discovery, reactor,
+                interval=config.sync_interval)
+        try:
+            reactor.listenUDP(discovery_port, discovery)
+        except CannotListenError:
+            logger.exception("Error connecting udp, retrying...")
+            reactor.callLater(config.sync_interval, connect_discovery)
+    connect_discovery()
 
     # serve ui directory
     ui_dir = os.path.join(projectroot, b"ui")
