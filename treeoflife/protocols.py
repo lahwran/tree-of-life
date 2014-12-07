@@ -617,7 +617,8 @@ class DiscoveryProtocol(DatagramProtocol):
         except socket.error:
             logger.exception("Got socket error trying to write udp message")
             d = self.transport.stopListening()
-            d.addCallback(lambda *a, **kw: self.reconnect())
+            d.addCallback(lambda *a, **kw:
+                    self.reactor.callLater(2, self.reconnect))
 
     def datagramReceived(self, datagram, addr):
         mid, space, message = datagram.strip().partition(b' ')
