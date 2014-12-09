@@ -282,9 +282,7 @@ object europeanDistanceLookup satisfies DistanceLookup {
     distances.put("Vienna", vienna);
 
     shared actual Genome knownCities {
-        value cities = ArrayList<Gene>(distances.keySet());
-        Collections.sort<Gene>(cities);
-        return cities;
+        return ArrayList<Gene>(distances.keySet());
     }
 
     shared actual Integer getDistance(Gene startingCity,
