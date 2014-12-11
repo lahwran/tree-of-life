@@ -1,4 +1,6 @@
 import java.lang { IllegalArgumentException }
+import java.util { JList = List }
+import ceylon.interop.java { CeylonList }
 
 import org.uncommons.maths.random { MersenneTwisterRNG, PoissonGenerator }
 import org.uncommons.watchmaker.framework { CandidateFactory,
@@ -16,7 +18,7 @@ alias Genome => List<Gene>;
 
 Genome calculateShortestRoute(Genome cities,
         DistanceLookup distances,
-        SelectionStrategy<in Genome> selectionStrategy,
+        SelectionStrategy<in JList<Gene>> selectionStrategy,
         Integer populationSize, Integer eliteCount,
         Integer generationCount) {
 
@@ -34,13 +36,13 @@ Genome calculateShortestRoute(Genome cities,
     ]);
 
     value candidateFactory = listPermutations(cities);
-    value engine = GenerationalEvolutionEngine<List<String>>(
+    value engine = GenerationalEvolutionEngine<JList<Gene>>(
         candidateFactory,
         pipeline,
         evaluator,
         selectionStrategy,
         rng
     );
-    return engine.evolve(populationSize, eliteCount,
-                            GenerationCount(generationCount));
+    return CeylonList(engine.evolve(populationSize, eliteCount,
+                            GenerationCount(generationCount)));
 }
