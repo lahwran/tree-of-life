@@ -2,20 +2,20 @@ import ceylon.collection { MapImpl = HashMap, HashSet }
 
 interface DistanceLookup {
     "The list of cities that this object knows about."
-    shared formal Genome knownCities;
+    shared formal List<String> knownCities;
 
      "Look up the distance between two cities in km."
-    shared formal Integer getDistance(Gene startingCity,
-            Gene destinationCity);
+    shared formal Integer getDistance(String startingCity,
+            String destinationCity);
 
-    shared default Integer routeLength(Genome candidate) {
+    shared default Integer routeLength(List<String> candidate) {
         if (!candidate.first exists) {
             return 0;
         }
         assert(exists first = candidate.first);
         value looped = candidate.sequence().withTrailing(first);
         value result = looped.paired.fold(0)
-            ((Integer last, [Gene,Gene] pair) =>
+            ((Integer last, [String,String] pair) =>
                 last + getDistance(*pair));
         return result;
     }
@@ -23,7 +23,7 @@ interface DistanceLookup {
 
 
 object europeanDistanceLookup satisfies DistanceLookup {
-    value distances = MapImpl<Gene->Gene, Integer>();
+    value distances = MapImpl<String->String, Integer>();
 
     // Distances are in km as the crow flies (from http://www.indo.com/distance/)
 
@@ -268,10 +268,10 @@ object europeanDistanceLookup satisfies DistanceLookup {
     distances.put("Vienna"->"Vienna", 0);
 
     value keyKeys = distances.keys*.key;
-    shared actual Genome knownCities = HashSet{ *keyKeys }.sequence();
+    shared actual List<String> knownCities = HashSet{ *keyKeys }.sequence();
 
-    shared actual Integer getDistance(Gene startingCity,
-            Gene destinationCity) {
+    shared actual Integer getDistance(String startingCity,
+            String destinationCity) {
         assert(exists distance = distances.get(startingCity->destinationCity));
         return distance;
     }

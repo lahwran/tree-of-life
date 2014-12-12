@@ -12,31 +12,27 @@ import org.uncommons.watchmaker.framework.operators {
 import org.uncommons.watchmaker.framework.termination { GenerationCount }
 
 
-alias Gene => String;
-alias Genome => List<Gene>;
-
-
-Genome calculateShortestRoute(Genome cities,
+List<String> calculateShortestRoute(List<String> cities,
         DistanceLookup distances,
-        SelectionStrategy<in JList<Gene>> selectionStrategy,
+        SelectionStrategy<in JList<String>> selectionStrategy,
         Integer populationSize, Integer eliteCount,
         Integer generationCount) {
 
-    value evaluator = makeListEvaluator<Gene>(false, distances.routeLength);
+    value evaluator = makeListEvaluator<String>(false, distances.routeLength);
 
     value rng = MersenneTwisterRNG();
 
     // Set-up evolution pipeline (cross-over followed by mutation).
     value pipeline = makePipeline([
-        ListOrderCrossover<Gene>(),
-        ListOrderMutation<Gene>(
+        ListOrderCrossover<String>(),
+        ListOrderMutation<String>(
             PoissonGenerator(1.5, rng),
             PoissonGenerator(1.5, rng)
         )
     ]);
 
     value candidateFactory = listPermutations(cities);
-    value engine = GenerationalEvolutionEngine<JList<Gene>>(
+    value engine = GenerationalEvolutionEngine<JList<String>>(
         candidateFactory,
         pipeline,
         evaluator,
