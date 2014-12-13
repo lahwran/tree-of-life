@@ -43,6 +43,8 @@ android.applicationVariants.all {
     File ceylonOutRepo = new File(ceylonDir, "outrepo")
     File ceylonDepDir = new File(ceylonDir, "extractedjars")
 
+    def optimizerRepo = file("../../optimizer/modules/")
+
     def destinationDirectory = javaCompile.destinationDir
     def javaCompileDeps = javaCompile.dependsOn.clone()
     def compileRan = false
@@ -135,6 +137,7 @@ android.applicationVariants.all {
             "compile",\
             "--out", ceylonOutRepo.canonicalPath,\
             "--rep", ceylonGradleRepo.canonicalPath,\
+            "--rep", optimizerRepo.canonicalPath,\
             "--source", ceylonSrc.canonicalPath,\
             ceylonModuleName
         doFirst {
@@ -158,6 +161,7 @@ android.applicationVariants.all {
             "--out", ceylonFinalRepo.canonicalPath,\
             "--rep", ceylonOutRepo.canonicalPath,\
             "--rep", ceylonGradleRepo.canonicalPath,\
+            "--rep", optimizerRepo.canonicalPath,\
             "--jvm",\
             "-r",\
             "${ceylonModuleName}/${ceylonModuleVersion}"

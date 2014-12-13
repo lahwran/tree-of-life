@@ -2,8 +2,8 @@ import ceylon.time { systemTime }
 import org.uncommons.watchmaker.framework.selection { RankSelection }
 
 
-shared void run() {
-    for (x in 1..100) {
+shared void run(Anything(String) log=print) {
+    for (x in 1..1000) {
         value start = systemTime.milliseconds();
         value route = calculateShortestRoute {
             cities = europeanDistanceLookup.knownCities;
@@ -17,6 +17,6 @@ shared void run() {
 
         value fitness = europeanDistanceLookup.routeLength(route);
         value cityCount = route.size;
-        print("Fitness: ``fitness`` - delta: ``delta``ms");
+        log("Fitness: ``fitness`` - delta: ``delta``ms");
     }
 }

@@ -1,5 +1,6 @@
 import android.util { Log }
 import treeoflife.android { R }
+import treeoflife.optimize { optimizeRun = run }
 
 import java.lang {
     ObjectArray, JavaString=String, ByteArray, Runtime, System, Process
@@ -14,7 +15,7 @@ import java.util {
 
 import android.app { Activity }
 import android.os { Bundle }
-import android.view { Menu, MenuItem }
+import android.view { Menu, MenuItem, View }
 import android.content.res { AssetManager }
 import android.content { Context }
 
@@ -146,6 +147,11 @@ shared class MainActivity() extends Activity() {
         process.outputStream.close();
     }
 
+    shared void onDerpClick(View view) {
+        Log.d(logtag, "Running optimizer test...");
+        optimizeRun(void(String msg) => Log.d(logtag, msg));
+        Log.d(logtag, "done running optimizer test");
+    }
 
     shared actual Boolean onCreateOptionsMenu(Menu menu) {
 
