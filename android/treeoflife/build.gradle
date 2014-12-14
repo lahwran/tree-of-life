@@ -183,6 +183,9 @@ android.applicationVariants.all {
                 if (!x.name.endsWith(".car") && !x.name.endsWith(".jar")) {
                     return
                 }
+                if (x.name == "gradleCeylonBuild.gradleDependencies-combinedJar.jar") {
+                    return
+                }
                 // todo: make sure we don't extract gradleCeylonBuild...
                 print "copying to output: "
                 println x.name
