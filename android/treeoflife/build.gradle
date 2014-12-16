@@ -154,8 +154,6 @@ android.applicationVariants.all {
         }
     }
     task "${pfx}appmodule"(type: Exec, dependsOn: "${pfx}clear-final-repo") {
-        outputs.upToDateWhen { return !compileRan }
-
         commandLine ceylonExecutable, \
             "copy",\
             "--out", ceylonFinalRepo.canonicalPath,\
@@ -177,7 +175,10 @@ android.applicationVariants.all {
     }
 
     task "${pfx}build"(dependsOn: ["${pfx}languagemodule", "${pfx}appmodule"]) {
-        outputs.upToDateWhen { return !compileRan }
+        def ft = fileTree(ceylonFinalRepo.canonicalFile)
+        inputs.files ft
+        outputs.files fileTree(destinationDirectory.canonicalFile)
+
         doFirst {
             fileTree(ceylonFinalRepo.canonicalFile).include("**/*.car").include("**/*.jar").visit { x ->
                 if (!x.name.endsWith(".car") && !x.name.endsWith(".jar")) {
