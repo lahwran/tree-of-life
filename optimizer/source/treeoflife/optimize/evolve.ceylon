@@ -39,6 +39,7 @@ List<String> calculateShortestRoute(List<String> cities,
         selectionStrategy,
         rng
     );
+    engine.setSingleThreaded(true);
     return CeylonList(engine.evolve(populationSize, eliteCount,
                             GenerationCount(generationCount)));
 }
