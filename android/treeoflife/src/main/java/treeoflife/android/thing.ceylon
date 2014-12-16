@@ -1,4 +1,3 @@
-import android.util { Log }
 import treeoflife.android { R }
 import treeoflife.optimize { optimizeRun = run }
 
@@ -14,7 +13,8 @@ import java.util {
 }
 
 import android.app { Activity }
-import android.os { Bundle }
+import android.os { Bundle, Debug }
+import android.util { Log }
 import android.view { Menu, MenuItem, View }
 import android.content.res { AssetManager }
 import android.content { Context }
@@ -136,21 +136,23 @@ shared class MainActivity() extends Activity() {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        testthing();
+        //testthing();
 
-        installPython(this);
-        value process = runPython(this, "app/bin/treeoflife-server",
-                "--android", filesDir.canonicalPath);
-        this.theprocess = process;
-        process.errorStream.close();
-        process.inputStream.close();
-        process.outputStream.close();
+        //installPython(this);
+        //value process = runPython(this, "app/bin/treeoflife-server",
+        //        "--android", filesDir.canonicalPath);
+        //this.theprocess = process;
+        //process.errorStream.close();
+        //process.inputStream.close();
+        //process.outputStream.close();
     }
 
     shared void onDerpClick(View view) {
-        Log.d(logtag, "Running optimizer test...");
-        optimizeRun(void(String msg) => Log.d(logtag, msg));
-        Log.d(logtag, "done running optimizer test");
+        Log.i(logtag, "Running optimizer test...");
+        //Debug.startMethodTracing("optimizer", 1024 * 1024 * 256);
+        optimizeRun(void(String msg) => Log.i(logtag, msg), 2);
+        //Debug.stopMethodTracing();
+        Log.i(logtag, "done running optimizer test");
     }
 
     shared actual Boolean onCreateOptionsMenu(Menu menu) {
