@@ -1,15 +1,8 @@
-import java.util { JList = List, JArrayList = ArrayList }
-import ceylon.interop.java { JavaList, CeylonList }
-
-CeylonList<T> derp<T>(JList<T> x)
-        given T satisfies Object {
-    return CeylonList<T>(x);
-}
+import ceylon.time { Instant, dateTime, DateTime, Duration }
 
 shared void run() {
-    JList<Integer> x = JArrayList<Integer>();
-    x.add(1);
-    x.add(null);
-    value l = derp<Integer>(x);
-    print(l);
+    value time1 = dateTime(2015, 1, 4, 14, 14).instant();
+    value time2 = dateTime(2015, 1, 4, 14, 58).instant();
+    Duration d = time1.durationTo(time2);
+    print(d);
 }

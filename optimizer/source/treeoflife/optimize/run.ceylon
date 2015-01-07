@@ -2,7 +2,7 @@ import ceylon.time { systemTime }
 import org.uncommons.watchmaker.framework.selection { RankSelection }
 
 
-shared void grun(Anything(String) log=print, Integer n=1000) {
+shared void run(Anything(String) log=print, Integer n=1000) {
     for (x in 1..n) {
         value start = systemTime.milliseconds();
         value route = calculateShortestRoute {

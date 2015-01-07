@@ -1,12 +1,9 @@
-import java.lang { IllegalArgumentException }
 import java.util { JList = List }
 import ceylon.interop.java { CeylonList }
 
 import org.uncommons.maths.random { MersenneTwisterRNG, PoissonGenerator }
-import org.uncommons.watchmaker.framework { CandidateFactory,
-    EvolutionEngine, EvolutionObserver, EvolutionaryOperator,
-    GenerationalEvolutionEngine, PopulationData, SelectionStrategy,
-    FitnessEvaluator }
+import org.uncommons.watchmaker.framework {
+    GenerationalEvolutionEngine, SelectionStrategy }
 import org.uncommons.watchmaker.framework.operators {
     ListOrderCrossover, ListOrderMutation }
 import org.uncommons.watchmaker.framework.termination { GenerationCount }

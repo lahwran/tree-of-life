@@ -1,5 +1,10 @@
 import ceylon.time { Instant, dateTime, DateTime }
+import ceylon.collection { ArrayList }
 
+
+class Genome({ScheduleItem+} genes)
+        extends ArrayList<ScheduleItem>(0, 1.5, genes) {
+}
 
 abstract class ScheduleItem(start)
     of NoTask, WorkOn, DoTask {
@@ -25,7 +30,7 @@ class DoTask(Instant start, activity)
 }
 
 
-// tree is intended to be static; hence no linked list
+// tree is intended to be immutable; hence no need for linked list between nodes
 
 class BaseNode(type, text, {Node*} children_) {
     shared [Node*] children = children_.sequence();
@@ -49,6 +54,13 @@ class BaseNode(type, text, {Node*} children_) {
     for (child in children) {
         child.parent = this;
     }
+
+    shared void walk(Anything(BaseNode) callback) {
+        callback(this);
+        for (node in children) {
+            node.walk(callback);
+        }
+    }
 }
 
 class Node(String type, String text, {Node*} children)
@@ -65,10 +77,13 @@ class Task(String text, {Node*} children)
 }
 
 class LifeTree({Node*} children)
-        extends BaseNode("project", null, children) {
+        extends BaseNode("life", null, children) {
+    shared Float getFitness(Genome schedule) {
+        return fitness(this, schedule);
+    }
 }
 
-LifeTree tree = LifeTree {
+LifeTree testtree = LifeTree {
     Project {
         text = "some project";
         Task {
@@ -88,17 +103,19 @@ T nn<T>(T? input) {
     return result;
 }
 
-shared void run() {
-    print("tree: ``tree``");
-    print("children: ``tree.children``");
-    [ScheduleItem+] genome = [
+shared void genomerun() {
+    print("tree: ``testtree``");
+    print("children: ``testtree.children``");
+
+    value genome = Genome {
         NoTask(dateTime(2015, 1, 1).instant()),
-        WorkOn(dateTime(2015, 1, 1, 15, 0).instant(), nn(tree.children[0])),
-        DoTask(dateTime(2015, 1, 1, 15, 10).instant(), nn(nn(tree.children[0]).children[0])),
-        WorkOn(dateTime(2015, 1, 1, 15, 20).instant(), nn(tree.children[0])),
-        WorkOn(dateTime(2015, 1, 1, 15, 30).instant(), nn(tree.children[1])),
-        WorkOn(dateTime(2015, 1, 1, 15, 40).instant(), nn(tree.children[2]))
-    ];
+        WorkOn(dateTime(2015, 1, 1, 15, 0).instant(), nn(testtree.children[0])),
+        //DoTask(dateTime(2015, 1, 1, 15, 10).instant(), nn(nn(testtree.children[0]).children[0])),
+        WorkOn(dateTime(2015, 1, 1, 15, 20).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 15, 30).instant(), nn(testtree.children[1])),
+        WorkOn(dateTime(2015, 1, 1, 15, 40).instant(), nn(testtree.children[2]))
+    };
+
     print("test genome:");
     for (item in genome) {
         print("Genome item: ``item``");
