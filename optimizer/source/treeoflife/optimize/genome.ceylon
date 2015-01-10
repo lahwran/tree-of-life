@@ -1,4 +1,4 @@
-import ceylon.time { Instant, dateTime, DateTime }
+import ceylon.time { Instant, dateTime, DateTime, Duration }
 import ceylon.collection { ArrayList }
 
 
@@ -78,10 +78,19 @@ class Task(String text, {Node*} children)
 
 class LifeTree({Node*} children)
         extends BaseNode("life", null, children) {
+}
+
+
+class ScheduleParams(tree, start) {
+    shared LifeTree tree;
+    shared Instant start;
+    shared Duration length = scheduleLength;
+    shared Instant end => start.plus(length);
     shared Float getFitness(Genome schedule) {
         return fitness(this, schedule);
     }
 }
+
 
 LifeTree testtree = LifeTree {
     Project {
