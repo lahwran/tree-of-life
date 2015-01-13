@@ -2,7 +2,7 @@ import ceylon.time { Instant, dateTime, DateTime, Duration }
 import ceylon.collection { ArrayList }
 
 
-class Genome({ScheduleItem+} genes)
+class Genome({ScheduleItem*} genes = {})
         extends ArrayList<ScheduleItem>(0, 1.5, genes) {
 }
 
@@ -14,17 +14,41 @@ abstract class ScheduleItem(start)
 
 class NoTask(Instant start)
     extends ScheduleItem(start) {
+    shared actual Boolean equals(Object that) {
+        if (is NoTask x = that, x.start == start) {
+            return true;
+        }
+        return false;
+    }
     shared actual String string => "[@``startdt`` NoTask]";
 }
 
 class WorkOn(Instant start, activity)
         extends ScheduleItem(start) {
+
+    shared actual Boolean equals(Object that) {
+        if (is WorkOn x = that,
+                x.start == start && x.activity === activity) {
+            return true;
+        }
+        return false;
+    }
+
     shared Node activity;
     shared actual String string => "[@``startdt`` WorkOn ``activity``]";
 }
 
 class DoTask(Instant start, activity)
         extends ScheduleItem(start) {
+
+    shared actual Boolean equals(Object that) {
+        if (is DoTask x = that,
+                x.start == start && x.activity === activity) {
+            return true;
+        }
+        return false;
+    }
+
     shared Node activity;
     shared actual String string => "[@``startdt`` DoTask ``activity``]";
 }
