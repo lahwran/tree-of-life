@@ -6,6 +6,97 @@ import ceylon.test { test }
 
 class Genome({ScheduleItem*} genes = {})
         extends ArrayList<ScheduleItem>(0, 1.5, genes) {
+    shared Integer findIndex(Instant time) {
+        variable value lowest = 0;
+        variable value highest = this.size; 
+
+        while(lowest < highest){
+            value difference = highest - lowest;
+            value middle = (difference / 2) + lowest;
+            if(exists gene = this[middle]) {
+                switch (gene.start <=> time)
+                case (equal) {
+                    lowest = middle;
+                    highest = middle;
+                }
+                case (smaller) { // gene smaller
+                    lowest = middle + 1;
+                }
+                case (larger) { // gene larger
+                    highest = middle;
+                }
+            } else {
+                return middle;
+            }
+        }
+        return highest;
+    }
+}
+
+test void findIndexCorrect1() {
+    value genome = Genome {
+        NoTask(dateTime(2015, 1, 1, 1, 5).instant())
+    };
+
+    assert(genome.findIndex(dateTime(2015, 1, 1, 1, 10).instant())
+            == 1);
+    assert(genome.findIndex(dateTime(2015, 1, 1, 1, 5).instant())
+            == 0);
+    assert(genome.findIndex(dateTime(2015, 1, 1, 1, 1).instant())
+            == 0);
+
+    value genome2 = Genome {
+        WorkOn(dateTime(2015, 1, 1, 1, 30).instant(), nn(testtree.children[0])),
+        NoTask(dateTime(2015, 1, 1, 2, 00).instant())
+    };
+
+    assert(genome2.findIndex(dateTime(2015, 1, 1, 1, 1).instant())
+            == 0);
+    assert(genome2.findIndex(dateTime(2015, 1, 1, 1, 30).instant())
+            == 0);
+    assert(genome2.findIndex(dateTime(2015, 1, 1, 1, 45).instant())
+            == 1);
+    assert(genome2.findIndex(dateTime(2015, 1, 1, 2, 00).instant())
+            == 1);
+    assert(genome2.findIndex(dateTime(2015, 1, 1, 2, 30).instant())
+            == 2);
+   
+    value genome3 = Genome {
+        WorkOn(dateTime(2015, 1, 1, 1, 30).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 1, 40).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 1, 50).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 00).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 10).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 20).instant(), nn(testtree.children[0]))
+    };
+
+    assert(genome3.findIndex(dateTime(2015, 1, 1, 1, 1).instant())
+            == 0);
+    assert(genome3.findIndex(dateTime(2015, 1, 1, 1, 45).instant())
+            == 2);
+    assert(genome3.findIndex(dateTime(2015, 1, 1, 2, 00).instant())
+            == 3);
+    assert(genome3.findIndex(dateTime(2015, 1, 1, 2, 30).instant())
+            == 6);
+
+    value genome4 = Genome {
+        WorkOn(dateTime(2015, 1, 1, 1, 30).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 1, 45).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 00).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 15).instant(), nn(testtree.children[0])),
+        WorkOn(dateTime(2015, 1, 1, 2, 30).instant(), nn(testtree.children[0]))
+    };
+
+    assert(genome4.findIndex(dateTime(2015, 1, 1, 1, 1).instant())
+            == 0);
+    assert(genome4.findIndex(dateTime(2015, 1, 1, 1, 35).instant())
+            == 1);
+    assert(genome4.findIndex(dateTime(2015, 1, 1, 1, 50).instant())
+            == 2);
+    assert(genome4.findIndex(dateTime(2015, 1, 1, 2, 20).instant())
+            == 4);
+    assert(genome4.findIndex(dateTime(2015, 1, 1, 2, 30).instant())
+            == 4);
 }
 
 abstract class ScheduleItem(start)
@@ -133,9 +224,9 @@ class LifeTree({Node*} children_={})
         return currentNode;
     }
 
-    //shared Node randomnode(Random random){
-    //    return 
-    //}
+    shared Node randomnode(Random random){
+        return findNode(random.nextInt(this.subtreesize));
+    }
 }
 
 
@@ -146,6 +237,9 @@ class ScheduleParams(tree, start) {
     shared Instant end => start.plus(length);
     shared Float getFitness(Genome schedule) {
         return fitness(this, schedule);
+    }
+    shared Instant randomTime(Random random) {
+        return this.start.plus(Duration(random.nextInt(this.length.milliseconds)));
     }
 }
 

@@ -14,7 +14,7 @@ import ceylon.test { test }
 [Instant*] randomTimes(ScheduleParams params, Random randomizer) {
     return sort([
         for (x in 0..crossoverCount)
-        params.start.plus(Duration(randomizer.nextInt(params.length.milliseconds)))
+        params.randomTime(randomizer)
     ]);
 }
 
