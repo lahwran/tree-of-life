@@ -1,0 +1,27 @@
+root 12
+    A 7 -- 0  // 0 
+        i 3 -- 1 // 0 +1 < 6; (+3) < 6
+            a 0 -- 2
+            b 0 -- 3
+            c 0 -- 4
+        ii 2 -- 5 // 4 +1 < 6; (+2) >= 6
+            d 0 -- 6 // 5 +1 == 6
+            e 0 -- 7
+    B 3 -- 8
+        i 2 -- 9
+            a 0 -- 10
+            b 0 -- 11
+
+root 12
+    A 7 -- 0  // 0 is not 6, so continue and +1. if we skipped +7, then it'd be 8>6. so walk.
+        i 3 -- 1 // 1 is not 6, so continue and +1. if we skipped +3, it'd still be 5<6. so +3 and skip.
+            a 0 -- 2
+            b 0 -- 3
+            c 0 -- 4
+        ii 2 -- 5 // 5 is not 6, so continue and +1. if we skipped +2, it'd be 8>6. so walk.
+            d 0 -- 6 // 6 is 6, return d
+            e 0 -- 7
+    B 3 -- 8
+        i 2 -- 9
+            a 0 -- 10
+            b 0 -- 11

@@ -1,5 +1,7 @@
+import java.util { Random }
 import ceylon.time { Instant, dateTime, DateTime, Duration }
 import ceylon.collection { ArrayList }
+import ceylon.test { test }
 
 
 class Genome({ScheduleItem*} genes = {})
@@ -56,9 +58,13 @@ class DoTask(Instant start, activity)
 
 // tree is intended to be immutable; hence no need for linked list between nodes
 
-class BaseNode(type, text, {Node*} children_) {
+class BaseNode(type, text, {Node*} children_={}) {
     shared [Node*] children = children_.sequence();
-
+    variable value childrenSizes = 0;
+    for (child in children) {
+        childrenSizes += child.subtreesize;
+    }
+    shared Integer subtreesize = children.size + childrenSizes;
     shared String? text;
     shared String type;
     shared actual String string {
@@ -87,21 +93,49 @@ class BaseNode(type, text, {Node*} children_) {
     }
 }
 
-class Node(String type, String text, {Node*} children)
+class Node(String type, String text, {Node*} children={})
         extends BaseNode(type, text, children) {
     shared late BaseNode parent;
 }
 
-class Project(String text, {Node*} children)
+class Project(String text, {Node*} children={})
         extends Node("project", text, children) {
 }
 
-class Task(String text, {Node*} children)
+class Task(String text, {Node*} children={})
         extends Node("task", text, children) {
 }
 
-class LifeTree({Node*} children)
-        extends BaseNode("life", null, children) {
+class LifeTree({Node*} children_={})
+        extends BaseNode("life", null, children_) {
+    shared Node findNode(Integer index) {
+        variable value currentIndex = 0;
+        if (this.children.size == 0) {
+            throw Exception("wat");
+        }
+        variable value parentIterator = this.children.iterator();
+        assert(is Node initialNode = parentIterator.next());
+        variable value currentNode = initialNode;
+
+        while (currentIndex < index) {
+            currentIndex++;
+            if (currentIndex + currentNode.subtreesize > index) {
+                parentIterator = currentNode.children.iterator();
+                assert(is Node node = parentIterator.next());
+                currentNode = node;
+            } else {
+                currentIndex += currentNode.subtreesize;
+                assert(is Node node = parentIterator.next());
+                currentNode = node;
+            }
+        }
+        assert(currentIndex == index);
+        return currentNode;
+    }
+
+    //shared Node randomnode(Random random){
+    //    return 
+    //}
 }
 
 
@@ -130,6 +164,38 @@ LifeTree testtree = LifeTree {
         text = "yet another project";
     }
 };
+
+test void findNodeSanityCheck() {
+    value target = Task("d");
+    value target2 = Task("a");
+    value fnTree = LifeTree {
+        Task {
+            text = "A";
+            Task {
+                text = "i";
+                Task("a"),
+                Task("b"),
+                Task("c")
+            },
+            Task {
+                text = "ii";
+                target,
+                Task("e")
+            }
+        },
+        Task {
+            text = "B";
+            Task {
+                text = "i";
+                target2,
+                Task("b")
+            }
+        }
+    };
+    
+    assert(fnTree.findNode(6) == target);
+    assert(fnTree.findNode(10) == target2);
+}
 
 T nn<T>(T? input) {
     assert (exists result = input);

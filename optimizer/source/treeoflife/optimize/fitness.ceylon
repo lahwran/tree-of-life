@@ -26,7 +26,6 @@ class TreeState(LifeTree tree) {
         }
     });
 
-
     shared Float balanceQuality() {
         value times = [ for (state in projectStates) state.msSoFar.float/100000.0 ];
         // TODO: check empty, return 1
