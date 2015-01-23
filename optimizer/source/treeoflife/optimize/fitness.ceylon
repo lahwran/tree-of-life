@@ -29,13 +29,16 @@ class TreeState(LifeTree tree) {
     shared Float balanceQuality() {
         value times = [ for (state in projectStates) state.msSoFar.float/100000.0 ];
         // TODO: check empty, return 1
+        if (times.size == 0) {
+            return 1.0;
+        }
         value average = times.fold(0.0)(plus) / times.size;
         value deltas = { for(ms in times) (ms - average) ^ 2 };
         value variance = deltas.fold(0.0)(plus);
         value stddev = sqrt(variance);
         // had to look this one up:
         // http://en.wikipedia.org/wiki/Coefficient_of_variation
-        value cv = stddev / average;
+        value cv = (average == 0 then 0.0 else stddev / average);
         // cv is typically 0.1-ish, but ranges to infinity.
         // to get the result to be returned as a quality percentage,
         // 1 / (1.1)  which is 0.9 or so is preferable.
@@ -62,17 +65,21 @@ Float fitness(ScheduleParams params, Genome schedule) {
         }
         value delta = first.start.durationTo(second.start);
         if (is DoTask first) {
-            fitness *= 0.5;
+            fitness *= 0.95;
             continue;
         }
         assert (is WorkOn task = first);
+        if (is WorkOn second, second.activity == task.activity) {
+            fitness *= 0.95;
+        }
 
         value state = treestate.get(task.activity);
         state.msSoFar += delta.milliseconds;
         totalMSWorking += delta.milliseconds;
     }
     fitness *= totalMSWorking.float / params.length.milliseconds.float;
-    fitness *= treestate.balanceQuality();
+    value bq = treestate.balanceQuality();
+    fitness *= bq;
 
     //if (!schedule.last is NoTask) {
     //    fitness *= 0.5;

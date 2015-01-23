@@ -13,7 +13,7 @@ void addGene(ScheduleParams params, Genome genome, Random random){
     value insertTime = params.randomTime(random);
 
     // TODO: randomly choose task type
-    value gene = DoTask(insertTime, node);
+    value gene = WorkOn(insertTime, node);
 
     //value insertpoint = random.nextInt(genome.size + 1);
     genome.insert(genome.findIndex(insertTime), gene);
@@ -24,10 +24,14 @@ Genome mutate(ScheduleParams params, Genome original, Random random){
     value genome = Genome(original);
     value addCount = (addMax * random.nextFloat() ^ addCurveExponent).integer;
     value deleteCount = (delMax * random.nextFloat() ^ delCurveExponent).integer;
-    for (i in 0:deleteCount){
-        genome.delete(random.nextInt(genome.size));
+    for (i in 0:deleteCount) {
+        if (genome.size < 3) {
+            break;
+        }
+        genome.delete(1 + random.nextInt(genome.size - 2));
+
     }
-    for (i in 0:addCount){
+    for (i in 0:addCount) {
         addGene(params, genome, random);
     }
     return genome;

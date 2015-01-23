@@ -1,4 +1,4 @@
-import java.util { JList = List, Random }
+import java.util { JList = List, Random, JArrayList = ArrayList }
 import ceylon.interop.java { CeylonList, JavaList }
 
 import org.uncommons.maths.random {
@@ -42,11 +42,13 @@ Genome evolveSchedule(ScheduleParams params,
     object mutationObj satisfies EvolutionaryOperator<Genome> {
         shared actual JList<Genome> apply(
                 JList<Genome> population, Random rng) {
-            value converted = CeylonList(population);
-            return JavaList([
-                for (candidate in converted)
-                mutate(params, candidate, rng)
-            ]); 
+            value iterator = population.iterator();
+            value result = JArrayList<Genome>(population.size());
+            while (iterator.hasNext()) {
+                value candidate = iterator.next();
+                result.add(mutate(params, candidate, rng));
+            }
+            return result;
         }
     }
 
@@ -57,7 +59,10 @@ Genome evolveSchedule(ScheduleParams params,
     object candidateFactory extends AbstractCandidateFactory<Genome>() {
         shared actual Genome generateRandomCandidate(Random rng) {
             value addCount = rng.nextInt(25);
-            Genome g = Genome();
+            Genome g = Genome {
+                NoTask(params.start),
+                NoTask(params.end)
+            };
             for (i in 0:addCount) {
                 addGene(params, g, rng);
             }
