@@ -8,7 +8,7 @@
 //     deleting a randomly chosen side of the duplicate
 
 import java.util { Random }
-import ceylon.time { dateTime, Duration, Instant }
+import ceylon.time { dateTime, Instant }
 import ceylon.test { test }
 
 [Instant*] randomTimes(ScheduleParams params, Random randomizer) {
@@ -18,8 +18,9 @@ import ceylon.test { test }
     ]);
 }
 
-Genome crossover(ScheduleParams params, Genome parent1, Genome parent2, [Instant*] times) {
-    value newgenome = Genome();
+[Genome,Genome] crossover(ScheduleParams params, Genome parent1, Genome parent2, [Instant*] times) {
+    value newgenome1 = Genome();
+    value newgenome2 = Genome();
     variable value current_index = 0;
     variable value last_index = 0;
     variable value current_parent = parent1;
@@ -27,10 +28,11 @@ Genome crossover(ScheduleParams params, Genome parent1, Genome parent2, [Instant
     for (time in times) {
 
         while (exists item = current_parent[current_index], item.start < time) {
-            newgenome.add(item);
+            newgenome1.add(item);
             current_index += 1;
         }
         while (exists item = last_parent[last_index], item.start < time) {
+            newgenome2.add(item);
             last_index += 1;
         }
 
@@ -44,10 +46,14 @@ Genome crossover(ScheduleParams params, Genome parent1, Genome parent2, [Instant
     }
 
     while (exists item = current_parent[current_index]) {
-        newgenome.add(item);
+        newgenome1.add(item);
         current_index += 1;
     }
-    return newgenome;
+    while (exists item = last_parent[last_index]) {
+        newgenome2.add(item);
+        last_index += 1;
+    }
+    return [newgenome1, newgenome2];
 }
 
 test void blah() {
@@ -73,7 +79,7 @@ test void blah() {
         dateTime(2015, 1, 1, 14, 00).instant()
         ];
     value params = ScheduleParams(testtree, dateTime(2015, 1, 1, 11, 00).instant());
-    value result = crossover(params, genome1, genome2, times);
+    value [result, ignored] = crossover(params, genome1, genome2, times);
     value expectedgenome = Genome {
         WorkOn(dateTime(2015, 1, 1, 11, 00).instant(), nn(testtree.children[0])),
         WorkOn(dateTime(2015, 1, 1, 12, 40).instant(), nn(testtree.children[2])),

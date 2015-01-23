@@ -2,7 +2,7 @@ import ceylon.interop.java { createJavaByteArray }
 import java.lang { ByteArray }
 import java.util { Random }
 import org.uncommons.maths.random { MersenneTwisterRNG }
-import ceylon.time { dateTime, Duration, Instant }
+import ceylon.time { dateTime }
 import ceylon.test { test }
 
 
@@ -20,10 +20,10 @@ void addGene(ScheduleParams params, Genome genome, Random random){
 }
 
 
-Genome mutateGene(ScheduleParams params, Genome original, Random random){
+Genome mutate(ScheduleParams params, Genome original, Random random){
     value genome = Genome(original);
-    value addCount = (10 * random.nextFloat() ^ 3).integer;
-    value deleteCount = (10 * random.nextFloat() ^ 3).integer;
+    value addCount = (addMax * random.nextFloat() ^ addCurveExponent).integer;
+    value deleteCount = (delMax * random.nextFloat() ^ delCurveExponent).integer;
     for (i in 0:deleteCount){
         genome.delete(random.nextInt(genome.size));
     }
