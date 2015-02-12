@@ -1,0 +1,53 @@
+Scheduler design
+----------------
+
+- Projects typically have no time estimate, and are balanced among other things by importance only. Sub items can have managed deadlines, but projects without a time estimate can't have deadlines, because the system can't schedule something against a deadline unless it has a time estimate to tell it how much time needs scheduling.
+- Events typically have a fixed time estimate, and by definition have a fixed start time. If they have a vague time estimate, they're subject to optimization for how long they go
+- Tasks are not scheduled intelligently unless they have a time estimate. Hmm, except one still doesn't want siloing in miscellaneous tasks
+- Kay! So the problem I'm seeing with not scheduling unlabeled tasks is that if you have a catch all category of random unlabeled tasks, or worse have top level unlabeled tasks, then they'll just be sequential
+- If on the other hand you blindly schedule unlabeled tasks, you'll end up splitting apart the steps for things
+- So there needs to be some way to label a task as schedulable, despite not being a project or having a time estimate
+- Or maybe not. Just doing them sequentially might be fine...
+
+> will they be intelligently-ish scheduled if you make an automatic guess that miscellaneous tasks will take 5 minutes?
+
+- I could do that, but that's likely to be a bad guess
+
+> seems better than trying to schedule it without a timeframe.
+
+- Small things certainly are likely to be misc tasks, but so are big subtasks of big things; in both cases, the solution to scheduling them is to simply schedule "work on the parent"
+- The only problem is what order to offer them in
+- So if you have a misc tasks category, it should schedule a time slice to work on the category
+- Should categories be like projects? Time estimate less schedulable entities that simply get sliced up
+- That certainly makes sense on the top level, but does that make sense inside a project?
+- But wait, maybe you're right about misc tasks, in that if it guesses wrong about the length, the user should have estimated it, and it can just not pressure the user to switch to the next task?
+- Current activity polling would solve that problem anyway
+- So leaving that, generally the approach should be that tasks should be done sequentially
+- Oooooooh what about splitting them up depending on the parent
+- Children of life, category, etc would be non-sequential unless specified, because they're not related groupings
+- Whereas children of project, event, etc would be sequential by default, because it makes more sense to do their steps sequentially
+- That still leaves the question of scheduling timed or prioritized things...
+- Relative to non-prioritized
+- And also, how would one get a GA to output sequential stuff?
+
+> - put a term for it in the equation.
+
+- Right, yeah, that would make it tend towards orderedness
+- The problem is that we're not usually going to be running the ga long enough to converge
+- what if the ga doesn't even try to schedule ordered stuff?
+
+--------------
+
+> - I have a question--do you intend for the GA algorithm to be recursively optimizing?
+
+- I do intend to run an optimize on the ga's settings ahead of time, but I need normal runs to be fast, because they're frequent
+- Any time you change the tree it'll run the ga again, maintaining population between runs
+- Probably only like a fifth as many generations; with a population of 300, it should get close enough fairly quickly
+- Even though full convergence would take like 10x as long in some cases
+
+-------------
+
+- Anyway so what if the ga doesn't even put ordered stuff into the genome? Then we're guaranteed it stays in order, not subject to the ga's whims
+- That makes things a lot easier. It doesn't really make sense to schedule implicitly ordered things anyway most of the time, because their parents will be scheduled
+- A future feature is an easier way to put ordered dependencies between tasks; "x then y"
+- That would allow setting an ordering constraint on dynamically scheduled tasks
