@@ -1,0 +1,9 @@
+[package]
+
+name = "optimizer_rust"
+version = "0.0.1"
+authors = ["Chris Horne <lahwran@lahwran.net>",
+            "Melanie Heisey <mheisey.nox@gmail.com"]
+
+[dependencies]
+chrono = "0.1.18"
