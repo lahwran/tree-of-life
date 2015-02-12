@@ -3,66 +3,39 @@
 
 use std::rc::Rc;
 use std::cmp;
+use std::collections::BTreeMap;
 
-use chrono::{UTC, DateTime};
+use chrono::{UTC, DateTime, Offset};
 
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
 
+#[derive(Debug)]
 pub struct Activity {
     start: DateTime<UTC>,
     activitytype: ActivityType,
 }
 
+#[derive(Debug)]
 pub enum ActivityType {
     Nothing,
     WorkOn(Rc<Node>),
     Finish(Rc<Node>),
 }
 
+#[derive(Debug)]
 pub struct Node {
     nodetype: NodeType,
     name: String,
     children: Vec<Rc<Node>>,
 }
 
+#[derive(Debug)]
 pub enum NodeType {
     Root,
     Project,
     Task,
 }
-
-impl cmp::Ord for Activity {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        self.start.cmp(&other.start)
-    }
-}
-
-impl cmp::PartialOrd for Activity {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.start.partial_cmp(&other.start)
-    }
-}
-
-impl cmp::PartialEq for Activity {
-    #[inline]
-    fn eq(&self, other: &Self) -> bool {
-        self.start.eq(&other.start) &&
-        match (&self.activitytype, &other.activitytype) {
-            (&Nothing, &Nothing) => true,
-
-            (&WorkOn(ref a), &WorkOn(ref b))
-            | (&Finish(ref a), &Finish(ref b)) => {
-                &**a as *const _ == &**b as *const _
-            }
-
-            _ => false
-        }
-    }
-}
-
-impl cmp::Eq for Activity {}
 
 impl Node {
     pub fn new_parent(nodetype: NodeType, name: &str, children: Vec<Rc<Node>>)
@@ -87,8 +60,22 @@ impl Node {
     }
 }
 
-#[test]
-fn derp() {
+#[derive(Debug)]
+struct Genome(BTreeMap<DateTime<UTC>,Activity>);
+
+impl Genome {
+    fn new() -> Genome {
+        Genome(BTreeMap::new())
+    }
+
+    fn insert(&mut self, activity: Activity) {
+        let &mut Genome(ref mut map) = self;
+        map.insert(activity.start.clone(), activity);
+    }
+
+}
+
+pub fn derp() {
     let tree = Node::new_root(vec![
         Node::new_parent(Project, "Project Name", vec![
             Node::new(Task, "Task Name"),
@@ -97,5 +84,18 @@ fn derp() {
         Node::new(Project, "Herp derp"),
     ]);
 
-    let mut genome = BTreeSet::new();
+    let mut genome = Genome::new();
+    genome.insert(Activity {
+        start: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+        activitytype: WorkOn(tree.children[0].clone())
+    });
+    genome.insert(Activity {
+        start: UTC.ymd(2015, 2, 14).and_hms(0, 0, 0),
+        activitytype: Finish(tree.children[1].clone())
+    });
+    genome.insert(Activity {
+        start: UTC.ymd(2015, 2, 15).and_hms(0, 0, 0),
+        activitytype: Finish(tree.children[2].clone())
+    });
+    println!("{:?}", genome);
 }
