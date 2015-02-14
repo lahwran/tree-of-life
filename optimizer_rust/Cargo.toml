@@ -1,6 +1,6 @@
 [package]
 
-name = "optimizer_rust"
+name = "treeoflife_optimizer"
 version = "0.0.1"
 authors = ["Chris Horne <lahwran@lahwran.net>",
             "Melanie Heisey <mheisey.nox@gmail.com"]

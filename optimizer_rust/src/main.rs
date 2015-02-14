@@ -1,9 +1,11 @@
 extern crate chrono;
 
 pub mod genome;
+pub mod fitness;
 
+#[cfg(not(test))]
 fn main() {
-    genome::derp();
+    genome::genomerun();
 }
 
 
