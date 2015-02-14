@@ -1,3 +1,6 @@
+#![feature(hash)]
+#![feature(core)]
+
 extern crate chrono;
 
 pub mod genome;

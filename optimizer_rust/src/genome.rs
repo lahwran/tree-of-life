@@ -11,8 +11,8 @@ use self::ActivityType::{Nothing, WorkOn, Finish};
 
 #[derive(Debug)]
 pub struct Activity {
-    start: DateTime<UTC>,
-    activitytype: ActivityType,
+    pub start: DateTime<UTC>,
+    pub activitytype: ActivityType,
 }
 
 #[derive(Debug)]
@@ -24,10 +24,10 @@ pub enum ActivityType {
 
 #[derive(Debug)]
 pub struct Node {
-    nodetype: NodeType,
-    name: String,
-    children: Vec<Rc<Node>>,
-    subtreesize: usize
+    pub nodetype: NodeType,
+    pub name: String,
+    pub children: Vec<Rc<Node>>,
+    pub subtreesize: usize
 }
 
 #[derive(Debug)]
@@ -64,17 +64,26 @@ impl Node {
     }
 }
 
-#[derive(Hash, PartialEq, Eq, Debug)]
-pub struct NodeRef(usize);
+#[allow(raw_pointer_derive)]
+#[derive(Hash, PartialEq, Eq, Debug, Copy)]
+pub struct NodeRef(*const Node);
 
-pub trait ConvertToInt {
-    fn toint(&self) -> NodeRef;
+pub trait NodeExt {
+    fn identity_key(&self) -> NodeRef;
+    fn walk<F: FnMut(&Self)>(&self, callback: &mut F);
 }
 
-impl ConvertToInt for Rc<Node> {
+impl NodeExt for Rc<Node> {
     #[inline]
-    fn toint(&self) -> NodeRef {
-        NodeRef(&**self as *const _ as usize)
+    fn identity_key(&self) -> NodeRef {
+        NodeRef(&**self as *const Node)
+    }
+
+    fn walk<F: FnMut(&Self)>(&self, callback: &mut F) {
+        callback(self);
+        for child in &self.children {
+            child.walk(callback);
+        }
     }
 }
 
@@ -83,10 +92,10 @@ fn test_noderef_eq() {
     let node = Node::new(Project, "derp");
     let node2 = Node::new(Project, "derp");
 
-    let nref = node.toint();
-    let nref2 = node.toint();
+    let nref = node.identity_key();
+    let nref2 = node.identity_key();
 
-    let nref3 = node2.toint();
+    let nref3 = node2.identity_key();
 
     assert_eq!(nref, nref2);
     assert!(nref != nref3);
@@ -111,7 +120,28 @@ impl Genome {
 pub struct Optimization {
     start: DateTime<UTC>,
     end: DateTime<UTC>,
-    tree: Rc<Node>
+    tree: Rc<Node>,
+    projects: Vec<Rc<Node>>
+}
+
+impl Optimization {
+    pub fn new(start: DateTime<UTC>,
+               end: DateTime<UTC>,
+               tree: Rc<Node>) -> Optimization {
+        let mut projects = vec![];
+        tree.walk(&mut |node: &Rc<Node>| {
+            match &(**node).nodetype {
+                &Project => projects.push(node.clone()),
+                _ => ()
+            };
+        });
+        Optimization {
+            start: start,
+            end: end,
+            tree: tree,
+            projects: projects
+        }
+    }
 }
 
 pub fn testtree() -> Rc<Node> {
@@ -127,11 +157,11 @@ pub fn testtree() -> Rc<Node> {
 pub fn testgenome() -> (Optimization, Genome) {
     let tree = testtree();
 
-    let opt = Optimization {
-        start: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        end: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        tree: tree
-    };
+    let opt = Optimization::new(
+        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+        tree
+    );
 
     let mut genome = Genome::new();
     genome.insert(Activity {
