@@ -69,13 +69,13 @@ impl Node {
 pub struct NodeRef(*const Node);
 
 pub trait NodeExt {
-    fn identity_key(&self) -> NodeRef;
+    fn id_key(&self) -> NodeRef;
     fn walk<F: FnMut(&Self)>(&self, callback: &mut F);
 }
 
 impl NodeExt for Rc<Node> {
     #[inline]
-    fn identity_key(&self) -> NodeRef {
+    fn id_key(&self) -> NodeRef {
         NodeRef(&**self as *const Node)
     }
 
@@ -92,10 +92,10 @@ fn test_noderef_eq() {
     let node = Node::new(Project, "derp");
     let node2 = Node::new(Project, "derp");
 
-    let nref = node.identity_key();
-    let nref2 = node.identity_key();
+    let nref = node.id_key();
+    let nref2 = node.id_key();
 
-    let nref3 = node2.identity_key();
+    let nref3 = node2.id_key();
 
     assert_eq!(nref, nref2);
     assert!(nref != nref3);
@@ -118,10 +118,10 @@ impl Genome {
 
 #[derive(Debug)]
 pub struct Optimization {
-    start: DateTime<UTC>,
-    end: DateTime<UTC>,
-    tree: Rc<Node>,
-    projects: Vec<Rc<Node>>
+    pub start: DateTime<UTC>,
+    pub end: DateTime<UTC>,
+    pub tree: Rc<Node>,
+    pub projects: Vec<Rc<Node>>
 }
 
 impl Optimization {
