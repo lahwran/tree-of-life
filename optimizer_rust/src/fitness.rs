@@ -1,6 +1,7 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::num::Float;
+use std::mem;
 
 use chrono::Duration;
 
@@ -77,9 +78,71 @@ impl TreeState {
     }
 }
 
+struct PairIter<T, I>
+        where I: Iterator<Item = T>, T: Copy {
+    prev: T,
+    iter: I
+}
+
+impl<T, I> PairIter<T, I>
+        where I: Iterator<Item = T>, T: Copy {
+    fn new(iterator: I) -> PairIter<T, I> {
+        let mut iterator = iterator;
+        PairIter {
+            prev: iterator.next().unwrap(),
+            iter: iterator
+        }
+    }
+}
+
+impl<T, I> Iterator for PairIter<T, I>
+        where I: Iterator<Item = T>, T: Copy {
+    type Item = (T, T);
+
+    fn next(&mut self) -> Option<(T, T)> {
+        match self.iter.next() {
+            None => None,
+            Some(value) =>
+                Some((mem::replace(&mut self.prev, value),
+                value))
+        }
+
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
+}
+
+#[derive(Debug)]
+struct A(i32);
+
+pub fn vec_pairs() {
+    let x = vec![A(1), A(2), A(3), A(4), A(5)];
+    let y = PairIter::new(x.iter()).collect::<Vec<(&A, &A)>>();
+    println!("{:?}", y);
+}
+
+
 impl FitnessFunction for Optimization {
     fn fitness(&self, opt: &Optimization, genome: &Genome) -> Fitness {
         let treestate = TreeState::new(opt);
+        let mut fitness = 100f64;
+
+
+        //genome.0.iter().scan(None, |state, b| {
+        //    match state {
+        //        None => {
+        //            mem::replace(state, Some(b));
+        //        },
+        //        Some(prev) => {
+        //        }
+        //    }
+        //    let a = mem::replace(prev, b);
+        //    Some((mem::replace(prev, x), x))
+        //})
+        //for (index, ()) in {
+        //}
 
         0f64
     }

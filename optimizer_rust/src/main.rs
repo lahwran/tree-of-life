@@ -9,7 +9,8 @@ pub mod fitness;
 
 #[cfg(not(test))]
 fn main() {
-    genome::genomerun();
+    //genome::genomerun();
+    fitness::vec_pairs();
 }
 
 
