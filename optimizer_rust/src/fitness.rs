@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::num::Float;
 use std::mem;
 
-use chrono::{Duration, UTC, Offset};
+use chrono::Duration;
 
-use super::genome::{Genome, Optimization, NodeRef, Node, NodeExt, testtree};
-use super::genome::ActivityType::{Nothing, WorkOn, Finish};
+use ::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
+use ::genome::ActivityType::{Nothing, WorkOn, Finish};
 
 
 // is f64 okay? do we want f32?
@@ -160,57 +160,68 @@ impl FitnessFunction for Optimization {
     }
 }
 
-#[test]
-fn balanced_gets_good_rating() {
-    let tree = testtree();
-    let genome1 = Genome::preinit(vec![
-        (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
-        (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
-        (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
-        (2015, 1, 1, 15, 50, Nothing),
-    ]);
-    let opt1 = Optimization::new(
-        UTC.ymd(2015, 1, 1).and_hms(15, 20, 0),
-        UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
-        tree.clone()
-    );
+#[cfg(test)]
+mod tests {
+    use super::FitnessFunction;
 
-    let f1 = opt1.fitness(&genome1);
+    use ::genome::{Genome, Optimization};
+    use ::genome::tests::testtree;
+    use ::genome::ActivityType::{Nothing, WorkOn};
+    use chrono::{UTC, Offset};
 
-    let genome2 = Genome::preinit(vec![
-        (2015, 1, 1, 15, 0 , WorkOn(tree.children[0].clone())),
-        (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
-        (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
-        (2015, 1, 1, 15, 50, Nothing)
-    ]);
-    let opt2 = Optimization::new(
-        UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
-        UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
-        tree.clone()
-    );
-    let f2 = opt2.fitness(&genome2);
-    assert!(f1 > f2);
-}
+    #[test]
+    fn balanced_gets_good_rating() {
+        let tree = testtree();
+        let genome1 = Genome::preinit(vec![
+            (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 50, Nothing),
+        ]);
+        let opt1 = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(15, 20, 0),
+            UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+            tree.clone()
+        );
 
-#[test]
-fn more_time_rating() {
-    let tree = testtree();
-    let opt = Optimization::new(
-        UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
-        UTC.ymd(2015, 1, 1).and_hms(16, 0, 0),
-        tree.clone()
-    );
+        let f1 = opt1.fitness(&genome1);
 
-    let genome1 = Genome::preinit(vec![
-        (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
-        (2015, 1, 1, 15, 50, Nothing)
-    ]);
-    let f1 = opt.fitness(&genome1);
+        let genome2 = Genome::preinit(vec![
+            (2015, 1, 1, 15, 0 , WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 50, Nothing)
+        ]);
+        let opt2 = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
+            UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+            tree.clone()
+        );
+        let f2 = opt2.fitness(&genome2);
+        assert!(f1 > f2);
+    }
 
-    let genome2 = Genome::preinit(vec![
-        (2015, 1, 1, 15, 0, WorkOn(tree.children[0].clone())),
-        (2015, 1, 1, 15, 50, Nothing)
-    ]);
-    let f2 = opt.fitness(&genome2);
-    assert!(f1 < f2);
+    #[test]
+    fn more_time_rating() {
+        let tree = testtree();
+        let opt = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
+            UTC.ymd(2015, 1, 1).and_hms(16, 0, 0),
+            tree.clone()
+        );
+
+        let genome1 = Genome::preinit(vec![
+            (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 50, Nothing)
+        ]);
+        let f1 = opt.fitness(&genome1);
+
+        let genome2 = Genome::preinit(vec![
+            (2015, 1, 1, 15, 0, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 50, Nothing)
+        ]);
+        let f2 = opt.fitness(&genome2);
+        assert!(f1 < f2);
+    }
+
 }

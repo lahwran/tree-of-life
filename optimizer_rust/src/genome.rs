@@ -89,20 +89,6 @@ impl NodeExt for Rc<Node> {
     }
 }
 
-#[test]
-fn test_noderef_eq() {
-    let node = Node::new(Project, "derp");
-    let node2 = Node::new(Project, "derp");
-
-    let nref = node.id();
-    let nref2 = node.id();
-
-    let nref3 = node2.id();
-
-    assert_eq!(nref, nref2);
-    assert!(nref != nref3);
-}
-
 #[derive(Debug)]
 pub struct Genome(BTreeMap<DateTime<UTC>,Activity>);
 
@@ -167,53 +153,77 @@ impl Optimization {
     }
 }
 
-pub fn testtree() -> Rc<Node> {
-    Node::new_root(vec![
-        Node::new_parent(Project, "Project Name", vec![
-            Node::new(Task, "Task Name"),
-        ]),
-        Node::new(Project, "Another project name"),
-        Node::new(Project, "Herp derp"),
-    ])
-}
+#[cfg(test)]
+pub mod tests {
+    use super::{Optimization, Genome, Activity, Node, NodeExt};
+    use super::NodeType::{Project, Task};
+    use super::ActivityType::{WorkOn, Finish};
 
-pub fn testgenome() -> (Optimization, Genome) {
-    let tree = testtree();
+    use std::rc::Rc;
+    use chrono::{UTC, Offset};
 
-    let opt = Optimization::new(
-        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        tree
-    );
+    #[test]
+    fn test_noderef_eq() {
+        let node = Node::new(Project, "derp");
+        let node2 = Node::new(Project, "derp");
 
-    let mut genome = Genome::new();
-    genome.insert(Activity {
-        start: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        activitytype: WorkOn(opt.tree.children[0].clone())
-    });
-    genome.insert(Activity {
-        start: UTC.ymd(2015, 2, 14).and_hms(0, 0, 0),
-        activitytype: Finish(opt.tree.children[1].clone())
-    });
-    genome.insert(Activity {
-        start: UTC.ymd(2015, 2, 15).and_hms(0, 0, 0),
-        activitytype: Finish(opt.tree.children[2].clone())
-    });
+        let nref = node.id();
+        let nref2 = node.id();
 
-    (opt, genome)
-}
+        let nref3 = node2.id();
 
-#[test]
-fn subtree_counts() {
-    let tree = testtree();
-    assert_eq!(&tree.subtreesize, &4);
-    assert_eq!(&tree.children[0].subtreesize, &1);
-    assert_eq!(&tree.children[1].subtreesize, &0);
-    assert_eq!(&tree.children[2].subtreesize, &0);
-}
+        assert_eq!(nref, nref2);
+        assert!(nref != nref3);
+    }
 
-pub fn genomerun() {
-    let (_, genome) = testgenome();
+    pub fn testtree() -> Rc<Node> {
+        Node::new_root(vec![
+            Node::new_parent(Project, "Project Name", vec![
+                Node::new(Task, "Task Name"),
+            ]),
+            Node::new(Project, "Another project name"),
+            Node::new(Project, "Herp derp"),
+        ])
+    }
 
-    println!("{:?}", genome);
+    pub fn testgenome() -> (Optimization, Genome) {
+        let tree = testtree();
+
+        let opt = Optimization::new(
+            UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+            UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+            tree
+        );
+
+        let mut genome = Genome::new();
+        genome.insert(Activity {
+            start: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+            activitytype: WorkOn(opt.tree.children[0].clone())
+        });
+        genome.insert(Activity {
+            start: UTC.ymd(2015, 2, 14).and_hms(0, 0, 0),
+            activitytype: Finish(opt.tree.children[1].clone())
+        });
+        genome.insert(Activity {
+            start: UTC.ymd(2015, 2, 15).and_hms(0, 0, 0),
+            activitytype: Finish(opt.tree.children[2].clone())
+        });
+
+        (opt, genome)
+    }
+
+    #[test]
+    fn subtree_counts() {
+        let tree = testtree();
+        assert_eq!(&tree.subtreesize, &4);
+        assert_eq!(&tree.children[0].subtreesize, &1);
+        assert_eq!(&tree.children[1].subtreesize, &0);
+        assert_eq!(&tree.children[2].subtreesize, &0);
+    }
+
+    pub fn genomerun() {
+        let (_, genome) = testgenome();
+
+        println!("{:?}", genome);
+    }
 }
