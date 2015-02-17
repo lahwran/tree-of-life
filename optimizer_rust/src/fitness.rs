@@ -167,7 +167,10 @@ mod tests {
     use ::genome::{Genome, Optimization};
     use ::genome::tests::testtree;
     use ::genome::ActivityType::{Nothing, WorkOn};
+
     use chrono::{UTC, Offset};
+
+    use test::Bencher;
 
     #[test]
     fn balanced_gets_good_rating() {
@@ -224,4 +227,55 @@ mod tests {
         assert!(f1 < f2);
     }
 
+    #[bench]
+    fn benchmark_fitness_run_small(bencher: &mut Bencher) {
+        let tree = testtree();
+        let opt = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(15, 20, 0),
+            UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+            tree.clone()
+        );
+        let genome = Genome::preinit(vec![
+            (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 50, Nothing),
+        ]);
+
+        bencher.iter(|| {
+            opt.fitness(&genome);
+        });
+    }
+
+    #[bench]
+    fn benchmark_fitness_run_big(bencher: &mut Bencher) {
+        let tree = testtree();
+        let opt = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(15, 20, 0),
+            UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+            tree.clone()
+        );
+        let genome = Genome::preinit(vec![
+            (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 21, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 22, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 23, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 24, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 25, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 26, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 27, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 28, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 29, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 31, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 32, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 33, WorkOn(tree.children[0].clone())),
+            (2015, 1, 1, 15, 34, WorkOn(tree.children[1].clone())),
+            (2015, 1, 1, 15, 35, WorkOn(tree.children[2].clone())),
+            (2015, 1, 1, 15, 50, Nothing),
+        ]);
+
+        bencher.iter(|| {
+            opt.fitness(&genome);
+        });
+    }
 }

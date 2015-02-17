@@ -155,9 +155,11 @@ impl Optimization {
 
 #[cfg(test)]
 pub mod tests {
-    use super::{Optimization, Genome, Activity, Node, NodeExt};
+    use super::{Optimization, Genome, Node, NodeExt};
     use super::NodeType::{Project, Task};
     use super::ActivityType::{WorkOn, Finish};
+
+    use test::Bencher;
 
     use std::rc::Rc;
     use chrono::{UTC, Offset};
@@ -195,21 +197,32 @@ pub mod tests {
             tree
         );
 
-        let mut genome = Genome::new();
-        genome.insert(Activity {
-            start: UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-            activitytype: WorkOn(opt.tree.children[0].clone())
-        });
-        genome.insert(Activity {
-            start: UTC.ymd(2015, 2, 14).and_hms(0, 0, 0),
-            activitytype: Finish(opt.tree.children[1].clone())
-        });
-        genome.insert(Activity {
-            start: UTC.ymd(2015, 2, 15).and_hms(0, 0, 0),
-            activitytype: Finish(opt.tree.children[2].clone())
-        });
+        let genome = Genome::preinit(vec![
+            (2015, 2, 12, 0, 0, WorkOn(opt.tree.children[0].clone())),
+            (2015, 2, 14, 0, 0, Finish(opt.tree.children[1].clone())),
+            (2015, 2, 15, 0, 0, Finish(opt.tree.children[2].clone())),
+        ]);
 
         (opt, genome)
+    }
+
+    #[bench]
+    pub fn benchmark_genome_create(b: &mut Bencher) {
+        let tree = testtree();
+
+        let opt = Optimization::new(
+            UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+            UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+            tree
+        );
+
+        b.iter(|| {
+            Genome::preinit(vec![
+                (2015, 2, 12, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 14, 0, 0, Finish(opt.tree.children[1].clone())),
+                (2015, 2, 15, 0, 0, Finish(opt.tree.children[2].clone())),
+            ]);
+        });
     }
 
     #[test]

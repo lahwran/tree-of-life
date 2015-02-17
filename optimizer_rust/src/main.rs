@@ -1,7 +1,9 @@
 #![feature(hash)]
 #![feature(core)]
 #![feature(std_misc)]
+#![feature(test)]
 
+extern crate test;
 extern crate chrono;
 
 pub mod genome;

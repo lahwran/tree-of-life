@@ -7,3 +7,9 @@ authors = ["Chris Horne <lahwran@lahwran.net>",
 
 [dependencies]
 chrono = "0.1.18"
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = false

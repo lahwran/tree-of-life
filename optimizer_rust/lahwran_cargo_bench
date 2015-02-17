@@ -1,0 +1,13 @@
+     Running target/release/treeoflife_optimizer-59602fbcdfa1ab8a
+
+running 7 tests
+test fitness::tests::balanced_gets_good_rating ... ignored
+test fitness::tests::more_time_rating ... ignored
+test genome::tests::subtree_counts ... ignored
+test genome::tests::test_noderef_eq ... ignored
+test fitness::tests::benchmark_fitness_run_big   ... bench:      2507 ns/iter (+/- 379)
+test fitness::tests::benchmark_fitness_run_small ... bench:      1108 ns/iter (+/- 90)
+test genome::tests::benchmark_genome_create      ... bench:       277 ns/iter (+/- 23)
+
+test result: ok. 0 passed; 0 failed; 4 ignored; 3 measured
+
