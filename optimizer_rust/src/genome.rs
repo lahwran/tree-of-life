@@ -3,8 +3,10 @@
 
 use std::rc::Rc;
 use std::collections::BTreeMap;
+use std::collections::btree_map;
+use std::slice::SliceExt;
 
-use chrono::{UTC, DateTime, Offset};
+use chrono::{UTC, DateTime, Offset, Duration};
 
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
@@ -69,13 +71,13 @@ impl Node {
 pub struct NodeRef(*const Node);
 
 pub trait NodeExt {
-    fn id_key(&self) -> NodeRef;
+    fn id(&self) -> NodeRef;
     fn walk<F: FnMut(&Self)>(&self, callback: &mut F);
 }
 
 impl NodeExt for Rc<Node> {
     #[inline]
-    fn id_key(&self) -> NodeRef {
+    fn id(&self) -> NodeRef {
         NodeRef(&**self as *const Node)
     }
 
@@ -92,10 +94,10 @@ fn test_noderef_eq() {
     let node = Node::new(Project, "derp");
     let node2 = Node::new(Project, "derp");
 
-    let nref = node.id_key();
-    let nref2 = node.id_key();
+    let nref = node.id();
+    let nref2 = node.id();
 
-    let nref3 = node2.id_key();
+    let nref3 = node2.id();
 
     assert_eq!(nref, nref2);
     assert!(nref != nref3);
@@ -105,15 +107,32 @@ fn test_noderef_eq() {
 pub struct Genome(BTreeMap<DateTime<UTC>,Activity>);
 
 impl Genome {
-    fn new() -> Genome {
+    pub fn new() -> Genome {
         Genome(BTreeMap::new())
     }
 
-    fn insert(&mut self, activity: Activity) {
+    pub fn preinit(entries: Vec<(i32, u32, u32, u32, u32, ActivityType)>)
+            -> Genome {
+        let mut result = Genome::new();
+
+        for (year, month, day, hour, minute, activity)
+                in entries.into_iter() {
+            result.insert(Activity {
+                start: UTC.ymd(year, month, day).and_hms(hour, minute, 0),
+                activitytype: activity
+            });
+        }
+        result
+    }
+
+    pub fn insert(&mut self, activity: Activity) {
         let &mut Genome(ref mut map) = self;
         map.insert(activity.start.clone(), activity);
     }
 
+    pub fn values<'a>(&'a self) -> btree_map::Values<'a, DateTime<UTC>, Activity> {
+        self.0.values()
+    }
 }
 
 #[derive(Debug)]
@@ -141,6 +160,10 @@ impl Optimization {
             tree: tree,
             projects: projects
         }
+    }
+
+    pub fn duration(&self) -> Duration {
+        self.end.clone() - self.start.clone()
     }
 }
 

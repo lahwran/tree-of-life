@@ -3,16 +3,17 @@ use std::collections::HashMap;
 use std::num::Float;
 use std::mem;
 
-use chrono::Duration;
+use chrono::{Duration, UTC, Offset};
 
-use super::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
+use super::genome::{Genome, Optimization, NodeRef, Node, NodeExt, testtree};
+use super::genome::ActivityType::{Nothing, WorkOn, Finish};
 
 
 // is f64 okay? do we want f32?
 pub type Fitness = f64;
 
 pub trait FitnessFunction {
-    fn fitness(&self, opt: &Optimization, genome: &Genome) -> Fitness;
+    fn fitness(&self, genome: &Genome) -> Fitness;
 }
 
 struct NodeState {
@@ -43,7 +44,7 @@ impl TreeState {
     }
 
     fn get(&mut self, node: &Rc<Node>) -> &mut NodeState {
-        let nref = node.id_key();
+        let nref = node.id();
         if !self.nodestates.contains_key(&nref) {
             self.nodestates.insert(nref, NodeState::new());
         }
@@ -53,7 +54,7 @@ impl TreeState {
     fn balance_quality(&self, opt: &Optimization) -> Fitness {
         let times = opt.projects
                     .iter()
-                    .map(|proj| self.nodestates.get(&proj.id_key()).unwrap())
+                    .map(|proj| self.nodestates.get(&proj.id()).unwrap())
                     .map(|nodestate| nodestate.focus_so_far.num_seconds() as f64)
                     .collect::<Vec<f64>>();
         if times.len() == 0 {
@@ -125,25 +126,91 @@ pub fn vec_pairs() {
 
 
 impl FitnessFunction for Optimization {
-    fn fitness(&self, opt: &Optimization, genome: &Genome) -> Fitness {
-        let treestate = TreeState::new(opt);
+    fn fitness(&self, genome: &Genome) -> Fitness {
+        let mut treestate = TreeState::new(self);
         let mut fitness = 100f64;
+        let mut total_time_working = Duration::seconds(0);
 
+        for (first, second) in PairIter::new(genome.values()) {
+            let activity = match first.activitytype {
+                Nothing => { continue; },
+                Finish(_) => {
+                    fitness *= 0.95;
+                    continue;
+                },
+                WorkOn(ref a) => a
+            };
+            match second.activitytype {
+                WorkOn(ref second_a) if activity.id() == second_a.id() => {
+                    fitness *= 0.95;
+                },
+                _ => ()
+            };
 
-        //genome.0.iter().scan(None, |state, b| {
-        //    match state {
-        //        None => {
-        //            mem::replace(state, Some(b));
-        //        },
-        //        Some(prev) => {
-        //        }
-        //    }
-        //    let a = mem::replace(prev, b);
-        //    Some((mem::replace(prev, x), x))
-        //})
-        //for (index, ()) in {
-        //}
+            let state = treestate.get(activity);
+            let delta = second.start.clone() - first.start.clone();
+            state.focus_so_far = state.focus_so_far + delta;
+            total_time_working = total_time_working + delta;
+        }
+        fitness *= total_time_working.num_seconds() as f64
+                    / self.duration().num_seconds() as f64;
+        fitness *= treestate.balance_quality(self);
 
-        0f64
+        fitness
     }
+}
+
+#[test]
+fn balanced_gets_good_rating() {
+    let tree = testtree();
+    let genome1 = Genome::preinit(vec![
+        (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+        (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
+        (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
+        (2015, 1, 1, 15, 50, Nothing),
+    ]);
+    let opt1 = Optimization::new(
+        UTC.ymd(2015, 1, 1).and_hms(15, 20, 0),
+        UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+        tree.clone()
+    );
+
+    let f1 = opt1.fitness(&genome1);
+
+    let genome2 = Genome::preinit(vec![
+        (2015, 1, 1, 15, 0 , WorkOn(tree.children[0].clone())),
+        (2015, 1, 1, 15, 30, WorkOn(tree.children[1].clone())),
+        (2015, 1, 1, 15, 40, WorkOn(tree.children[2].clone())),
+        (2015, 1, 1, 15, 50, Nothing)
+    ]);
+    let opt2 = Optimization::new(
+        UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
+        UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
+        tree.clone()
+    );
+    let f2 = opt2.fitness(&genome2);
+    assert!(f1 > f2);
+}
+
+#[test]
+fn more_time_rating() {
+    let tree = testtree();
+    let opt = Optimization::new(
+        UTC.ymd(2015, 1, 1).and_hms(15, 0, 0),
+        UTC.ymd(2015, 1, 1).and_hms(16, 0, 0),
+        tree.clone()
+    );
+
+    let genome1 = Genome::preinit(vec![
+        (2015, 1, 1, 15, 20, WorkOn(tree.children[0].clone())),
+        (2015, 1, 1, 15, 50, Nothing)
+    ]);
+    let f1 = opt.fitness(&genome1);
+
+    let genome2 = Genome::preinit(vec![
+        (2015, 1, 1, 15, 0, WorkOn(tree.children[0].clone())),
+        (2015, 1, 1, 15, 50, Nothing)
+    ]);
+    let f2 = opt.fitness(&genome2);
+    assert!(f1 < f2);
 }

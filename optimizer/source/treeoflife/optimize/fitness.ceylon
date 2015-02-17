@@ -1,3 +1,55 @@
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                 This file is fully translated to rust!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   */
 import ceylon.collection { HashMap, unlinked, ArrayList }
 import ceylon.time { dateTime }
 import ceylon.math.float { sqrt }
