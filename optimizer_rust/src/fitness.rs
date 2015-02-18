@@ -160,7 +160,6 @@ impl FitnessFunction for Optimization {
     }
 }
 
-#[cfg(test)]
 mod tests {
     use super::FitnessFunction;
 

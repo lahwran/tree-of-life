@@ -153,7 +153,6 @@ impl Optimization {
     }
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::{Optimization, Genome, Node, NodeExt};
     use super::NodeType::{Project, Task};
