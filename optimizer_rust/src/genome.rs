@@ -11,6 +11,7 @@ use chrono::{UTC, DateTime, Offset, Duration};
 
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
+use ::core::Fitness;
 
 #[derive(Debug, Clone)]
 pub struct Activity {
@@ -90,17 +91,37 @@ impl NodeExt for Rc<Node> {
     }
 }
 
-#[derive(Debug)]
-pub struct Genome(BTreeMap<DateTime<UTC>,Activity>);
+#[derive(Debug, Clone)]
+pub struct Genome {
+    genome: BTreeMap<DateTime<UTC>,Activity>,
+    pub cached_fitness: Option<Fitness>
+}
 
 impl Genome {
-    pub fn new() -> Genome {
-        Genome(BTreeMap::new())
+    pub fn new_empty() -> Genome {
+        Genome {
+            genome: BTreeMap::new(),
+            cached_fitness: None
+        }
+    }
+
+    pub fn new(opt: &Optimization) -> Genome{
+        let mut result = Genome::new_empty();
+        result.insert(Activity {
+            start: opt.start.clone(),
+            activitytype: Nothing
+        });
+        result.insert(Activity {
+            start: opt.end.clone(),
+            activitytype: Nothing
+        });
+
+        result
     }
 
     pub fn preinit(entries: Vec<(i32, u32, u32, u32, u32, ActivityType)>)
             -> Genome {
-        let mut result = Genome::new();
+        let mut result = Genome::new_empty();
 
         for (year, month, day, hour, minute, activity)
                 in entries.into_iter() {
@@ -113,21 +134,21 @@ impl Genome {
     }
 
     pub fn insert(&mut self, activity: Activity) {
-        let &mut Genome(ref mut map) = self;
-        map.insert(activity.start.clone(), activity);
+        self.genome.insert(activity.start.clone(), activity);
+        self.cached_fitness = None;
     }
     pub fn get(&self, time: &DateTime<UTC>) -> Option<&Activity>{
-        self.0.get(time)
+        self.genome.get(time)
     }
 
     pub fn values<'a>(&'a self) ->
             btree_map::Values<'a, DateTime<UTC>, Activity> {
-        self.0.values()
+        self.genome.values()
     }
 
     pub fn range<'a>(&'a self, min: Bound<&DateTime<UTC>>, max: Bound<&DateTime<UTC>>) ->
             btree_map::Range<'a, DateTime<UTC>, Activity> {
-        self.0.range(min, max)
+        self.genome.range(min, max)
     }
 }
 

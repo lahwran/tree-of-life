@@ -39,8 +39,8 @@ fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
 
 fn crossover(opt: &Optimization, parent1: Genome, parent2: Genome,
              times: &mut Vec<DateTime<UTC>>) ->  (Genome, Genome) {
-    let mut newg1 = Genome::new();
-    let mut newg2 = Genome::new();
+    let mut newg1 = Genome::new_empty();
+    let mut newg2 = Genome::new_empty();
     times.insert(0,opt.start.clone());
     times.push(opt.end.clone());
 
