@@ -4,6 +4,7 @@
 use std::rc::Rc;
 use std::collections::BTreeMap;
 use std::collections::btree_map;
+use std::collections::Bound;
 use std::slice::SliceExt;
 
 use chrono::{UTC, DateTime, Offset, Duration};
@@ -11,13 +12,13 @@ use chrono::{UTC, DateTime, Offset, Duration};
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Activity {
     pub start: DateTime<UTC>,
     pub activitytype: ActivityType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ActivityType {
     Nothing,
     WorkOn(Rc<Node>),
@@ -115,13 +116,22 @@ impl Genome {
         let &mut Genome(ref mut map) = self;
         map.insert(activity.start.clone(), activity);
     }
+    pub fn get(&self, time: &DateTime<UTC>) -> Option<&Activity>{
+        self.0.get(time)
+    }
 
-    pub fn values<'a>(&'a self) -> btree_map::Values<'a, DateTime<UTC>, Activity> {
+    pub fn values<'a>(&'a self) ->
+            btree_map::Values<'a, DateTime<UTC>, Activity> {
         self.0.values()
+    }
+
+    pub fn range<'a>(&'a self, min: Bound<&DateTime<UTC>>, max: Bound<&DateTime<UTC>>) ->
+            btree_map::Range<'a, DateTime<UTC>, Activity> {
+        self.0.range(min, max)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Optimization {
     pub start: DateTime<UTC>,
     pub end: DateTime<UTC>,
@@ -161,6 +171,7 @@ pub mod tests {
     use test::Bencher;
 
     use std::rc::Rc;
+    use std::rand::{Rng, XorShiftRng};
     use chrono::{UTC, Offset};
 
     #[test]
@@ -187,7 +198,7 @@ pub mod tests {
         ])
     }
 
-    pub fn testgenome() -> (Optimization, Genome) {
+    pub fn testgenome() -> (Optimization, Genome) { 
         let tree = testtree();
 
         let opt = Optimization::new(
@@ -203,6 +214,42 @@ pub mod tests {
         ]);
 
         (opt, genome)
+    }
+    
+    pub fn testgenomes() -> (Optimization, Genome, Genome, Genome) { 
+        let tree = testtree();
+        let mut genomes = Vec::<Genome>::new();
+        let mut rand = XorShiftRng::new_unseeded();
+        rand.next_u32();
+
+        let opt = Optimization::new(
+            UTC.ymd(2015, 2, 1).and_hms(0, 0, 0),
+            UTC.ymd(2015, 2, 2).and_hms(0, 0, 0),
+            tree
+        );
+        let g1 = Genome::preinit(vec![
+                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1, 3, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1, 8, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1, 11, 0, Finish(opt.tree.children[1].clone())),
+                (2015, 2, 1, 19, 0, Finish(opt.tree.children[1].clone()))
+            ]);
+        let g2 = Genome::preinit(vec![
+                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1, 6, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1, 10, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1, 12, 0, Finish(opt.tree.children[2].clone())),
+                (2015, 2, 1, 23, 0, Finish(opt.tree.children[2].clone()))
+            ]);
+        let g3 = Genome::preinit(vec![
+                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1, 4, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1, 9, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1, 12, 0, Finish(opt.tree.children[0].clone())),
+                (2015, 2, 1, 22, 0, Finish(opt.tree.children[0].clone()))
+            ]);
+        (opt, g1, g2, g3)
+
     }
 
     #[bench]

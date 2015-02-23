@@ -79,7 +79,7 @@ impl TreeState {
     }
 }
 
-struct PairIter<T, I>
+pub struct PairIter<T, I>
         where I: Iterator<Item = T>, T: Copy {
     prev: T,
     iter: I
@@ -87,7 +87,7 @@ struct PairIter<T, I>
 
 impl<T, I> PairIter<T, I>
         where I: Iterator<Item = T>, T: Copy {
-    fn new(iterator: I) -> PairIter<T, I> {
+    pub fn new(iterator: I) -> PairIter<T, I> {
         let mut iterator = iterator;
         PairIter {
             prev: iterator.next().unwrap(),
