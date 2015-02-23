@@ -2,11 +2,13 @@
 #![feature(core)]
 #![feature(std_misc)]
 #![feature(test)]
-#![feature(rand)]
+
 #![feature(collections)]
+#![allow(deprecated)]
 
 extern crate test;
 extern crate chrono;
+extern crate rand;
 
 pub mod core;
 pub mod mutate;

@@ -167,7 +167,7 @@ mod tests {
     use ::genome::tests::testtree;
     use ::genome::ActivityType::{Nothing, WorkOn};
 
-    use chrono::{UTC, Offset};
+    use chrono::{TimeZone, UTC};
 
     use test::Bencher;
 

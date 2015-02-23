@@ -7,7 +7,8 @@ use std::collections::btree_map;
 use std::collections::Bound;
 use std::slice::SliceExt;
 
-use chrono::{UTC, DateTime, Offset, Duration};
+use chrono::{UTC, DateTime, Duration};
+use chrono::offset::TimeZone;
 
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
@@ -137,8 +138,8 @@ impl Genome {
         self.genome.insert(activity.start.clone(), activity);
         self.cached_fitness = None;
     }
-    pub fn get(&self, time: &DateTime<UTC>) -> Option<&Activity>{
-        self.genome.get(time)
+    pub fn contains_key(&self, time: &DateTime<UTC>) -> bool {
+        self.genome.contains_key(time)
     }
 
     pub fn values<'a>(&'a self) ->
@@ -192,8 +193,8 @@ pub mod tests {
     use test::Bencher;
 
     use std::rc::Rc;
-    use std::rand::{Rng, XorShiftRng};
-    use chrono::{UTC, Offset};
+    use rand::{Rng, XorShiftRng};
+    use chrono::{TimeZone, UTC};
 
     #[test]
     fn test_noderef_eq() {
@@ -239,7 +240,6 @@ pub mod tests {
     
     pub fn testgenomes() -> (Optimization, Genome, Genome, Genome) { 
         let tree = testtree();
-        let mut genomes = Vec::<Genome>::new();
         let mut rand = XorShiftRng::new_unseeded();
         rand.next_u32();
 

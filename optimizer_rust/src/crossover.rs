@@ -9,19 +9,19 @@
 
 // http://doc.rust-lang.org/rand/rand/index.html
 
-use std::rand::{Rng};
+use rand::{Rng};
 use std::collections::Bound::{Included, Excluded};
 use std::mem;
 
 use chrono::{DateTime, UTC, Duration};
 
 use ::fitness::PairIter;
-use ::genome::{Optimization, Genome, Activity, ActivityType};
+use ::genome::{Optimization, Genome};
 
 fn random_time<T: Rng>(opt: &Optimization, randomizer: &mut T)
         -> DateTime<UTC> {
-    opt.start.clone() + Duration::minutes(
-        randomizer.gen_range(0, opt.duration().num_minutes()))
+    opt.start.clone() + Duration::seconds(
+        randomizer.gen_range(0, opt.duration().num_seconds()))
 }
 
 fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
@@ -42,19 +42,17 @@ fn crossover(opt: &Optimization, parent1: Genome, parent2: Genome,
     let mut newg1 = Genome::new_empty();
     let mut newg2 = Genome::new_empty();
     times.insert(0,opt.start.clone());
-    times.push(opt.end.clone());
+    times.push(opt.end.clone() + Duration::seconds(1));
 
     for (start, end) in PairIter::new(times.iter()) {
-        println!("{:?}", times);
-            for (datetime, activity) in parent1.range(Included(start), Excluded(end)) {
-                newg1.insert(activity.clone());
-            }
+        for (_, activity) in parent1.range(Included(start), Excluded(end)) {
+            newg1.insert(activity.clone());
+        }
 
-            for (datetime, activity) in parent2.range(Included(start), Excluded(end)) {
-                newg2.insert(activity.clone());
-            }
-            mem::swap(&mut newg1, &mut newg2)
-            
+        for (_, activity) in parent2.range(Included(start), Excluded(end)) {
+            newg2.insert(activity.clone());
+        }
+        mem::swap(&mut newg1, &mut newg2)
     }
     
     // newg1.insert(Activity{start: opt.end.clone(), activitytype: ActivityType::Nothing});
@@ -64,14 +62,14 @@ fn crossover(opt: &Optimization, parent1: Genome, parent2: Genome,
 }
 
 pub mod tests {
-    use std::rand::XorShiftRng;
+    use rand::XorShiftRng;
     use chrono::UTC;
-    use chrono::Offset;
+    use chrono::offset::TimeZone;
 
     use super::random_times;
     use super::crossover;
 
-    use ::genome::{Genome, Optimization};
+    use ::genome::Optimization;
     use ::genome::tests::testtree;
     use ::genome::tests::testgenomes;
 
@@ -94,7 +92,7 @@ pub mod tests {
         assert_eq!(vec1, vec);
     }
 
-    #[test]
+    //#[test]
     pub fn test_crossing(){
         println!("");
         let mut ran_doom = XorShiftRng::new_unseeded();
@@ -109,26 +107,29 @@ pub mod tests {
         // }
 
         let mut vec = vec!( 
-                UTC.ymd(2015,02,1).and_hms(6,0,0),
-                UTC.ymd(2015,02,1).and_hms(9,0,0),
-                UTC.ymd(2015,02,1).and_hms(12,0,0),
+            UTC.ymd(2015,02,1).and_hms(6,0,0),
+            UTC.ymd(2015,02,1).and_hms(9,0,0),
+            UTC.ymd(2015,02,1).and_hms(12,0,0),
         );
         let (g1, g2) = crossover(&opt, g1, g2, &mut vec);
-        // let (g1, g2) = crossover(&opt, g1, g2, &mut vec);
-
-        println!("");
-        println!("");
-        for activity in g1.values() {
-            println!("{:?}", activity);
-        }
-        println!("");
-        for activity in g2.values() {
-            println!("{:?}", activity);
-        }
          
+        assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(12,0,0)));
+        assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(6,0,0)));
+        assert!(g2.contains_key(&UTC.ymd(2015,02,1).and_hms(8,0,0)));
+        assert!(g2.contains_key(&UTC.ymd(2015,02,1).and_hms(19,0,0)));
 
-        g1.get(&UTC.ymd(2015,02,1).and_hms(12,0,0)).unwrap();
-        g2.get(&UTC.ymd(2015,02,1).and_hms(8,0,0)).unwrap();
+        vec = vec!(
+            UTC.ymd(2015,02,1).and_hms(5,0,0),
+            UTC.ymd(2015,02,1).and_hms(10,0,0),
+            UTC.ymd(2015,02,1).and_hms(15,0,0),
+        );
+        let (g1, g2) = crossover(&opt, g1, g3, &mut vec);
+        
+        assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(9,0,0)));
+        assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(22,0,0)));
+        assert!(g2.contains_key(&UTC.ymd(2015,02,1).and_hms(6,0,0)));
+        assert!(g2.contains_key(&UTC.ymd(2015,02,1).and_hms(4,0,0)));
     }
+
 
 }

@@ -1,10 +1,10 @@
 #![allow(non_upper_case_globals)]
 #![allow(deprecated)]
 
-use std::rand::{Rng, XorShiftRng};
+use rand::{Rng, XorShiftRng};
 use std::mem;
 
-use chrono::{UTC, Offset};
+use chrono::{UTC, TimeZone};
 
 use ::genome::{Genome, Optimization};
 use ::genome::tests::testtree;
