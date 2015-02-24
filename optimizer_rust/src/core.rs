@@ -1,5 +1,4 @@
 #![allow(non_upper_case_globals)]
-#![allow(deprecated)]
 
 use rand::{Rng, XorShiftRng};
 use std::mem;
@@ -10,6 +9,7 @@ use ::genome::{Genome, Optimization};
 use ::genome::tests::testtree;
 use ::fitness::FitnessFunction;
 use ::mutate::mutate;
+use ::selection::sus_select;
 
 const pop_size: usize = 300;
 const elite_count: usize = 50;
@@ -34,12 +34,6 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 
         f1.partial_cmp(&f2).unwrap()
     });
-}
-
-fn demo_select<'a, R>(origin: &'a Vec<Genome>, count: usize, rng: &mut R)
-        -> Vec<&'a Genome>
-        where R: Rng {
-    origin.iter().take(count).collect()
 }
 
 #[inline]
@@ -83,12 +77,12 @@ fn evolve(mut prev_pop: Vec<Genome>, opt: &Optimization) {
 
     assert!(elite_count < pop_size);
 
-    for generation in 0..generation_count {
+    for _ in 0..generation_count {
         // fill in fitness into prev
         fill_fitnesses(&mut prev_pop, opt);
 
         {
-            let selections = demo_select(&prev_pop,
+            let selections = sus_select(&prev_pop,
                         pop_size - elite_count, &mut rng);
 
             // clone from prev_pop into pop

@@ -1,5 +1,5 @@
 use ::genome::Genome;
 
-pub fn mutate(genome: &mut Genome) {
+pub fn mutate(_: &mut Genome) {
     println!("mutating a genome lol");
 }

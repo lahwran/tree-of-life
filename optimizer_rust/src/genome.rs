@@ -1,6 +1,3 @@
-#[allow(dead_code)]
-#[allow(unused_variables)]
-
 use std::rc::Rc;
 use std::collections::BTreeMap;
 use std::collections::btree_map;
@@ -150,6 +147,13 @@ impl Genome {
     pub fn range<'a>(&'a self, min: Bound<&DateTime<UTC>>, max: Bound<&DateTime<UTC>>) ->
             btree_map::Range<'a, DateTime<UTC>, Activity> {
         self.genome.range(min, max)
+    }
+
+    /// this is only for testing, to make initializing with fitness easier.
+    pub fn with_fitness(mut self, fitness: Fitness) -> Genome {
+        self.cached_fitness = Some(fitness);
+
+        self
     }
 }
 

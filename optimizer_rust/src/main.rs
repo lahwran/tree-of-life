@@ -1,10 +1,7 @@
-#![feature(hash)]
-#![feature(core)]
 #![feature(std_misc)]
 #![feature(test)]
 
 #![feature(collections)]
-#![allow(deprecated)]
 
 extern crate test;
 extern crate chrono;
@@ -15,6 +12,7 @@ pub mod mutate;
 pub mod genome;
 pub mod fitness;
 pub mod crossover;
+pub mod selection;
 
 #[cfg(not(test))]
 fn main() {
