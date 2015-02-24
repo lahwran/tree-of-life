@@ -39,7 +39,7 @@ fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
 
 }
 
-fn crossover(parent1: Genome, parent2: Genome,
+fn crossover(parent1: &Genome, parent2: &Genome,
              times: Vec<DateTime<UTC>>) ->  (Genome, Genome) {
     let mut newg1 = Genome::new_empty();
     let mut newg2 = Genome::new_empty();
@@ -55,13 +55,10 @@ fn crossover(parent1: Genome, parent2: Genome,
         mem::swap(&mut newg1, &mut newg2)
     }
 
-    // newg1.insert(Activity{start: opt.end.clone(), activitytype: ActivityType::Nothing});
-    // newg2.insert(Activity{start: opt.end.clone(), activitytype: ActivityType::Nothing});
-
     (newg1, newg2)
 }
 
-pub fn crossover_rand<T: Rng>(opt: &Optimization, parent1: Genome, parent2: Genome,
+pub fn crossover_rand<T: Rng>(opt: &Optimization, parent1: &Genome, parent2: &Genome,
                        random: &mut T) ->  (Genome, Genome) {
     crossover(parent1, parent2, random_times(opt, random))
 
@@ -118,7 +115,7 @@ pub mod tests {
             UTC.ymd(2015,02,1).and_hms(9,0,0),
             UTC.ymd(2015,02,1).and_hms(12,0,0),
         );
-        let (g1, g2) = crossover(g1, g2, vec);
+        let (g1, g2) = crossover(&g1, &g2, vec);
 
         assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(12,0,0)));
         assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(6,0,0)));
@@ -130,7 +127,7 @@ pub mod tests {
             UTC.ymd(2015,02,1).and_hms(10,0,0),
             UTC.ymd(2015,02,1).and_hms(15,0,0),
         );
-        let (g1, g2) = crossover(g1, g3, vec);
+        let (g1, g2) = crossover(&g1, &g3, vec);
 
         assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(9,0,0)));
         assert!(g1.contains_key(&UTC.ymd(2015,02,1).and_hms(22,0,0)));

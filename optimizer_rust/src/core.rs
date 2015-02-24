@@ -9,6 +9,7 @@ use ::genome::{Genome, Optimization};
 use ::genome::tests::testtree;
 use ::fitness::FitnessFunction;
 use ::mutate::mutate;
+use ::crossover::crossover_rand;
 use ::selection::sus_select;
 
 const pop_size: usize = 300;
@@ -43,14 +44,8 @@ fn mutate_all(pop: &mut Vec<Genome>) {
     }
 }
 
-fn crossover(a: &Genome, b: &Genome) -> (Genome, Genome) {
-    (a.clone(), b.clone())
-}
-
-fn crossover_all<R>(rng: &mut R, mut selections: Vec<&Genome>,
-                    pop: &mut Vec<Genome>)
-        where R: Rng {
-    rng.shuffle(selections.as_mut_slice());
+fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
+                         selections: Vec<&Genome>, pop: &mut Vec<Genome>) {
     let mut iter = selections.iter();
     loop {
         let a = match iter.next() {
@@ -62,7 +57,7 @@ fn crossover_all<R>(rng: &mut R, mut selections: Vec<&Genome>,
             Some(x) => x
         };
 
-        let (u, v) = crossover(a, b);
+        let (u, v) = crossover_rand(opt, a, b, rng);
         pop.push(u);
         pop.push(v);
     }
@@ -82,11 +77,12 @@ fn evolve(mut prev_pop: Vec<Genome>, opt: &Optimization) {
         fill_fitnesses(&mut prev_pop, opt);
 
         {
-            let selections = sus_select(&prev_pop,
+            let mut selections = sus_select(&prev_pop,
                         pop_size - elite_count, &mut rng);
 
+            rng.shuffle(selections.as_mut_slice());
             // clone from prev_pop into pop
-            crossover_all(&mut rng, selections, &mut pop);
+            crossover_all(opt, &mut rng, selections, &mut pop);
         }
         mutate_all(&mut pop);
 
