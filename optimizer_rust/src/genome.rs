@@ -224,7 +224,7 @@ pub mod tests {
         ])
     }
 
-    pub fn testgenome() -> (Optimization, Genome) { 
+    pub fn testgenome() -> (Optimization, Genome) {
         let tree = testtree();
 
         let opt = Optimization::new(
@@ -241,8 +241,8 @@ pub mod tests {
 
         (opt, genome)
     }
-    
-    pub fn testgenomes() -> (Optimization, Genome, Genome, Genome) { 
+
+    pub fn testgenomes() -> (Optimization, Genome, Genome, Genome) {
         let tree = testtree();
         let mut rand = XorShiftRng::new_unseeded();
         rand.next_u32();
