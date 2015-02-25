@@ -38,10 +38,10 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 }
 
 #[inline]
-fn mutate_all(pop: &mut Vec<Genome>) {
+fn mutate_all<R: Rng>(opt: &Optimization, pop: &mut Vec<Genome>, rng: &mut R) {
     for genome in pop.iter_mut() {
         // TODO: mutation probability? is that our job here?
-        mutate(genome);
+        mutate(opt, genome, rng);
     }
 }
 
@@ -86,7 +86,7 @@ fn evolve(mut prev_pop: Vec<Genome>, opt: &Optimization) {
             // clone from prev_pop into pop
             crossover_all(opt, &mut rng, selections, &mut pop);
         }
-        mutate_all(&mut pop);
+        mutate_all(opt, &mut pop, &mut rng);
 
         for elite in prev_pop.drain().take(elite_count) {
             pop.push(elite);

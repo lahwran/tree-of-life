@@ -1,7 +1,10 @@
+use std::num::Float;
+
 use rand::Rng;
 
 use ::genome::{Genome,Optimization,NodeExt,Activity};
 use ::genome::ActivityType::WorkOn;
+use ::tuneables::{ADD_MAX, ADD_CURVE_EXPONENT, DEL_TARGET, DEL_CURVE_EXPONENT};
 
 pub fn add_gene<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
     let node = opt.tree.randomnode(rng);
@@ -15,7 +18,26 @@ pub fn add_gene<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
     genome.insert(gene);
 }
 
-pub fn mutate(genome: &mut Genome) {
+pub fn mutate<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
+    let add_count = (
+                ADD_MAX * rng.next_f64().powi(ADD_CURVE_EXPONENT)) as usize;
+    let del_thresh = DEL_TARGET * rng.next_f64().powi(DEL_CURVE_EXPONENT);
+    let mut del_keys = Vec::with_capacity(del_thresh as usize * 2);
+
+    for value in genome.values().take(genome.len()-1) {
+        if rng.next_f64() * (genome.len() as f64) < del_thresh {
+            del_keys.push(value.start.clone());
+        }
+    }
+
+    for key in del_keys {
+        genome.remove(&key);
+    }
+
+    for _ in 0..add_count {
+        // TODO: need to try to match distributions between delete and add :(
+        add_gene(opt, genome, rng);
+    }
 }
 
 

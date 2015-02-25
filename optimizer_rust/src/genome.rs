@@ -215,6 +215,14 @@ impl Genome {
         self.genome.range(min, max)
     }
 
+    pub fn remove(&mut self, key: &DateTime<UTC>) {
+        self.genome.remove(key);
+    }
+
+    pub fn len(&self) -> usize {
+        self.genome.len()
+    }
+
     /// this is only for testing, to make initializing with fitness easier.
     pub fn with_fitness(mut self, fitness: Fitness) -> Genome {
         self.cached_fitness = Some(fitness);

@@ -7,6 +7,7 @@ extern crate test;
 extern crate chrono;
 extern crate rand;
 
+pub mod tuneables;
 pub mod core;
 pub mod mutate;
 pub mod genome;
