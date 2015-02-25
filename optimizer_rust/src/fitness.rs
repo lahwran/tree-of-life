@@ -7,6 +7,7 @@ use chrono::Duration;
 
 use ::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
 use ::genome::ActivityType::{Nothing, WorkOn, Finish};
+use ::genome::NodeType::Project;
 
 
 // is f64 okay? do we want f32?
@@ -60,7 +61,8 @@ impl TreeState {
         if times.len() == 0 {
             return 1.0f64;
         }
-        let average = times.iter().fold(0f64, |x, y| x + *y);
+        let average = times.iter().fold(0f64, |x, y| x + *y)
+                        / times.len() as f64;
         if average == 0f64 {
             return 0f64;
         }
@@ -75,7 +77,11 @@ impl TreeState {
         // cv is typically 0.1-ish, but ranges to infinity.
         // to get the result to be returned as a quality percentage,
         // 1 / (1.1)  which is 0.9 or so is preferable.
-        1f64 / (cv + 1f64)
+        let result = 1f64 / (cv + 1f64);
+
+        //println!("t:{:?}, a:{:?}, d:{:?}, v:{:?}, s:{:?}, c:{:?}, r:{:?}",
+        //         times, average, deltas, variance, stddev, cv, result);
+        result
     }
 }
 
@@ -146,25 +152,32 @@ impl FitnessFunction for Optimization {
                 },
                 _ => ()
             };
+            if let Project = activity.nodetype {} else {
+                fitness *= 0.95;
+            }
 
             let state = treestate.get(activity);
             let delta = second.start.clone() - first.start.clone();
             state.focus_so_far = state.focus_so_far + delta;
             total_time_working = total_time_working + delta;
         }
+        //println!("fitness before total time scaling: {:?}", fitness);
         fitness *= total_time_working.num_seconds() as f64
                     / self.duration().num_seconds() as f64;
+        //println!("fitness before balance quality: {:?}", fitness);
         fitness *= treestate.balance_quality(self);
+        //println!("final fitness: {:?}", fitness);
 
         fitness
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::FitnessFunction;
 
     use ::genome::{Genome, Optimization};
-    use ::genome::tests::testtree;
+    use ::genome::testtree;
     use ::genome::ActivityType::{Nothing, WorkOn};
 
     use chrono::{TimeZone, UTC};
@@ -201,6 +214,24 @@ mod tests {
         );
         let f2 = opt2.fitness(&genome2);
         assert!(f1 > f2);
+    }
+
+    #[test]
+    fn test_perfect_genome() {
+        let tree = testtree();
+        let opt = Optimization::new(
+            UTC.ymd(2015, 1, 1).and_hms(0, 0, 0),
+            UTC.ymd(2015, 1, 4).and_hms(0, 0, 0),
+            tree.clone()
+        );
+        let genome = Genome::preinit(vec![
+            (2015, 1, 1,  0,  0, 0, WorkOn(tree.children[0].clone())),
+            (2015, 1, 2,  0,  0, 0, WorkOn(tree.children[1].clone())),
+            (2015, 1, 3,  0,  0, 0, WorkOn(tree.children[2].clone())),
+            (2015, 1, 4,  0,  0, 0, Nothing)
+        ]);
+        let f = opt.fitness(&genome);
+        assert!((99.99 < f) && (f < 100.001));
     }
 
     #[test]

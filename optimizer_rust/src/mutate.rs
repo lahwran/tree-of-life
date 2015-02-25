@@ -41,13 +41,14 @@ pub fn mutate<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
 }
 
 
+#[cfg(test)]
 pub mod tests {
     use rand::XorShiftRng;
     use chrono::{UTC, Duration, TimeZone};
 
     use ::genome::{Genome,Optimization};
     use ::genome::ActivityType::{WorkOn,Nothing};
-    use ::genome::tests::testtree;
+    use ::genome::testtree;
 
     use super::add_gene;
 

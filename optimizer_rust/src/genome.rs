@@ -146,7 +146,7 @@ impl cmp::PartialEq for Genome {
 
 impl fmt::Debug for Genome {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "Genome {{\n"));
+        try!(write!(f, "Genome {{ fitness: {:?},\n", self.cached_fitness));
         for node in self.values() {
             try!(write!(f, "    {:?},\n", node));
         }
@@ -269,14 +269,25 @@ impl Optimization {
     }
 }
 
+pub fn testtree() -> Rc<Node> {
+    Node::new_root(vec![
+        Node::new_parent(Project, "Project Name", vec![
+            Node::new(Task, "Task Name"),
+        ]),
+        Node::new(Project, "Another project name"),
+        Node::new(Project, "Herp derp"),
+    ])
+}
+
+#[cfg(test)]
 pub mod tests {
     use super::{Optimization, Genome, Node, NodeExt};
-    use super::NodeType::{Project, Task};
+    use super::NodeType::Project;
     use super::ActivityType::{WorkOn, Finish};
+    use super::testtree;
 
     use test::Bencher;
 
-    use std::rc::Rc;
     use rand::{Rng, XorShiftRng};
     use chrono::{TimeZone, UTC};
 
@@ -292,16 +303,6 @@ pub mod tests {
 
         assert_eq!(nref, nref2);
         assert!(nref != nref3);
-    }
-
-    pub fn testtree() -> Rc<Node> {
-        Node::new_root(vec![
-            Node::new_parent(Project, "Project Name", vec![
-                Node::new(Task, "Task Name"),
-            ]),
-            Node::new(Project, "Another project name"),
-            Node::new(Project, "Herp derp"),
-        ])
     }
 
     pub fn testgenome() -> (Optimization, Genome) {

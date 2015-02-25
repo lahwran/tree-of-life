@@ -74,11 +74,12 @@ pub fn rank_sus_select<'a, R>(pop: &'a Vec<Genome>, count: usize, rng: &mut R)
 }
 
 
+#[cfg(test)]
 mod tests {
     use rand::XorShiftRng;
 
     use ::genome::Genome;
-    use super::sus_select;
+    use super::{rank_sus_select, sus_select};
 
     #[test]
     fn test_sus() {
@@ -121,7 +122,7 @@ mod tests {
             ];
 
             let mut rng = XorShiftRng::new_unseeded();
-            let selection = sus_select(&pop, 4, &mut rng);
+            let selection = rank_sus_select(&pop, 4, &mut rng);
             let count = |i: usize| {
                 selection.iter().filter(|s| {
                     (&***s) as *const _ == &pop[i] as *const _
@@ -129,8 +130,8 @@ mod tests {
             };
 
             assert_eq!(selection.len(), 4);
-            assert!(count(0) >= 2);
-            assert!(count(0) <= 3);
+            assert!(count(0) >= 1);
+            assert!(count(0) <= 2);
 
             assert!(count(1) >= 1);
             assert!(count(1) <= 2);

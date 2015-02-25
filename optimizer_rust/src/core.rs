@@ -6,11 +6,11 @@ use std::mem;
 use chrono::{UTC, TimeZone};
 
 use ::genome::{Genome, Optimization};
-use ::genome::tests::testtree;
+use ::genome::testtree;
 use ::fitness::FitnessFunction;
-use ::mutate::mutate;
+use ::mutate::{mutate, add_gene};
 use ::crossover::crossover_rand;
-use ::selection::sus_select;
+use ::selection::rank_sus_select;
 
 const pop_size: usize = 300;
 const elite_count: usize = 50;
@@ -33,7 +33,7 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
         let f1 = g1.cached_fitness.unwrap();
         let f2 = g2.cached_fitness.unwrap();
 
-        f1.partial_cmp(&f2).unwrap()
+        f2.partial_cmp(&f1).unwrap()
     });
 }
 
@@ -41,7 +41,9 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 fn mutate_all<R: Rng>(opt: &Optimization, pop: &mut Vec<Genome>, rng: &mut R) {
     for genome in pop.iter_mut() {
         // TODO: mutation probability? is that our job here?
-        mutate(opt, genome, rng);
+        if rng.next_f64() > 0.000001 {
+            mutate(opt, genome, rng);
+        }
     }
 }
 
@@ -65,8 +67,8 @@ fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
     }
 }
 
-fn evolve(mut prev_pop: Vec<Genome>, opt: &Optimization) {
-    let mut rng = XorShiftRng::new_unseeded();
+fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
+        -> Genome {
 
     let mut pop = Vec::with_capacity(pop_size);
 
@@ -77,31 +79,43 @@ fn evolve(mut prev_pop: Vec<Genome>, opt: &Optimization) {
     for _ in 0..generation_count {
         // fill in fitness into prev
         fill_fitnesses(&mut prev_pop, opt);
+        //println!("iter: {:?}, best: {:?}, worst: {:?}",
+        //         iter, prev_pop.first().unwrap().cached_fitness,
+        //         prev_pop.last().unwrap().cached_fitness);
 
         {
-            let mut selections = sus_select(&prev_pop,
-                        pop_size - elite_count, &mut rng);
+            let mut selections = rank_sus_select(&prev_pop,
+                        pop_size - elite_count, rng);
 
             rng.shuffle(selections.as_mut_slice());
             // clone from prev_pop into pop
-            crossover_all(opt, &mut rng, selections, &mut pop);
+            crossover_all(opt, rng, selections, &mut pop);
         }
-        mutate_all(opt, &mut pop, &mut rng);
+        mutate_all(opt, &mut pop, rng);
 
         for elite in prev_pop.drain().take(elite_count) {
             pop.push(elite);
         }
         mem::swap(&mut prev_pop, &mut pop);
     }
+    fill_fitnesses(&mut prev_pop, opt);
+
+    prev_pop.into_iter().next().unwrap()
 }
 
-fn evolve_schedule(opt: &Optimization) {
-    // todo: translate - generate initial pop
+fn evolve_schedule(opt: &Optimization) -> Genome {
+    let mut rng = XorShiftRng::new_unseeded();
     let generated_pop = (0..pop_size)
-            .map(|_| Genome::new(opt))
+            .map(|_| {
+                let mut genome = Genome::new(opt);
+                for _ in 0..25 {
+                    add_gene(opt, &mut genome, &mut rng);
+                }
+                genome
+            })
             .collect::<Vec<Genome>>();
 
-    evolve(generated_pop, opt);
+    evolve(generated_pop, opt, &mut rng)
 }
 
 pub fn run() {
@@ -111,5 +125,6 @@ pub fn run() {
         UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
         tree
     );
-    evolve_schedule(&opt);
+    let genome = evolve_schedule(&opt);
+    println!("Best genome: {:?}", genome);
 }

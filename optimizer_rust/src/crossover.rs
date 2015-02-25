@@ -17,14 +17,15 @@ use chrono::{DateTime, UTC, Duration};
 
 use ::fitness::PairIter;
 use ::genome::{Optimization, Genome};
+use ::tuneables::CROSSOVER_COUNT;
 
 fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
         -> Vec<DateTime<UTC>> {
-    let mut vec = Vec::with_capacity(3);
+    let mut vec = Vec::with_capacity(CROSSOVER_COUNT + 2);
     vec.push(opt.start.clone());
     vec.push(opt.end.clone() + Duration::seconds(1));
 
-    for _ in 0..3 {
+    for _ in 0..CROSSOVER_COUNT {
         vec.push(opt.random_time(randomizer));
     }
 
@@ -58,6 +59,7 @@ pub fn crossover_rand<T: Rng>(opt: &Optimization, parent1: &Genome, parent2: &Ge
 
 }
 
+#[cfg(test)]
 pub mod tests {
     use rand::XorShiftRng;
     use chrono::UTC;
@@ -67,7 +69,7 @@ pub mod tests {
     use super::crossover;
 
     use ::genome::Optimization;
-    use ::genome::tests::testtree;
+    use ::genome::testtree;
     use ::genome::tests::testgenomes;
 
 
