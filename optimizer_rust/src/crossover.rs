@@ -18,12 +18,6 @@ use chrono::{DateTime, UTC, Duration};
 use ::fitness::PairIter;
 use ::genome::{Optimization, Genome};
 
-fn random_time<T: Rng>(opt: &Optimization, randomizer: &mut T)
-        -> DateTime<UTC> {
-    opt.start.clone() + Duration::seconds(
-        randomizer.gen_range(0, opt.duration().num_seconds()))
-}
-
 fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
         -> Vec<DateTime<UTC>> {
     let mut vec = Vec::with_capacity(3);
@@ -31,7 +25,7 @@ fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
     vec.push(opt.end.clone() + Duration::seconds(1));
 
     for _ in 0..3 {
-        vec.push(random_time(opt, randomizer));
+        vec.push(opt.random_time(randomizer));
     }
 
     vec.sort();

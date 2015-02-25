@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use std::collections::btree_map;
 use std::collections::Bound;
 use std::slice::SliceExt;
+use std::cmp;
+use std::fmt;
 
+use rand::Rng;
 use chrono::{UTC, DateTime, Duration};
 use chrono::offset::TimeZone;
 
@@ -11,7 +14,7 @@ use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
 use ::core::Fitness;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Activity {
     pub start: DateTime<UTC>,
     pub activitytype: ActivityType,
@@ -24,7 +27,6 @@ pub enum ActivityType {
     Finish(Rc<Node>),
 }
 
-#[derive(Debug)]
 pub struct Node {
     pub nodetype: NodeType,
     pub name: String,
@@ -37,6 +39,19 @@ pub enum NodeType {
     Root,
     Project,
     Task,
+}
+
+impl cmp::PartialEq for ActivityType {
+    fn eq(&self, other: &ActivityType) -> bool {
+        match (self, other) {
+            (&Nothing, &Nothing) => true,
+            (&WorkOn(ref a), &WorkOn(ref b))
+            | (&Finish(ref a), &Finish(ref b)) => {
+                a.id() == b.id()
+            },
+            _ => false
+        }
+    }
 }
 
 impl Node {
@@ -73,6 +88,8 @@ pub struct NodeRef(*const Node);
 pub trait NodeExt {
     fn id(&self) -> NodeRef;
     fn walk<F: FnMut(&Self)>(&self, callback: &mut F);
+    fn find_node(&self, index: usize) -> Rc<Node>;
+    fn randomnode<R: Rng>(&self, rng: &mut R) -> Rc<Node>;
 }
 
 impl NodeExt for Rc<Node> {
@@ -87,12 +104,61 @@ impl NodeExt for Rc<Node> {
             child.walk(callback);
         }
     }
+
+    /// Find a node by index. *panics on out of bounds*
+    fn find_node(&self, index: usize) -> Rc<Node> {
+        let mut parent_iterator = self.children.iter();
+        let mut current_index: usize = 0;
+        let mut current_node = parent_iterator.next().unwrap();
+
+        while current_index < index {
+
+            current_index += 1;
+
+            if current_index + current_node.subtreesize > index {
+                parent_iterator = current_node.children.iter();
+                current_node = parent_iterator.next().unwrap();
+            } else {
+                current_index += current_node.subtreesize;
+                current_node = parent_iterator.next().unwrap();
+            }
+        }
+        assert_eq!(current_index, index);
+        return current_node.clone();
+    }
+
+    fn randomnode<R: Rng>(&self, rng: &mut R) -> Rc<Node> {
+        self.find_node(rng.gen_range(0, self.subtreesize))
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Genome {
     genome: BTreeMap<DateTime<UTC>,Activity>,
     pub cached_fitness: Option<Fitness>
+}
+
+impl cmp::PartialEq for Genome {
+    fn eq(&self, other: &Genome) -> bool {
+        self.genome == other.genome
+    }
+}
+
+impl fmt::Debug for Genome {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        try!(write!(f, "Genome {{\n"));
+        for node in self.values() {
+            try!(write!(f, "    {:?},\n", node));
+        }
+        write!(f, "}}")
+    }
+}
+
+impl fmt::Debug for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Node {{ nodetype: {:?}, name: {:?}, children: ..., subtreesize: {:?} }}",
+               self.nodetype, self.name, self.subtreesize)
+    }
 }
 
 impl Genome {
@@ -117,14 +183,14 @@ impl Genome {
         result
     }
 
-    pub fn preinit(entries: Vec<(i32, u32, u32, u32, u32, ActivityType)>)
+    pub fn preinit(entries: Vec<(i32, u32, u32, u32, u32, u32, ActivityType)>)
             -> Genome {
         let mut result = Genome::new_empty();
 
-        for (year, month, day, hour, minute, activity)
+        for (year, month, day, hour, minute, second, activity)
                 in entries.into_iter() {
             result.insert(Activity {
-                start: UTC.ymd(year, month, day).and_hms(hour, minute, 0),
+                start: UTC.ymd(year, month, day).and_hms(hour, minute, second),
                 activitytype: activity
             });
         }
@@ -187,6 +253,12 @@ impl Optimization {
     pub fn duration(&self) -> Duration {
         self.end.clone() - self.start.clone()
     }
+
+    pub fn random_time<T: Rng>(&self, randomizer: &mut T)
+            -> DateTime<UTC> {
+        self.start.clone() + Duration::seconds(
+            randomizer.gen_range(0, self.duration().num_seconds()))
+    }
 }
 
 pub mod tests {
@@ -234,9 +306,9 @@ pub mod tests {
         );
 
         let genome = Genome::preinit(vec![
-            (2015, 2, 12, 0, 0, WorkOn(opt.tree.children[0].clone())),
-            (2015, 2, 14, 0, 0, Finish(opt.tree.children[1].clone())),
-            (2015, 2, 15, 0, 0, Finish(opt.tree.children[2].clone())),
+            (2015, 2, 12, 0, 0, 0, WorkOn(opt.tree.children[0].clone())),
+            (2015, 2, 14, 0, 0, 0, Finish(opt.tree.children[1].clone())),
+            (2015, 2, 15, 0, 0, 0, Finish(opt.tree.children[2].clone())),
         ]);
 
         (opt, genome)
@@ -253,25 +325,25 @@ pub mod tests {
             tree
         );
         let g1 = Genome::preinit(vec![
-                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1, 3, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1, 8, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1, 11, 0, Finish(opt.tree.children[1].clone())),
-                (2015, 2, 1, 19, 0, Finish(opt.tree.children[1].clone()))
+                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1,  3, 0, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1,  8, 0, 0, WorkOn(opt.tree.children[1].clone())),
+                (2015, 2, 1, 11, 0, 0, Finish(opt.tree.children[1].clone())),
+                (2015, 2, 1, 19, 0, 0, Finish(opt.tree.children[1].clone()))
             ]);
         let g2 = Genome::preinit(vec![
-                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1, 6, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1, 10, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1, 12, 0, Finish(opt.tree.children[2].clone())),
-                (2015, 2, 1, 23, 0, Finish(opt.tree.children[2].clone()))
+                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1,  6, 0, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1, 10, 0, 0, WorkOn(opt.tree.children[2].clone())),
+                (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[2].clone())),
+                (2015, 2, 1, 23, 0, 0, Finish(opt.tree.children[2].clone()))
             ]);
         let g3 = Genome::preinit(vec![
-                (2015, 2, 1, 0, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1, 4, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1, 9, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1, 12, 0, Finish(opt.tree.children[0].clone())),
-                (2015, 2, 1, 22, 0, Finish(opt.tree.children[0].clone()))
+                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1,  4, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1,  9, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[0].clone())),
+                (2015, 2, 1, 22, 0, 0, Finish(opt.tree.children[0].clone()))
             ]);
         (opt, g1, g2, g3)
 
@@ -289,9 +361,9 @@ pub mod tests {
 
         b.iter(|| {
             Genome::preinit(vec![
-                (2015, 2, 12, 0, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 14, 0, 0, Finish(opt.tree.children[1].clone())),
-                (2015, 2, 15, 0, 0, Finish(opt.tree.children[2].clone())),
+                (2015, 2, 12, 0, 0, 0, WorkOn(opt.tree.children[0].clone())),
+                (2015, 2, 14, 0, 0, 0, Finish(opt.tree.children[1].clone())),
+                (2015, 2, 15, 0, 0, 0, Finish(opt.tree.children[2].clone())),
             ]);
         });
     }

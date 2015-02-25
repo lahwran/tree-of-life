@@ -40,6 +40,7 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 #[inline]
 fn mutate_all(pop: &mut Vec<Genome>) {
     for genome in pop.iter_mut() {
+        // TODO: mutation probability? is that our job here?
         mutate(genome);
     }
 }
@@ -56,6 +57,7 @@ fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
             None => { break; },
             Some(x) => x
         };
+        // TODO: crossover probability?
 
         let (u, v) = crossover_rand(opt, a, b, rng);
         pop.push(u);
