@@ -137,7 +137,7 @@ impl FitnessFunction for Optimization {
         let mut fitness = 100f64;
         let mut total_time_working = Duration::seconds(0);
 
-        for (first, second) in PairIter::new(genome.values()) {
+        for (first, second) in PairIter::new(genome.pool.iter()) {
             let activity = match first.activitytype {
                 Nothing => { continue; },
                 Finish(_) => {
