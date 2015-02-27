@@ -203,6 +203,10 @@ impl Genome {
 
         self
     }
+
+    pub fn sort(&mut self) {
+        self.pool.sort_by(|a, b| a.start.cmp(&b.start));
+    }
 }
 
 #[derive(Debug, Clone)]

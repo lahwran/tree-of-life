@@ -41,7 +41,7 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 fn mutate_all<R: Rng>(opt: &Optimization, pop: &mut Vec<Genome>, rng: &mut R) {
     for genome in pop.iter_mut() {
         // TODO: mutation probability? is that our job here?
-        if rng.next_f64() > 0.000001 {
+        if rng.next_f64() > 0.00001 {
             mutate(opt, genome, rng);
         }
     }
@@ -111,6 +111,7 @@ fn evolve_schedule(opt: &Optimization) -> Genome {
                 for _ in 0..25 {
                     add_gene(opt, &mut genome, &mut rng);
                 }
+                genome.sort();
                 genome
             })
             .collect::<Vec<Genome>>();

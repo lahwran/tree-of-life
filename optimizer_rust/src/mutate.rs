@@ -1,4 +1,5 @@
 use std::num::Float;
+use std::mem;
 
 use rand::Rng;
 
@@ -15,29 +16,35 @@ pub fn add_gene<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
         activitytype: WorkOn(node)
     };
 
-    genome.insert(gene);
+    genome.pool.push(gene);
 }
 
 pub fn mutate<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
     let add_count = (
                 ADD_MAX * rng.next_f64().powi(ADD_CURVE_EXPONENT)) as usize;
     let del_thresh = DEL_TARGET * rng.next_f64().powi(DEL_CURVE_EXPONENT);
-    let mut del_keys = Vec::with_capacity(del_thresh as usize * 2);
 
-    for value in genome.values().take(genome.len()-1) {
-        if rng.next_f64() * (genome.len() as f64) < del_thresh {
-            del_keys.push(value.start.clone());
+    let mut prev_genome = Genome::new_empty(genome.pool.len() * 2);
+    mem::swap(&mut prev_genome, genome);
+    let prev_genome_len = prev_genome.pool.len();
+
+    for (index, gene) in prev_genome.pool.drain().enumerate() {
+        if index == prev_genome_len - 1 {
+            genome.pool.push(gene);
+            break;
         }
-    }
-
-    for key in del_keys {
-        genome.remove(&key);
+        if rng.next_f64() * (prev_genome_len as f64) < del_thresh {
+            continue;
+        }
+        genome.pool.push(gene);
     }
 
     for _ in 0..add_count {
         // TODO: need to try to match distributions between delete and add :(
         add_gene(opt, genome, rng);
     }
+
+    genome.sort();
 }
 
 
@@ -71,6 +78,7 @@ pub mod tests {
 
         let mut rng = XorShiftRng::new_unseeded();
         add_gene(&opt, &mut genome, &mut rng);
+        genome.sort();
 
         assert_eq!(genome, Genome::preinit(vec![
             (2015, 1, 1, 11, 00,  0,  WorkOn(tree.children[0].clone())),

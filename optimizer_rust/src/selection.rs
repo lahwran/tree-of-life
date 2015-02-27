@@ -85,10 +85,10 @@ mod tests {
     fn test_sus() {
         for _ in 0..60 {
             let pop = vec![
-                Genome::new_empty().with_fitness(10.0),
-                Genome::new_empty().with_fitness(4.5),
-                Genome::new_empty().with_fitness(1.0),
-                Genome::new_empty().with_fitness(0.5),
+                Genome::new_empty(0).with_fitness(10.0),
+                Genome::new_empty(0).with_fitness(4.5),
+                Genome::new_empty(0).with_fitness(1.0),
+                Genome::new_empty(0).with_fitness(0.5),
             ];
 
             let mut rng = XorShiftRng::new_unseeded();
@@ -115,10 +115,10 @@ mod tests {
     fn test_rank_sus() {
         for _ in 0..60 {
             let pop = vec![
-                Genome::new_empty().with_fitness(10.0),
-                Genome::new_empty().with_fitness(4.5),
-                Genome::new_empty().with_fitness(1.0),
-                Genome::new_empty().with_fitness(0.5),
+                Genome::new_empty(0).with_fitness(10.0),
+                Genome::new_empty(0).with_fitness(4.5),
+                Genome::new_empty(0).with_fitness(1.0),
+                Genome::new_empty(0).with_fitness(0.5),
             ];
 
             let mut rng = XorShiftRng::new_unseeded();
