@@ -134,20 +134,20 @@ impl NodeExt for Rc<Node> {
 
 #[derive(Clone)]
 pub struct Genome {
-    genome: BTreeMap<DateTime<UTC>,Activity>,
+    pub pool: Vec<Activity>,
     pub cached_fitness: Option<Fitness>
 }
 
 impl cmp::PartialEq for Genome {
     fn eq(&self, other: &Genome) -> bool {
-        self.genome == other.genome
+        self.pool == other.pool
     }
 }
 
 impl fmt::Debug for Genome {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         try!(write!(f, "Genome {{ fitness: {:?},\n", self.cached_fitness));
-        for node in self.values() {
+        for node in &self.pool {
             try!(write!(f, "    {:?},\n", node));
         }
         write!(f, "}}")
@@ -162,20 +162,20 @@ impl fmt::Debug for Node {
 }
 
 impl Genome {
-    pub fn new_empty() -> Genome {
+    pub fn new_empty(expected_size: usize) -> Genome {
         Genome {
-            genome: BTreeMap::new(),
+            pool: Vec::with_capacity(expected_size),
             cached_fitness: None
         }
     }
 
     pub fn new(opt: &Optimization) -> Genome{
-        let mut result = Genome::new_empty();
-        result.insert(Activity {
+        let mut result = Genome::new_empty(2);
+        result.pool.push(Activity {
             start: opt.start.clone(),
             activitytype: Nothing
         });
-        result.insert(Activity {
+        result.pool.push(Activity {
             start: opt.end.clone(),
             activitytype: Nothing
         });
@@ -185,42 +185,16 @@ impl Genome {
 
     pub fn preinit(entries: Vec<(i32, u32, u32, u32, u32, u32, ActivityType)>)
             -> Genome {
-        let mut result = Genome::new_empty();
+        let mut result = Genome::new_empty(15);
 
         for (year, month, day, hour, minute, second, activity)
                 in entries.into_iter() {
-            result.insert(Activity {
+            result.pool.push(Activity {
                 start: UTC.ymd(year, month, day).and_hms(hour, minute, second),
                 activitytype: activity
             });
         }
         result
-    }
-
-    pub fn insert(&mut self, activity: Activity) {
-        self.genome.insert(activity.start.clone(), activity);
-        self.cached_fitness = None;
-    }
-    pub fn contains_key(&self, time: &DateTime<UTC>) -> bool {
-        self.genome.contains_key(time)
-    }
-
-    pub fn values<'a>(&'a self) ->
-            btree_map::Values<'a, DateTime<UTC>, Activity> {
-        self.genome.values()
-    }
-
-    pub fn range<'a>(&'a self, min: Bound<&DateTime<UTC>>, max: Bound<&DateTime<UTC>>) ->
-            btree_map::Range<'a, DateTime<UTC>, Activity> {
-        self.genome.range(min, max)
-    }
-
-    pub fn remove(&mut self, key: &DateTime<UTC>) {
-        self.genome.remove(key);
-    }
-
-    pub fn len(&self) -> usize {
-        self.genome.len()
     }
 
     /// this is only for testing, to make initializing with fitness easier.
@@ -334,26 +308,26 @@ pub mod tests {
             tree
         );
         let g1 = Genome::preinit(vec![
-                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1,  3, 0, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1,  8, 0, 0, WorkOn(opt.tree.children[1].clone())),
-                (2015, 2, 1, 11, 0, 0, Finish(opt.tree.children[1].clone())),
-                (2015, 2, 1, 19, 0, 0, Finish(opt.tree.children[1].clone()))
-            ]);
+            (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[0].clone())),
+            (2015, 2, 1,  3, 0, 0, WorkOn(opt.tree.children[0].clone())),
+            (2015, 2, 1,  8, 0, 0, WorkOn(opt.tree.children[0].clone())),
+            (2015, 2, 1, 11, 0, 0, Finish(opt.tree.children[0].clone())),
+            (2015, 2, 1, 19, 0, 0, Finish(opt.tree.children[0].clone()))
+        ]);
         let g2 = Genome::preinit(vec![
-                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1,  6, 0, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1, 10, 0, 0, WorkOn(opt.tree.children[2].clone())),
-                (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[2].clone())),
-                (2015, 2, 1, 23, 0, 0, Finish(opt.tree.children[2].clone()))
-            ]);
+            (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[1].clone())),
+            (2015, 2, 1,  6, 0, 0, WorkOn(opt.tree.children[1].clone())),
+            (2015, 2, 1, 10, 0, 0, WorkOn(opt.tree.children[1].clone())),
+            (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[1].clone())),
+            (2015, 2, 1, 23, 0, 0, Finish(opt.tree.children[1].clone()))
+        ]);
         let g3 = Genome::preinit(vec![
-                (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1,  4, 0, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1,  9, 0, 0, WorkOn(opt.tree.children[0].clone())),
-                (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[0].clone())),
-                (2015, 2, 1, 22, 0, 0, Finish(opt.tree.children[0].clone()))
-            ]);
+            (2015, 2, 1,  0, 0, 0, WorkOn(opt.tree.children[2].clone())),
+            (2015, 2, 1,  4, 0, 0, WorkOn(opt.tree.children[2].clone())),
+            (2015, 2, 1,  9, 0, 0, WorkOn(opt.tree.children[2].clone())),
+            (2015, 2, 1, 12, 0, 0, Finish(opt.tree.children[2].clone())),
+            (2015, 2, 1, 22, 0, 0, Finish(opt.tree.children[2].clone()))
+        ]);
         (opt, g1, g2, g3)
 
     }
