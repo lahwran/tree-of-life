@@ -41,7 +41,7 @@ fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
 fn mutate_all<R: Rng>(opt: &Optimization, pop: &mut Vec<Genome>, rng: &mut R) {
     for genome in pop.iter_mut() {
         // TODO: mutation probability? is that our job here?
-        if rng.next_f64() > 0.00001 {
+        if rng.next_f64() > 0.01 {
             mutate(opt, genome, rng);
         }
     }
@@ -56,7 +56,10 @@ fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
             Some(x) => x
         };
         let b = match iter.next() {
-            None => { break; },
+            None => {
+                pop.push((*a).clone());
+                break;
+            },
             Some(x) => x
         };
         // TODO: crossover probability?

@@ -351,7 +351,7 @@ pub mod tests {
                 (2015, 2, 12, 0, 0, 0, WorkOn(opt.tree.children[0].clone())),
                 (2015, 2, 14, 0, 0, 0, Finish(opt.tree.children[1].clone())),
                 (2015, 2, 15, 0, 0, 0, Finish(opt.tree.children[2].clone())),
-            ]);
+            ])
         });
     }
 

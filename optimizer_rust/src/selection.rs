@@ -81,8 +81,11 @@ mod tests {
     use ::genome::Genome;
     use super::{rank_sus_select, sus_select};
 
+    use test::Bencher;
+
     #[test]
     fn test_sus() {
+        let mut rng = XorShiftRng::new_unseeded();
         for _ in 0..60 {
             let pop = vec![
                 Genome::new_empty(0).with_fitness(10.0),
@@ -91,7 +94,6 @@ mod tests {
                 Genome::new_empty(0).with_fitness(0.5),
             ];
 
-            let mut rng = XorShiftRng::new_unseeded();
             let selection = sus_select(&pop, 4, &mut rng);
             let count = |i: usize| {
                 selection.iter().filter(|s| {
@@ -113,6 +115,7 @@ mod tests {
 
     #[test]
     fn test_rank_sus() {
+        let mut rng = XorShiftRng::new_unseeded();
         for _ in 0..60 {
             let pop = vec![
                 Genome::new_empty(0).with_fitness(10.0),
@@ -121,7 +124,6 @@ mod tests {
                 Genome::new_empty(0).with_fitness(0.5),
             ];
 
-            let mut rng = XorShiftRng::new_unseeded();
             let selection = rank_sus_select(&pop, 4, &mut rng);
             let count = |i: usize| {
                 selection.iter().filter(|s| {
@@ -139,6 +141,21 @@ mod tests {
             assert!(count(2) <= 1);
             assert!(count(3) <= 1);
         }
+    }
+
+    #[bench]
+    fn perf_rank_sus(b: &mut Bencher) {
+        let pop = vec![
+            Genome::new_empty(0).with_fitness(10.0),
+            Genome::new_empty(0).with_fitness(4.5),
+            Genome::new_empty(0).with_fitness(1.0),
+            Genome::new_empty(0).with_fitness(0.5),
+        ];
+
+        let mut rng = XorShiftRng::new_unseeded();
+        b.iter(|| {
+            rank_sus_select(&pop, 4, &mut rng)
+        });
     }
 }
 
