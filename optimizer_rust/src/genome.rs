@@ -29,6 +29,7 @@ pub enum ActivityType {
 
 pub struct Node {
     pub nodetype: NodeType,
+    //pub id: String,
     pub name: String,
     pub children: Vec<Rc<Node>>,
     pub subtreesize: usize
