@@ -5,7 +5,7 @@ use std::str::Pattern;
 
 use ::genome::Node;
 
-#[derive(Copy, PartialEq, Eq)]
+#[derive(Copy, PartialEq, Eq, Debug)]
 enum Parsing {
     Indent,
     Type,
@@ -14,6 +14,7 @@ enum Parsing {
     Text
 }
 
+#[derive(Debug)]
 pub struct ParsedLine {
     indent: i32,
     is_metadata: bool,
@@ -186,11 +187,37 @@ macro_rules! tryline {
 //      start #c;                                                         queue #c >4;
 //      start #d; commit #c >4; commit #b >3; commit #a >2; commit #1 >0; queue #d >0;
 
-pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
-    let mut parent_stack: Vec<ParsedLine> = Vec::new();
-    let mut peers_stack: Vec<Vec<Rc<Node>>> = vec![Vec::new()];
+struct ParserState {
+    parent_stack: Vec<(usize, ParsedLine)>,
+    peers_stack: Vec<Vec<Rc<Node>>>,
+    last_indent: i32,
+}
 
-    let mut last_indent = -1;
+impl ParserState {
+    fn commit_prev(&mut self, parsed_indent: i32) -> Result<(), String> {
+        while parsed_indent <= self.last_indent {
+            self.last_indent -= 1;
+            let children = self.peers_stack.pop().unwrap();
+            let (lineidx, parsedline) = self.parent_stack.pop().unwrap();
+            let node = Node::new_parent(
+                tryline!(lineidx, parsedline.node_type.parse()),
+                parsedline.id.unwrap(),
+                parsedline.text,
+                children
+            );
+            self.peers_stack.last_mut().unwrap().push(node);
+        }
+
+        Ok(())
+    }
+}
+
+pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
+    let mut state = ParserState {
+        parent_stack: Vec::new(),
+        peers_stack: vec![Vec::new()],
+        last_indent: -1,
+    };
 
     for (lineidx, line) in lines.lines().enumerate() {
         if line.trim() == "" {
@@ -200,30 +227,20 @@ pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
         let parsed = tryline!(lineidx, parse_line(line));
         assert!(!parsed.is_metadata);
         assert!(parsed.id.is_some());
-        if parsed.indent > last_indent + 1 {
-            return tryline!(lineidx, Err("Indentation too great"));
+        if parsed.indent > state.last_indent + 1 {
+            tryline!(lineidx, Err("Indentation too great"));
         } else {
-            while parsed.indent <= last_indent {
-                last_indent -= 1;
-                let children = peers_stack.pop().unwrap();
-                let parsedline = parent_stack.pop().unwrap();
-                let node = Node::new_parent(
-                    tryline!(lineidx, parsedline.node_type.parse()),
-                    parsedline.id.unwrap(),
-                    parsedline.text,
-                    children
-                );
-                peers_stack.last_mut().unwrap().push(node);
-            }
+            try!(state.commit_prev(parsed.indent));
         }
 
-        last_indent = parsed.indent;
-        parent_stack.push(parsed);
-        peers_stack.push(vec![]);
+        state.last_indent = parsed.indent;
+        state.parent_stack.push((lineidx, parsed));
+        state.peers_stack.push(vec![]);
     }
 
     // Finally, create the root node.
-    let children = peers_stack.pop().unwrap();
+    try!(state.commit_prev(0));
+    let children = state.peers_stack.pop().unwrap();
     
     Ok(Node::new_root(children))
 }
