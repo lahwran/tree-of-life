@@ -1,5 +1,9 @@
+use std::error::FromError;
+use std::rc::Rc;
 use std::result::Result;
 use std::str::Pattern;
+
+use ::genome::Node;
 
 #[derive(Copy, PartialEq, Eq)]
 enum Parsing {
@@ -127,9 +131,109 @@ pub fn parse_line(line: &str) -> Result<ParsedLine, &'static str> {
     Ok(result)
 }
 
+macro_rules! tryline {
+    ($index:expr, $expr:expr) => (match $expr {
+        Ok(val) => val,
+        Err(err) => {
+            return Err(format!("Line {}: {}", $index + 1, err));
+        }
+    })
+}
+
+// #1: derp >0
+// #2:     derp >1
+// #3:         derp >2
+// #4:         derp >2
+// #5:     derp >1
+// #6:     derp >1
+// #7:         derp >2
+// #8:             derp >3
+// #9:                 derp >4
+// #a:         derp >2
+// #b:             derp >3
+// #c:                 derp >4
+// #d: derp >0
+//
+// reverse: 
+//      stack: [[#d], [], [#a: [#b: [#c]], #7: [#3: [#9]]]]
+//      insert #d >0;
+//      insert #c >4;
+//      insert #b >3 popping #c;
+//      insert #a >2 popping #b;
+//      insert #9 >4;
+//      insert #8 >3 popping #9;
+//      insert #7 >2 popping #8;
+//      ...
+//
+// forward:
+//      queue: [#1, #5]
+//      committed: [
+//          [],
+//          [#2: [#3: [], #4: []]],
+//          []
+//      ]
+//      start #1;                                                         queue #1 >0;
+//      start #2;                                                         queue #2 >1;
+//      start #3;                                                         queue #3 >2;
+//      start #4; commit #3 >2;                                           queue #4 >2;
+//      start #5; commit #4 >2; commit #2 >1;                             queue #5 >1;
+//      start #6; commit #5 >1;                                           queue #6 >1;
+//      start #7;                                                         queue #7 >2;
+//      start #8;                                                         queue #8 >3;
+//      start #9;                                                         queue #9 >4;
+//      start #a; commit #9 >4; commit #8 >3; commit #7 >2;               queue #a >2;
+//      start #b;                                                         queue #b >3;
+//      start #c;                                                         queue #c >4;
+//      start #d; commit #c >4; commit #b >3; commit #a >2; commit #1 >0; queue #d >0;
+
+pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
+    let mut parent_stack: Vec<ParsedLine> = Vec::new();
+    let mut peers_stack: Vec<Vec<Rc<Node>>> = vec![Vec::new()];
+
+    let mut last_indent = -1;
+
+    for (lineidx, line) in lines.lines().enumerate() {
+        if line.trim() == "" {
+            continue;
+        }
+
+        let parsed = tryline!(lineidx, parse_line(line));
+        assert!(!parsed.is_metadata);
+        assert!(parsed.id.is_some());
+        if parsed.indent > last_indent + 1 {
+            return tryline!(lineidx, Err("Indentation too great"));
+        } else {
+            while parsed.indent <= last_indent {
+                last_indent -= 1;
+                let children = peers_stack.pop().unwrap();
+                let parsedline = parent_stack.pop().unwrap();
+                let node = Node::new_parent(
+                    tryline!(lineidx, parsedline.node_type.parse()),
+                    parsedline.id.unwrap(),
+                    parsedline.text,
+                    children
+                );
+                peers_stack.last_mut().unwrap().push(node);
+            }
+        }
+
+        last_indent = parsed.indent;
+        parent_stack.push(parsed);
+        peers_stack.push(vec![]);
+    }
+
+    // Finally, create the root node.
+    let children = peers_stack.pop().unwrap();
+    
+    Ok(Node::new_root(children))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::parse_line;
+    use super::{parse_line, parse};
+
+    use ::genome::Node;
+    use ::genome::NodeType::Task;
 
     #[test]
     fn test_basic() {
@@ -269,5 +373,52 @@ mod tests {
     #[test]
     fn test_no_space() {
         assert_iserror(parse_line("herp:derp"));
+    }
+
+    #[test]
+    fn test_full_parse() {
+        let input = concat!(
+            "task#11111: 1\n",
+            "    task#22222: 2\n",
+            "        task#33333: 3\n",
+            "        task#44444: 4\n",
+            "    task#55555: 5\n",
+            "    task#66666: 6\n",
+            "        task#77777: 7\n",
+            "            task#88888: 8\n",
+            "                task#99999: 9\n",
+            "        task#aaaaa: 10\n",
+            "            task#bbbbb: 11\n",
+            "                task#ccccc\n",
+            "task#ddddd: 13\n"
+        );
+
+        let parsed = parse(input).unwrap();
+
+
+        let expected = Node::new_root(vec![
+            Node::new_parent(Task, "11111", Some("1"), vec![
+                Node::new_parent(Task, "22222", Some("2"), vec![
+                    Node::new(Task, "33333", Some("3")),
+                    Node::new(Task, "44444", Some("4")),
+                ]),
+                Node::new(Task, "55555", Some("5")),
+                Node::new_parent(Task, "66666", Some("6"), vec![
+                    Node::new_parent(Task, "77777", Some("7"), vec![
+                        Node::new_parent(Task, "88888", Some("8"), vec![
+                            Node::new(Task, "99999", Some("9")),
+                        ]),
+                    ]),
+                    Node::new_parent(Task, "aaaaa", Some("10"), vec![
+                        Node::new_parent(Task, "bbbbb", Some("11"), vec![
+                            Node::new(Task, "ccccc", None),
+                        ]),
+                    ]),
+                ]),
+            ]),
+            Node::new(Task, "ddddd", Some("13")),
+        ]);
+
+        assert_eq!(parsed, expected);
     }
 }

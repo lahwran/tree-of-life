@@ -1,8 +1,7 @@
 use std::rc::Rc;
-use std::collections::BTreeMap;
-use std::collections::btree_map;
-use std::collections::Bound;
+use std::collections::HashSet;
 use std::slice::SliceExt;
+use std::str::FromStr;
 use std::cmp;
 use std::fmt;
 
@@ -27,20 +26,41 @@ pub enum ActivityType {
     Finish(Rc<Node>),
 }
 
+#[derive(PartialEq, Debug)]
 pub struct Node {
     pub nodetype: NodeType,
-    //pub id: String,
-    pub name: String,
+    pub id: String,
+    pub name: Option<String>,
     pub children: Vec<Rc<Node>>,
     pub subtreesize: usize
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum NodeType {
     Root,
     Project,
     Task,
 }
+
+impl FromStr for NodeType {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<NodeType, &'static str> {
+        match s {
+            "project" => Ok(Project),
+            "task" => Ok(Task),
+            _ => Err("Invalid node type")
+        }
+    }
+}
+
+//impl FromStr for Node {
+//    type Err = String;
+//
+//    fn from_str(s: &str) -> Result<Rc<Node>, String> {
+//        parse_tree::parse(s);
+//    }
+//}
 
 impl cmp::PartialEq for ActivityType {
     fn eq(&self, other: &ActivityType) -> bool {
@@ -55,12 +75,26 @@ impl cmp::PartialEq for ActivityType {
     }
 }
 
+pub trait BecomeString {
+    fn as_string(self) -> String;
+}
+
+impl BecomeString for String {
+    fn as_string(self) -> String { self }
+}
+
+impl<'a> BecomeString for &'a str {
+    fn as_string(self) -> String { self.to_string() }
+}
+
 impl Node {
-    pub fn new_parent(nodetype: NodeType, name: &str, children: Vec<Rc<Node>>)
+    pub fn new_parent<S: BecomeString>(nodetype: NodeType,
+                    id: S, name: Option<S>, children: Vec<Rc<Node>>)
             -> Rc<Node> {
         Rc::new(Node {
             nodetype: nodetype,
-            name: name.to_string(),
+            name: name.map(|x| x.as_string()),
+            id: id.as_string(),
             subtreesize: children.len() + children.iter().fold(0, |v, x| {
                 (&**x).subtreesize + v
             }),
@@ -69,13 +103,23 @@ impl Node {
     }
 
     pub fn new_root(children: Vec<Rc<Node>>) -> Rc<Node> {
-        Node::new_parent(Root, "life", children)
+        let result = Node::new_parent(Root, "00000", None, children);
+        let mut ids = HashSet::new();
+        result.walk(&mut |node| {
+            if !ids.insert(node.id.to_string()) {
+                panic!("id duplicated in tree: {}", node.id);
+            }
+        });
+
+        result
     }
 
-    pub fn new(nodetype: NodeType, name: &str) -> Rc<Node> {
+    pub fn new<S: BecomeString>(nodetype: NodeType, id: S, name: Option<S>)
+            -> Rc<Node> {
         Rc::new(Node {
             nodetype: nodetype,
-            name: name.to_string(),
+            name: name.map(|x| x.as_string()),
+            id: id.as_string(),
             children: vec![],
             subtreesize: 0
         })
@@ -155,12 +199,12 @@ impl fmt::Debug for Genome {
     }
 }
 
-impl fmt::Debug for Node {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Node {{ nodetype: {:?}, name: {:?}, children: ..., subtreesize: {:?} }}",
-               self.nodetype, self.name, self.subtreesize)
-    }
-}
+//impl fmt::Debug for Node {
+//    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//        write!(f, "Node {{ nodetype: {:?}, name: {:?}, children: ..., subtreesize: {:?} }}",
+//               self.nodetype, self.name, self.subtreesize)
+//    }
+//}
 
 impl Genome {
     pub fn new_empty(expected_size: usize) -> Genome {
@@ -250,11 +294,11 @@ impl Optimization {
 
 pub fn testtree() -> Rc<Node> {
     Node::new_root(vec![
-        Node::new_parent(Project, "Project Name", vec![
-            Node::new(Task, "Task Name"),
+        Node::new_parent(Project, "11111", Some("Project Name"), vec![
+            Node::new(Task, "44444", Some("Task Name")),
         ]),
-        Node::new(Project, "Another project name"),
-        Node::new(Project, "Herp derp"),
+        Node::new(Project, "22222", Some("Another project name")),
+        Node::new(Project, "33333", Some("Herp derp")),
     ])
 }
 
@@ -272,8 +316,8 @@ pub mod tests {
 
     #[test]
     fn test_noderef_eq() {
-        let node = Node::new(Project, "derp");
-        let node2 = Node::new(Project, "derp");
+        let node = Node::new(Project, "11111", Some("derp"));
+        let node2 = Node::new(Project, "11111", Some("derp"));
 
         let nref = node.id();
         let nref2 = node.id();
