@@ -11,11 +11,10 @@ extern crate rand;
 pub mod tuneables;
 pub mod core;
 pub mod mutate;
-pub mod genome;
 pub mod fitness;
 pub mod crossover;
 pub mod selection;
-pub mod parse_tree;
+pub mod model;
 
 #[cfg(not(test))]
 fn main() {

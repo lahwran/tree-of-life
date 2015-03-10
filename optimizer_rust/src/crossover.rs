@@ -16,7 +16,7 @@ use std::cmp::max;
 
 use chrono::{DateTime, UTC, Duration};
 
-use ::genome::{Optimization, Genome};
+use ::model::genome::{Optimization, Genome};
 use ::tuneables::CROSSOVER_COUNT;
 
 fn random_times<T: Rng>(opt: &Optimization, randomizer: &mut T)
@@ -96,10 +96,10 @@ pub mod tests {
     use super::random_times;
     use super::crossover;
 
-    use ::genome::{Optimization,Genome};
-    use ::genome::testtree;
-    use ::genome::tests::testgenomes;
-    use ::genome::ActivityType::{WorkOn, Finish};
+    use ::model::genome::{Optimization,Genome};
+    use ::model::genome::testtree;
+    use ::model::genome::tests::testgenomes;
+    use ::model::genome::ActivityType::{WorkOn, Finish};
 
 
     #[test]

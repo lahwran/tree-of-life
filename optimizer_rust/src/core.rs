@@ -5,8 +5,8 @@ use std::mem;
 
 use chrono::{UTC, TimeZone};
 
-use ::genome::{Genome, Optimization};
-use ::genome::testtree;
+use ::model::genome::{Genome, Optimization};
+use ::model::genome::testtree;
 use ::fitness::FitnessFunction;
 use ::mutate::{mutate, add_gene};
 use ::crossover::crossover_rand;

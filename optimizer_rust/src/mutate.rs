@@ -3,8 +3,8 @@ use std::mem;
 
 use rand::Rng;
 
-use ::genome::{Genome,Optimization,NodeExt,Activity};
-use ::genome::ActivityType::WorkOn;
+use ::model::genome::{Genome,Optimization,NodeExt,Activity};
+use ::model::genome::ActivityType::WorkOn;
 use ::tuneables::{ADD_MAX, ADD_CURVE_EXPONENT, DEL_TARGET, DEL_CURVE_EXPONENT};
 
 pub fn add_gene<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
@@ -53,9 +53,9 @@ pub mod tests {
     use rand::XorShiftRng;
     use chrono::{UTC, Duration, TimeZone};
 
-    use ::genome::{Genome,Optimization};
-    use ::genome::ActivityType::{WorkOn,Nothing};
-    use ::genome::testtree;
+    use ::model::genome::{Genome,Optimization};
+    use ::model::genome::ActivityType::{WorkOn,Nothing};
+    use ::model::genome::testtree;
 
     use super::add_gene;
 

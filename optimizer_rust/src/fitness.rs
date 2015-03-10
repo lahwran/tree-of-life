@@ -5,9 +5,9 @@ use std::mem;
 
 use chrono::Duration;
 
-use ::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
-use ::genome::ActivityType::{Nothing, WorkOn, Finish};
-use ::genome::NodeType::Project;
+use ::model::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
+use ::model::genome::ActivityType::{Nothing, WorkOn, Finish};
+use ::model::genome::NodeType::Project;
 
 
 // is f64 okay? do we want f32?
@@ -176,9 +176,9 @@ impl FitnessFunction for Optimization {
 mod tests {
     use super::FitnessFunction;
 
-    use ::genome::{Genome, Optimization};
-    use ::genome::testtree;
-    use ::genome::ActivityType::{Nothing, WorkOn};
+    use ::model::genome::{Genome, Optimization};
+    use ::model::genome::testtree;
+    use ::model::genome::ActivityType::{Nothing, WorkOn};
 
     use chrono::{TimeZone, UTC};
 

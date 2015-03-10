@@ -13,6 +13,8 @@ use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
 use ::core::Fitness;
 
+use ::model::parse_tree;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Activity {
     pub start: DateTime<UTC>,
@@ -54,13 +56,13 @@ impl FromStr for NodeType {
     }
 }
 
-//impl FromStr for Node {
-//    type Err = String;
-//
-//    fn from_str(s: &str) -> Result<Rc<Node>, String> {
-//        parse_tree::parse(s);
-//    }
-//}
+impl FromStr for Rc<Node> {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Rc<Node>, String> {
+        parse_tree::parse(s)
+    }
+}
 
 impl cmp::PartialEq for ActivityType {
     fn eq(&self, other: &ActivityType) -> bool {

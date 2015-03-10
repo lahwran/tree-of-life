@@ -1,5 +1,5 @@
 use rand::Rng;
-use ::genome::Genome;
+use ::model::genome::Genome;
 
 
 
@@ -78,7 +78,7 @@ pub fn rank_sus_select<'a, R>(pop: &'a Vec<Genome>, count: usize, rng: &mut R)
 mod tests {
     use rand::XorShiftRng;
 
-    use ::genome::Genome;
+    use ::model::genome::Genome;
     use super::{rank_sus_select, sus_select};
 
     use test::Bencher;

@@ -1,9 +1,8 @@
-use std::error::FromError;
 use std::rc::Rc;
 use std::result::Result;
 use std::str::Pattern;
 
-use ::genome::Node;
+use ::model::genome::Node;
 
 #[derive(Copy, PartialEq, Eq, Debug)]
 enum Parsing {
@@ -226,12 +225,16 @@ pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
 
         let parsed = tryline!(lineidx, parse_line(line));
         assert!(!parsed.is_metadata);
-        assert!(parsed.id.is_some());
-        if parsed.indent > state.last_indent + 1 {
-            tryline!(lineidx, Err("Indentation too great"));
-        } else {
-            try!(state.commit_prev(parsed.indent));
-        }
+
+        tryline!(lineidx, match parsed {
+            _ if parsed.is_metadata => Err("Metadata not allowed yet"),
+            _ if parsed.id.is_none() => Err("ID required"),
+            _ if parsed.indent > state.last_indent + 1
+                => Err("Indent too deep"),
+            _ => Ok(())
+        });
+
+        try!(state.commit_prev(parsed.indent));
 
         state.last_indent = parsed.indent;
         state.parent_stack.push((lineidx, parsed));
@@ -247,10 +250,12 @@ pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use super::{parse_line, parse};
 
-    use ::genome::Node;
-    use ::genome::NodeType::Task;
+    use ::model::genome::Node;
+    use ::model::genome::NodeType::Task;
 
     #[test]
     fn test_basic() {
@@ -363,33 +368,38 @@ mod tests {
         assert!(result.text.is_none());
     }
 
-    fn assert_iserror<T: Sized, B: Sized>(x: Result<T,B>) {
+    fn assert_iserror<T: Sized, S: Str>(line: &str, x: Result<T,S>) {
         match x {
-            Err(_) => (),
+            Err(e) => {
+                if !e.as_slice().contains(line) {
+                    panic!("Error does not contain message: {}", e.as_slice());
+                }
+            },
             Ok(_) => unreachable!()
         }
     }
 
+
     #[test]
     fn test_bad_node_id() {
-        assert_iserror(parse_line("    option#longid: derp"));
-        assert_iserror(parse_line("    option#shrt: derp"));
-        assert_iserror(parse_line("    option#-----: derp"));
+        assert_iserror("exactly 5", parse_line("    option#longid: derp"));
+        assert_iserror("exactly 5", parse_line("    option#shrt: derp"));
+        assert_iserror("invalid char", parse_line("    option#-----: derp"));
     }
 
     #[test]
     fn test_metadata_node_id() {
-        assert_iserror(parse_line("    @option#badid: derp"));
+        assert_iserror("IDs on meta", parse_line("    @option#badid: derp"));
     }
 
     #[test]
     fn test_bad_indentation() {
-        assert_iserror(parse_line("  @option"));
+        assert_iserror("multiple of four", parse_line("  @option"));
     }
 
     #[test]
     fn test_no_space() {
-        assert_iserror(parse_line("herp:derp"));
+        assert_iserror("Space required", parse_line("herp:derp"));
     }
 
     #[test]
@@ -437,5 +447,26 @@ mod tests {
         ]);
 
         assert_eq!(parsed, expected);
+    }
+
+
+    #[test]
+    fn test_error_line() {
+        assert_iserror("Line 1", parse("  task#abcde"));
+    }
+
+    #[test]
+    fn test_id_required() {
+        assert_iserror("ID required", parse("task"));
+    }
+
+    #[test]
+    fn test_invalid_nodetype() {
+        assert_iserror("Invalid node type", "derp#abcde".parse::<Rc<Node>>());
+    }
+
+    #[test]
+    fn test_too_indented() {
+        assert_iserror("too deep", parse("        task#abcde"));
     }
 }
