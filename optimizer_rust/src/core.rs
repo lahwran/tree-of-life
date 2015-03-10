@@ -1,12 +1,12 @@
 #![allow(non_upper_case_globals)]
 
+use std::rc::Rc;
 use rand::{Rng, XorShiftRng};
 use std::mem;
 
 use chrono::{UTC, TimeZone};
 
-use ::model::genome::{Genome, Optimization};
-use ::model::genome::testtree;
+use ::model::genome::{Genome, Optimization, Node};
 use ::fitness::FitnessFunction;
 use ::mutate::{mutate, add_gene};
 use ::crossover::crossover_rand;
@@ -123,7 +123,13 @@ fn evolve_schedule(opt: &Optimization) -> Genome {
 }
 
 pub fn run() {
-    let tree = testtree();
+    let tree = concat!(
+        "project#11111: Project Name\n",
+        "    task#44444: Task Name\n",
+        "project#22222: Another project name\n",
+        "project#33333: Herp Derp"
+    ).parse::<Rc<Node>>().unwrap();
+
     let opt = Optimization::new(
         UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
         UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
