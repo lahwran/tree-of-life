@@ -3,6 +3,7 @@
 use std::rc::Rc;
 use rand::{Rng, XorShiftRng};
 use std::mem;
+use std::old_io::File;
 
 use chrono::{UTC, TimeZone};
 
@@ -137,4 +138,17 @@ pub fn run() {
     );
     let genome = evolve_schedule(&opt);
     println!("Best genome: {:?}", genome);
+}
+
+pub fn run_parse(file: &mut File) {
+    let text = file.read_to_string().unwrap();
+    let tree = text.parse::<Rc<Node>>().unwrap();
+    let opt = Optimization::new(
+        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
+        UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
+        tree
+    );
+    let genome = evolve_schedule(&opt);
+    println!("Best genome: {:?}", genome);
+   
 }
