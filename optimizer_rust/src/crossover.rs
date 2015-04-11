@@ -10,11 +10,10 @@
 // http://doc.rust-lang.org/rand/rand/index.html
 
 use rand::{Rng};
-use std::collections::Bound::{Included, Excluded};
 use std::mem;
 use std::cmp::max;
 
-use chrono::{DateTime, UTC, Duration};
+use chrono::{DateTime, UTC};
 
 use ::model::genome::{Optimization, Genome};
 use ::tuneables::CROSSOVER_COUNT;

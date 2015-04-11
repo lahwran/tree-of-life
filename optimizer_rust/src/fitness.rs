@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::collections::HashMap;
-use std::num::Float;
 use std::mem;
 
 use chrono::Duration;

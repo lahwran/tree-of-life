@@ -1,13 +1,11 @@
 #![allow(non_upper_case_globals)]
 
-use std::rc::Rc;
 use rand::{Rng, XorShiftRng};
 use std::mem;
-use std::old_io::File;
 
 use chrono::{UTC, TimeZone};
 
-use ::model::genome::{Genome, Optimization, Node};
+use ::model::genome::{Genome, Optimization, node_from_str};
 use ::fitness::FitnessFunction;
 use ::mutate::{mutate, add_gene};
 use ::crossover::crossover_rand;
@@ -124,25 +122,17 @@ fn evolve_schedule(opt: &Optimization) -> Genome {
 }
 
 pub fn run() {
-    let tree = concat!(
+    run_parse(concat!(
         "project#11111: Project Name\n",
         "    task#44444: Task Name\n",
         "project#22222: Another project name\n",
         "project#33333: Herp Derp"
-    ).parse::<Rc<Node>>().unwrap();
-
-    let opt = Optimization::new(
-        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
-        tree
-    );
-    let genome = evolve_schedule(&opt);
-    println!("Best genome: {:?}", genome);
+    ));
 }
 
-pub fn run_parse(file: &mut File) {
-    let text = file.read_to_string().unwrap();
-    let tree = text.parse::<Rc<Node>>().unwrap();
+pub fn run_parse(s: &str) {
+    let tree = node_from_str(s).unwrap();
+
     let opt = Optimization::new(
         UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
         UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
@@ -150,5 +140,4 @@ pub fn run_parse(file: &mut File) {
     );
     let genome = evolve_schedule(&opt);
     println!("Best genome: {:?}", genome);
-   
 }

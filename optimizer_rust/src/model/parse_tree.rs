@@ -1,10 +1,10 @@
 use std::rc::Rc;
 use std::result::Result;
-use std::str::Pattern;
+use std::str::pattern::Pattern;
 
 use ::model::genome::Node;
 
-#[derive(Copy, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum Parsing {
     Indent,
     Type,
@@ -250,7 +250,7 @@ pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::convert::AsRef;
 
     use super::{parse_line, parse};
 
@@ -368,11 +368,11 @@ mod tests {
         assert!(result.text.is_none());
     }
 
-    fn assert_iserror<T: Sized, S: Str>(line: &str, x: Result<T,S>) {
+    fn assert_iserror<T: Sized, S: AsRef<str>>(line: &str, x: Result<T,S>) {
         match x {
             Err(e) => {
-                if !e.as_slice().contains(line) {
-                    panic!("Error does not contain message: {}", e.as_slice());
+                if !e.as_ref().contains(line) {
+                    panic!("Error does not contain message: {}", e.as_ref());
                 }
             },
             Ok(_) => unreachable!()
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn test_invalid_nodetype() {
-        assert_iserror("Invalid node type", "derp#abcde".parse::<Rc<Node>>());
+        assert_iserror("Invalid node type", parse("derp#abcde"));
     }
 
     #[test]

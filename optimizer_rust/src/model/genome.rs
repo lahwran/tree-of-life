@@ -1,6 +1,5 @@
 use std::rc::Rc;
 use std::collections::HashSet;
-use std::slice::SliceExt;
 use std::str::FromStr;
 use std::cmp;
 use std::fmt;
@@ -56,12 +55,9 @@ impl FromStr for NodeType {
     }
 }
 
-impl FromStr for Rc<Node> {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Rc<Node>, String> {
-        parse_tree::parse(s)
-    }
+pub fn node_from_str(s: &str) -> Result<Rc<Node>, String> {
+    // TODO: replace with From impl once Rc is fixed
+    parse_tree::parse(s)
 }
 
 impl cmp::PartialEq for ActivityType {
@@ -129,7 +125,7 @@ impl Node {
 }
 
 #[allow(raw_pointer_derive)]
-#[derive(Hash, PartialEq, Eq, Debug, Copy)]
+#[derive(Hash, PartialEq, Eq, Debug, Copy, Clone)]
 pub struct NodeRef(*const Node);
 
 pub trait NodeExt {

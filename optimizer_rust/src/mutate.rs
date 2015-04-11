@@ -1,9 +1,8 @@
-use std::num::Float;
 use std::mem;
 
 use rand::Rng;
 
-use ::model::genome::{Genome,Optimization,NodeExt,Activity};
+use ::model::genome::{Genome, Optimization, NodeExt, Activity};
 use ::model::genome::ActivityType::WorkOn;
 use ::tuneables::{ADD_MAX, ADD_CURVE_EXPONENT, DEL_TARGET, DEL_CURVE_EXPONENT};
 
