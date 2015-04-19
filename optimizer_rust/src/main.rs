@@ -8,6 +8,7 @@
 extern crate test;
 extern crate chrono;
 extern crate rand;
+extern crate argparse;
 
 pub mod tuneables;
 pub mod core;
@@ -19,7 +20,9 @@ pub mod model;
 
 use std::fs::File;
 use std::io;
-use std::io::{Read, Write};
+use std::io::Read;
+
+use argparse::{ArgumentParser, Store};
 
 #[cfg(not(test))]
 fn main() {
@@ -34,12 +37,15 @@ fn main() {
 }
 
 fn run() -> io::Result<()> {
-    print!("Tree File: ");
-    try!(io::stdout().flush());
-
     let mut filename = String::new();
-    try!(io::stdin().read_line(&mut filename));
-    filename.pop(); // remove newline
+    {
+        let mut parser = ArgumentParser::new();
+        parser.set_description("Optimize a schedule");
+        parser.refer(&mut filename)
+            .add_argument("treefile", Store, "File containing tree")
+            .required();
+        parser.parse_args_or_exit();
+    }
 
     let mut file = try!(File::open(filename));
     let mut text = String::new();
