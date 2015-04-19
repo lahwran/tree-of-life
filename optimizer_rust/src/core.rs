@@ -139,5 +139,5 @@ pub fn run_parse(s: &str) {
         tree
     );
     let genome = evolve_schedule(&opt);
-    println!("Best genome: {:?}", genome);
+    print!("{}", genome.to_string());
 }

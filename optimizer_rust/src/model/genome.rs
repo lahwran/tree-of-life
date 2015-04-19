@@ -60,6 +60,35 @@ pub fn node_from_str(s: &str) -> Result<Rc<Node>, String> {
     parse_tree::parse(s)
 }
 
+impl Activity {
+    fn to_string(&self) -> String {
+        let mut result = String::with_capacity(35);
+        self.write_to_string(&mut result);
+
+        result
+    }
+
+    fn write_to_string(&self, result: &mut String) {
+        result.push_str(&self.start.format("%Y-%m-%dT%H:%M:%S").to_string());
+        result.push(' ');
+        match &self.activitytype {
+            &Nothing => {
+                result.push_str("nothing");
+            },
+            &WorkOn(ref node) => {
+                result.push_str("workon");
+                result.push(' ');
+                result.push_str(&node.id);
+            },
+            &Finish(ref node) => {
+                result.push_str("finish");
+                result.push(' ');
+                result.push_str(&node.id);
+            }
+        };
+    }
+}
+
 impl cmp::PartialEq for ActivityType {
     fn eq(&self, other: &ActivityType) -> bool {
         match (self, other) {
@@ -247,6 +276,20 @@ impl Genome {
         self
     }
 
+    pub fn to_string(&self) -> String {
+        let mut result = String::with_capacity(self.pool.len() * 35);
+        self.write_to_string(&mut result);
+
+        return result;
+    }
+
+    pub fn write_to_string(&self, result: &mut String) {
+        for activity in &self.pool {
+            activity.write_to_string(result);
+            result.push('\n');
+        }
+    }
+
     pub fn sort(&mut self) {
         self.pool.sort_by(|a, b| a.start.cmp(&b.start));
     }
@@ -411,5 +454,15 @@ pub mod tests {
         let (_, genome) = testgenome();
 
         println!("{:?}", genome);
+    }
+
+    #[test]
+    pub fn genome_to_string() {
+        let (_, genome) = testgenome();
+        assert_eq!(genome.to_string(), concat!(
+            "2015-02-12T00:00:00 workon 11111\n",
+            "2015-02-14T00:00:00 finish 22222\n",
+            "2015-02-15T00:00:00 finish 33333\n",
+        ));
     }
 }
