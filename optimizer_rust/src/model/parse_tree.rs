@@ -131,15 +131,6 @@ pub fn parse_line(line: &str) -> Result<ParsedLine, &'static str> {
     Ok(result)
 }
 
-macro_rules! tryline {
-    ($index:expr, $expr:expr) => (match $expr {
-        Ok(val) => val,
-        Err(err) => {
-            return Err(format!("Line {}: {}", $index + 1, err));
-        }
-    })
-}
-
 // #1: derp >0
 // #2:     derp >1
 // #3:         derp >2

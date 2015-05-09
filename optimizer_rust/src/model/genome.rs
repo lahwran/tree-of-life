@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::cmp;
 use std::fmt;
@@ -66,6 +66,43 @@ impl Activity {
         self.write_to_string(&mut result);
 
         result
+    }
+
+    fn from_string(opt: &Optimization, line: &str)
+                -> Result<Activity, String> {
+        let line = line.trim();
+        let date_split: Vec<&str> = line.splitn(2, " ").collect();
+        if date_split.len() != 2 {
+            return Err("Wrong number of spaces".to_string());
+        }
+
+        let date = match UTC.datetime_from_str(date_split[0], "%Y-%m-%dT%H:%M:%S") {
+            Ok(x) => x,
+            Err(error) => return Err(format!("{}", error))
+        };
+        let rest_split: Vec<&str> = date_split[1].split(" ").collect();
+
+        let activitytype = match rest_split.len() {
+            1 if rest_split[0] == "nothing" => Nothing,
+            2 => {
+                let node = opt.id_map.get(rest_split[1]);
+                match (rest_split[0], node) {
+                    ("nothing", _) => {
+                        return Err("`nothing` can't have node id".to_string());
+                    },
+                    (_, None) => Nothing,
+                    ("workon", Some(node)) => WorkOn(node.clone()),
+                    ("finish", Some(node)) => Finish(node.clone()),
+                    (_, _) => return Err("invalid activity type".to_string())
+                }
+            },
+            _ => return Err("Wrong number of spaces".to_string())
+        };
+
+        Ok(Activity {
+            start: date,
+            activitytype: activitytype
+        })
     }
 
     fn write_to_string(&self, result: &mut String) {
@@ -276,6 +313,23 @@ impl Genome {
         self
     }
 
+    pub fn from_string(opt: &Optimization, string: &str)
+                -> Result<Genome, String> {
+        let mut pool = Vec::new();
+        for (lineidx, line) in string.lines().enumerate() {
+            if line.starts_with("fitness ") {
+                continue;
+            }
+            let parsed = tryline!(lineidx, Activity::from_string(opt, line));
+            pool.push(parsed);
+        }
+
+        Ok(Genome {
+            pool: pool,
+            cached_fitness: None
+        })
+    }
+
     pub fn to_string(&self) -> String {
         let mut result = String::with_capacity(self.pool.len() * 35);
         self.write_to_string(&mut result);
@@ -284,6 +338,17 @@ impl Genome {
     }
 
     pub fn write_to_string(&self, result: &mut String) {
+        result.push_str("fitness ");
+        match self.cached_fitness {
+            None => {
+                result.push_str("none")
+            },
+            Some(ref f) => {
+                let stringified = f.to_string();
+                result.push_str(stringified.as_ref());
+            }
+        }
+        result.push('\n');
         for activity in &self.pool {
             activity.write_to_string(result);
             result.push('\n');
@@ -300,6 +365,7 @@ pub struct Optimization {
     pub start: DateTime<UTC>,
     pub end: DateTime<UTC>,
     pub tree: Rc<Node>,
+    pub id_map: HashMap<String, Rc<Node>>,
     pub projects: Vec<Rc<Node>>
 }
 
@@ -308,7 +374,9 @@ impl Optimization {
                end: DateTime<UTC>,
                tree: Rc<Node>) -> Optimization {
         let mut projects = vec![];
+        let mut id_map = HashMap::new();
         tree.walk(&mut |node: &Rc<Node>| {
+            id_map.insert((**node).id.to_string(), node.clone());
             match &(**node).nodetype {
                 &Project => projects.push(node.clone()),
                 _ => ()
@@ -318,6 +386,7 @@ impl Optimization {
             start: start,
             end: end,
             tree: tree,
+            id_map: id_map,
             projects: projects
         }
     }
@@ -460,9 +529,35 @@ pub mod tests {
     pub fn genome_to_string() {
         let (_, genome) = testgenome();
         assert_eq!(genome.to_string(), concat!(
+            "fitness none\n",
             "2015-02-12T00:00:00 workon 11111\n",
             "2015-02-14T00:00:00 finish 22222\n",
             "2015-02-15T00:00:00 finish 33333\n",
         ));
+    }
+
+    #[test]
+    pub fn genome_with_fitness_to_string() {
+        let (_, genome) = testgenome();
+        let genome = genome.with_fitness(5.5f64);
+        assert_eq!(genome.to_string(), concat!(
+            "fitness 5.5\n",
+            "2015-02-12T00:00:00 workon 11111\n",
+            "2015-02-14T00:00:00 finish 22222\n",
+            "2015-02-15T00:00:00 finish 33333\n",
+        ));
+    }
+
+    #[test]
+    pub fn genome_from_string() {
+        let string = concat!(
+            "fitness 5.5\n",
+            "2015-02-12T00:00:00 workon 11111\n",
+            "2015-02-14T00:00:00 finish 22222\n",
+            "2015-02-15T00:00:00 finish 33333\n",
+        );
+        let (opt, genome) = testgenome();
+        let loaded_genome = Genome::from_string(&opt, string).unwrap();
+        assert_eq!(loaded_genome, genome);
     }
 }
