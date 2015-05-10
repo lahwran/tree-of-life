@@ -74,7 +74,9 @@ fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
 
     let mut pop = Vec::with_capacity(pop_size);
 
-    assert!(prev_pop.len() == pop_size);
+    if prev_pop.len() != pop_size {
+        panic!("Wrong population size: {}", prev_pop.len());
+    }
 
     assert!(elite_count < pop_size);
 
@@ -133,7 +135,7 @@ fn generate_pop<R: Rng>(opt: &Optimization, rng: &mut R) -> Vec<Genome> {
         .collect::<Vec<Genome>>()
 }
 
-pub fn run(tree: &str, pop_str: Option<String>) -> String {
+pub fn run(tree: &str, pop_str: Option<String>) -> Result<String,String> {
     let tree = node_from_str(tree).unwrap();
 
     let opt = Optimization::new(
@@ -147,11 +149,20 @@ pub fn run(tree: &str, pop_str: Option<String>) -> String {
             generate_pop(&opt, &mut rng)
         },
         Some(s) => {
-            generate_pop(&opt, &mut rng)
+            let mut pop = Vec::new();
+            for genome_string in s.trim().split(GENOME_SEPARATOR) {
+                if genome_string.trim().len() == 0 {
+                    continue;
+                }
+                let b = Genome::from_string(&opt, genome_string.trim());
+                let a = try!(b);
+                pop.push(a);
+            }
+            pop
         }
     };
 
     let result_pop = evolve(initial_pop, &opt, &mut rng);
 
-    pop_to_str(&result_pop)
+    Ok(pop_to_str(&result_pop))
 }

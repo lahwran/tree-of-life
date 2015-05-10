@@ -21,7 +21,7 @@ pub mod model;
 use std::fs::File;
 use std::io;
 use std::io::{Read,Write};
-use std::io::ErrorKind::NotFound;
+use std::io::ErrorKind;
 
 use argparse::{ArgumentParser, Store};
 
@@ -57,16 +57,19 @@ fn run() -> io::Result<()> {
     try!(file.read_to_string(&mut text));
 
     let popstring = match File::open(pop_filename.clone()) {
-        Ok(popfile) => {
+        Ok(mut popfile) => {
             let mut genome_text = String::new();
-            try!(file.read_to_string(&mut genome_text));
+            try!(popfile.read_to_string(&mut genome_text));
             Some(genome_text)
         },
-        Err(ref error) if error.kind() == NotFound => None,
+        Err(ref error) if error.kind() == ErrorKind::NotFound => None,
         Err(error) => { return Err(error); }
     };
 
-    let resultstring = core::run(text.as_ref(), popstring);
+    let resultstring = match core::run(text.as_ref(), popstring) {
+        Ok(x) => x,
+        Err(x) => return Err(io::Error::new(ErrorKind::Other, x))
+    };
 
     let mut writer = try!(File::create(pop_filename));
     let result_bytes = resultstring.into_bytes();
