@@ -20,7 +20,8 @@ pub mod model;
 
 use std::fs::File;
 use std::io;
-use std::io::Read;
+use std::io::{Read,Write};
+use std::io::ErrorKind::NotFound;
 
 use argparse::{ArgumentParser, Store};
 
@@ -38,11 +39,15 @@ fn main() {
 
 fn run() -> io::Result<()> {
     let mut filename = String::new();
+    let mut pop_filename = String::new();
     {
         let mut parser = ArgumentParser::new();
         parser.set_description("Optimize a schedule");
         parser.refer(&mut filename)
             .add_argument("treefile", Store, "File containing tree")
+            .required();
+        parser.refer(&mut pop_filename)
+            .add_argument("population_cache", Store, "File to put pop in")
             .required();
         parser.parse_args_or_exit();
     }
@@ -51,7 +56,22 @@ fn run() -> io::Result<()> {
     let mut text = String::new();
     try!(file.read_to_string(&mut text));
 
-    core::run_parse(text.as_ref());
+    let popstring = match File::open(pop_filename.clone()) {
+        Ok(popfile) => {
+            let mut genome_text = String::new();
+            try!(file.read_to_string(&mut genome_text));
+            Some(genome_text)
+        },
+        Err(ref error) if error.kind() == NotFound => None,
+        Err(error) => { return Err(error); }
+    };
+
+    let resultstring = core::run(text.as_ref(), popstring);
+
+    let mut writer = try!(File::create(pop_filename));
+    let result_bytes = resultstring.into_bytes();
+    try!(writer.write(result_bytes.as_ref()));
+    try!(writer.flush());
 
     Ok(())
 }

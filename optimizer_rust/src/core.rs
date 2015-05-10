@@ -70,7 +70,7 @@ fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
 }
 
 fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
-        -> Genome {
+        -> Vec<Genome> {
 
     let mut pop = Vec::with_capacity(pop_size);
 
@@ -102,42 +102,56 @@ fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
     }
     fill_fitnesses(&mut prev_pop, opt);
 
-    prev_pop.into_iter().next().unwrap()
+    prev_pop
 }
 
-fn evolve_schedule(opt: &Optimization) -> Genome {
-    let mut rng = XorShiftRng::new_unseeded();
-    let generated_pop = (0..pop_size)
-            .map(|_| {
-                let mut genome = Genome::new(opt);
-                for _ in 0..25 {
-                    add_gene(opt, &mut genome, &mut rng);
-                }
-                genome.sort();
-                genome
-            })
-            .collect::<Vec<Genome>>();
+static GENOME_SEPARATOR: &'static str = "genome_separator\n";
 
-    evolve(generated_pop, opt, &mut rng)
+fn pop_to_str(pop: &Vec<Genome>) -> String {
+    let mut result = String::new();
+    for (index, genome) in pop.iter().enumerate() {
+        if index != 0 {
+            result.push_str(GENOME_SEPARATOR);
+        }
+        let genome_string = genome.to_string();
+        result.push_str(genome_string.as_ref());
+    }
+    
+    result
 }
 
-pub fn run() {
-    run_parse(concat!(
-        "project#11111: Project Name\n",
-        "    task#44444: Task Name\n",
-        "project#22222: Another project name\n",
-        "project#33333: Herp Derp"
-    ));
+fn generate_pop<R: Rng>(opt: &Optimization, rng: &mut R) -> Vec<Genome> {
+    (0..pop_size)
+        .map(|_| {
+            let mut genome = Genome::new(opt);
+            for _ in 0..25 {
+                add_gene(opt, &mut genome, rng);
+            }
+            genome.sort();
+            genome
+        })
+        .collect::<Vec<Genome>>()
 }
 
-pub fn run_parse(s: &str) {
-    let tree = node_from_str(s).unwrap();
+pub fn run(tree: &str, pop_str: Option<String>) -> String {
+    let tree = node_from_str(tree).unwrap();
 
     let opt = Optimization::new(
         UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
         UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
         tree
     );
-    let genome = evolve_schedule(&opt);
-    print!("{}", genome.to_string());
+    let mut rng = XorShiftRng::new_unseeded();
+    let initial_pop = match pop_str {
+        None => {
+            generate_pop(&opt, &mut rng)
+        },
+        Some(s) => {
+            generate_pop(&opt, &mut rng)
+        }
+    };
+
+    let result_pop = evolve(initial_pop, &opt, &mut rng);
+
+    pop_to_str(&result_pop)
 }
