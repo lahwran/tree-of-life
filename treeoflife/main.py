@@ -6,6 +6,7 @@ import argparse
 import shlex
 import logging
 import socket
+import json
 
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
@@ -13,6 +14,7 @@ from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
 from twisted.internet import ssl
 from twisted.internet.task import LoopingCall
 from twisted.internet.error import CannotListenError
+from twisted.internet.utils import getProcessValue
 import twisted.python.log
 import twisted.web.static
 import twisted.web.server
@@ -75,16 +77,27 @@ class RemoteInterface(SavingInterface):
         self.restarter = restarter
         self.edit_session = None
 
+        self.best_genome = None
+        self.best_fitness = None
+
         if self.save_dir is not None:
+            self.population_file = os.path.join(self.save_dir, "population")
+
             name = config.sync_name
             self.syncdata = syncdata.SyncData(
                     os.path.join(self.save_dir, "sync"),
                     "default_group",  # TODO: actual groups
                     name,
+                    population_file=self.population_file,
                     replace_data=self.sync_replace_data,
                     on_synced=self.sync_notify)
         else:
             self.syncdata = None
+
+    def load(self):
+        SavingInterface.load(self)
+        if self.save_dir is not None:
+            self.load_genome()
 
     def deserialize(self, *a, **kw):
         SavingInterface.deserialize(self, *a, **kw)
@@ -145,7 +158,88 @@ class RemoteInterface(SavingInterface):
                 break
         return realresult
 
+    def optimize_and_commit(self):
+        dumped = self.serialize()
+        # TODO: detect changes to tree internally, skip this if not dirty
+        # TODO: skip optimize if hash is equal
+
+        self._save_and_optimize(dumped)
+
+        # these force a sync commit any time the genome changes
+        dumped["best_genome"] = json.dumps(self.best_genome)
+        dumped["best_fitness"] = json.dumps(self.best_fitness)
+        self.sync_commit(dumped)
+
+    def _save_and_optimize(self, dumped):
+        if self.save_dir is None:
+            return
+
+        optimize_dir = "/tmp/optimize_dir/"  # FIXME
+        try:
+            # TODO: makedirs()?
+            os.mkdir(optimize_dir)
+        except OSError as e:
+            # TODO: only respond to some errors?
+            pass
+        self._save_files(optimize_dir, dumped)
+        self._optimize(optimize_dir)
+
+    def _optimize(self, optimize_dir):
+        # TODO: actually call the optimizer via twisted
+        #       (reactor.callProcess or something, google knows)
+        optimizer_binary = self.run_config.optimizer_binary
+
+        deferred = getProcessValue(str(optimizer_binary),
+                [os.path.join(optimize_dir, "life"),
+                self.population_file])
+
+        deferred.addCallback(lambda x: self.load_genome)
+
+    def load_genome(self, run_optimizer_if_missing=False):
+        if self.save_dir is None:
+            return
+
+        try:
+            reader = open(self.population_file, "r")
+        except IOError as e:
+            if e.errno == 2:
+                if run_optimizer_if_missing:
+                    self._optimize(self.save_dir)
+                return False
+            else:
+                raise
+
+        with reader:
+            genome_separator = "genome_separator"
+            genome = []
+            best_fitness = None
+            for line in reader:
+                line = line.strip()
+                if line.startswith("fitness"):
+                    # parses "fitness 100.0"
+                    _, _, f = line.partition(" ")
+                    best_fitness = float(f)
+                elif line == genome_separator:
+                    # parses "genome_separator"
+                    # only want the first genome
+                    break
+                else:
+                    time, _, activity = line.partition(' ')
+                    nodeid = None  # parses "2010-10-10T11:11:11 nothing"
+                    if activity != "nothing":
+                        # parses "2010-10-10T11:11:11 workon ab13d"
+                        # parses "2010-10-10T11:11:11 finish ab13d"
+                        activity, _, nodeid = activity.partition(' ')
+                    timeformat = "%Y-%m-%dT%H:%M:%S"
+                    time = datetime.datetime.strptime(time, timeformat)
+                    genome.append((time, activity, nodeid))
+            self.best_genome = genome
+            self.best_fitness = best_fitness
+
     def sync_replace_data(self, files):
+        files.pop("best_genome")
+        files.pop("best_fitness")
+
         self.deserialize(files)
         self.update_all()
 
@@ -156,10 +250,9 @@ class RemoteInterface(SavingInterface):
 
         self._save_files(self.save_dir, files)
 
-    def sync_commit(self):
+    def sync_commit(self, dumped):
         if self.syncdata is None:
             return
-        dumped = self.serialize()
         self.syncdata.update(dumped)
 
     def sync_notify(self):
@@ -233,6 +326,7 @@ argparser.add_argument("--sync-announce-interval", default=2, type=float,
         dest="sync_interval")
 argparser.add_argument("--sync-tls-dir", type=py.path.local,
         default=None, dest="tls_directory")
+argparser.add_argument("optimizer_binary", type=py.path.local)
 
 
 class Restarter(object):

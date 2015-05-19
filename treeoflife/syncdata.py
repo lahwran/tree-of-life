@@ -16,7 +16,8 @@ def sha256(data):
 class SyncData(object):
     def __init__(self, directory, group, name, init_stuff=None,
             replace_data=lambda x: None,
-            on_synced=lambda: None):
+            on_synced=lambda: None,
+            population_file=None):
         # doesn't keep any but the latest data
         self.name = name
         self.group = group
@@ -32,6 +33,9 @@ class SyncData(object):
         self.datafile = self.directory.join(u"last_data")
         self.hashfile = self.directory.join(u"hash_history")
         self.last_synced_file = self.directory.join(u"last_synced")
+
+        self.population_file = (py.path.local(population_file)
+                                if population_file else None)
 
         try:
             self.last_synced = self.parse_last_synced(

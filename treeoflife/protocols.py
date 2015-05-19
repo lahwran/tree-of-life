@@ -276,7 +276,7 @@ class UIProtocol(JSONProtocol):
             final = time.time()
             logger.info("command commit took: %r", final - initial)
             self.tracker.update_all()
-            self.tracker.sync_commit()
+            self.tracker.optimize_and_commit()
         self._update_command()
 
     def message_display(self, is_displayed):
