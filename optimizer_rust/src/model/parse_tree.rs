@@ -189,8 +189,14 @@ impl ParserState {
             self.last_indent -= 1;
             let children = self.peers_stack.pop().unwrap();
             let (lineidx, parsedline) = self.parent_stack.pop().unwrap();
+            let nodetype = match parsedline.node_type.parse() {
+                Ok(nt) => nt,
+                // TODO: do something better with ignored nodetypes?
+                Err(_) => continue
+            };
+
             let node = Node::new_parent(
-                tryline!(lineidx, parsedline.node_type.parse()),
+                nodetype,
                 parsedline.id.unwrap(),
                 parsedline.text,
                 children
@@ -215,10 +221,13 @@ pub fn parse(lines: &str) -> Result<Rc<Node>, String> {
         }
 
         let parsed = tryline!(lineidx, parse_line(line));
-        assert!(!parsed.is_metadata);
 
         tryline!(lineidx, match parsed {
-            _ if parsed.is_metadata => Err("Metadata not allowed yet"),
+            // TODO: deal with adding metadata and continuation lines to the
+            //       information in each tuple in parent_stack, so that the
+            //       commit in state.commit_prev() can add them.
+            _ if parsed.is_metadata => continue,
+            _ if parsed.node_type == "-" => continue,
             _ if parsed.id.is_none() => Err("ID required"),
             _ if parsed.indent > state.last_indent + 1
                 => Err("Indent too deep"),
@@ -302,6 +311,17 @@ mod tests {
         assert!(result.id.is_none());
         assert_eq!(result.node_type, "");
         assert!(result.text.is_none());
+    }
+
+    #[test]
+    fn test_line_continuation() {
+        let line = "    - text here";
+        let result = parse_line(line).unwrap();
+        assert_eq!(result.indent, 1);
+        assert!(!result.is_metadata);
+        assert!(result.id.is_none());
+        assert_eq!(result.node_type, "-");
+        assert_eq!(result.text, Some("text here".to_string()));
     }
 
     #[test]
