@@ -3,7 +3,7 @@
 use rand::{Rng, XorShiftRng};
 use std::mem;
 
-use chrono::{UTC, TimeZone};
+use chrono::{UTC, TimeZone, Duration};
 
 use ::model::genome::{Genome, Optimization, node_from_str};
 use ::fitness::FitnessFunction;
@@ -138,9 +138,13 @@ fn generate_pop<R: Rng>(opt: &Optimization, rng: &mut R) -> Vec<Genome> {
 pub fn run(tree: &str, pop_str: Option<String>) -> Result<String,String> {
     let tree = node_from_str(tree).unwrap();
 
+    let now = UTC::now();
     let opt = Optimization::new(
-        UTC.ymd(2015, 2, 12).and_hms(0, 0, 0),
-        UTC.ymd(2015, 3, 12).and_hms(0, 0, 0),
+        // TODO IMPORTANT FIXME XXX: how does the optimizer deal with dates
+        // outside its range?
+        // ANSWER: badly
+        now.clone(),
+        now.clone() + Duration::weeks(2),
         tree
     );
     let mut rng = XorShiftRng::new_unseeded();
