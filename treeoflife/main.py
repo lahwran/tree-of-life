@@ -7,6 +7,7 @@ import shlex
 import logging
 import socket
 import json
+import datetime
 
 from twisted.internet.protocol import Factory
 from twisted.internet.endpoints import (connectProtocol, SSL4ClientEndpoint,
@@ -97,7 +98,7 @@ class RemoteInterface(SavingInterface):
     def load(self):
         SavingInterface.load(self)
         if self.save_dir is not None:
-            self.load_genome()
+            self.load_genome(run_optimizer_if_missing=True)
 
     def deserialize(self, *a, **kw):
         SavingInterface.deserialize(self, *a, **kw)
@@ -193,7 +194,7 @@ class RemoteInterface(SavingInterface):
                 [os.path.join(optimize_dir, "life"),
                 self.population_file])
 
-        deferred.addCallback(lambda x: self.load_genome)
+        deferred.addCallback(lambda x: self.load_genome())
 
     def load_genome(self, run_optimizer_if_missing=False):
         if self.save_dir is None:

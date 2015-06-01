@@ -1,6 +1,8 @@
 from __future__ import unicode_literals, print_function
 
 import json
+import datetime
+import py
 
 from twisted.internet.task import Clock
 import pytest
@@ -394,3 +396,51 @@ def test_update_event_queue_finished(tpc, setdt):
 
     message = protocol.sent_messages[-1]
     assert message["event_queue"] == ["derka", "herka"]
+
+
+def test_run_optimizer_on_load(setdt, tmpdir):
+    setdt(2015, 5, 31, 15, 8, 0)
+
+    class Config(object):
+        editor = "test-editor"
+        sync_name = "test_sync"
+        port = 12345
+        path = str(tmpdir)
+        mainfile = "life"
+
+    calls = [0]
+
+    class DerpInterface(RemoteInterface):
+        def _save_and_optimize(self, dumped):
+            calls[0] += 1
+
+        def _optimize(self, optimize_dir):
+            assert optimize_dir == Config.path
+            calls[0] += 1
+            tmpdir.join("population").write(
+                'fitness 5.0\n'
+                '2015-5-31T20:55:00 finish aaaaa\n'
+                '2015-5-31T20:56:00 workon bbbbb\n'
+            )
+            self.load_genome()
+
+    clock = Clock()
+    tracker = DerpInterface(Config, None, Config.path, Config.mainfile,
+            False, reactor=clock)
+    tracker._save_files(Config.path, {"life":
+        "event#herka: herp\n"
+        "    @when: June 1 2011 3:30 AM\n"
+        "task#doopa: herp\n"
+        "    event#derka: derp"
+        "        @when: June 1 2010 3:30 AM\n"
+        "    event#asdfg: blah\n"
+        "        @finished\n"
+    })
+    assert tracker.best_genome is None
+    assert tracker.best_fitness is None
+    tracker.load()
+    assert tracker.best_genome == [
+        (datetime.datetime(2015, 5, 31, 20, 55, 0), 'finish', 'aaaaa'),
+        (datetime.datetime(2015, 5, 31, 20, 56, 0), 'workon', 'bbbbb'),
+    ]
+    assert tracker.best_fitness == 5.0
