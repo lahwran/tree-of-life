@@ -138,6 +138,26 @@ class ActivateCommand(PreviewCommand):
             self.results.append(result)
 
 
+@command("dev_genome_activate")
+class GenomeNextCommand(PreviewCommand):
+    def __init__(self, root, ui):
+        now = datetime.datetime.now()
+        _, _, current_genome_item = ui.best_genome[0]
+        for time, activity, nodeid in ui.best_genome:
+            if time < now:
+                current_genome_item = nodeid
+            else:
+                break
+        print(ui.best_genome)
+        if current_genome_item is None:
+            self.results = [JumpResult(root, actions=["activate"])]
+        else:
+            self.results = [
+                JumpResult(root.ids[current_genome_item],
+                    actions=["activate"])
+            ]
+
+
 @command("createactivate")
 @command("ca")
 class CreateActivateCommand(PreviewCommand):
