@@ -1,14 +1,13 @@
-#![feature(core)]
-#![feature(std_misc)]
 #![feature(test)]
 #![feature(convert)]
-
-#![feature(collections)]
+#![feature(drain)]
+#![feature(pattern)]
 
 extern crate test;
 extern crate chrono;
 extern crate rand;
 extern crate argparse;
+extern crate rustc_serialize;
 
 pub mod tuneables;
 pub mod core;
@@ -37,14 +36,19 @@ fn main() {
     };
 }
 
+fn pathjoin(arg1: &str, arg2: &'static str) -> String {
+    format!("{}/{}", arg1, arg2)
+}
+
 fn run() -> io::Result<()> {
-    let mut filename = String::new();
+    let mut treedir = String::new();
     let mut pop_filename = String::new();
     {
         let mut parser = ArgumentParser::new();
         parser.set_description("Optimize a schedule");
-        parser.refer(&mut filename)
-            .add_argument("treefile", Store, "File containing tree")
+        parser.refer(&mut treedir)
+            .add_argument("treedir", Store,
+                          "Directory containing tree and log")
             .required();
         parser.refer(&mut pop_filename)
             .add_argument("population_cache", Store, "File to put pop in")
@@ -52,9 +56,14 @@ fn run() -> io::Result<()> {
         parser.parse_args_or_exit();
     }
 
-    let mut file = try!(File::open(filename));
+    let mut file = try!(File::open(pathjoin(&treedir, "life")));
     let mut text = String::new();
     try!(file.read_to_string(&mut text));
+
+
+    file = try!(File::open(pathjoin(&treedir, "log")));
+    let mut log = String::new();
+    try!(file.read_to_string(&mut log));
 
     let popstring = match File::open(pop_filename.clone()) {
         Ok(mut popfile) => {
@@ -66,7 +75,8 @@ fn run() -> io::Result<()> {
         Err(error) => { return Err(error); }
     };
 
-    let resultstring = match core::run(text.as_ref(), popstring) {
+    let result = core::run(text.as_ref(), log.as_ref(), popstring);
+    let resultstring = match result {
         Ok(x) => x,
         Err(x) => return Err(io::Error::new(ErrorKind::Other, x))
     };

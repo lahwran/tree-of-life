@@ -10,6 +10,7 @@ use chrono::offset::TimeZone;
 
 use self::NodeType::{Root, Project, Task};
 use self::ActivityType::{Nothing, WorkOn, Finish};
+
 use ::core::Fitness;
 
 use ::model::parse_tree;
@@ -36,7 +37,7 @@ pub struct Node {
     pub subtreesize: usize
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum NodeType {
     Root,
     Project,
@@ -61,7 +62,7 @@ pub fn node_from_str(s: &str) -> Result<Rc<Node>, String> {
 }
 
 impl Activity {
-    fn to_string(&self) -> String {
+    pub fn to_string(&self) -> String {
         let mut result = String::with_capacity(35);
         self.write_to_string(&mut result);
 
@@ -358,6 +359,7 @@ impl Genome {
     pub fn sort(&mut self) {
         self.pool.sort_by(|a, b| a.start.cmp(&b.start));
     }
+
 }
 
 #[derive(Debug, Clone)]

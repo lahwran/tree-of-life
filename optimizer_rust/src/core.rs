@@ -3,10 +3,11 @@
 use rand::{Rng, XorShiftRng};
 use std::mem;
 
-use chrono::{UTC, TimeZone, Duration};
+use chrono::{UTC, Duration};
 
 use ::model::genome::{Genome, Optimization, node_from_str};
-use ::fitness::FitnessFunction;
+use ::model::log::process_log;
+use ::fitness::{fitness,TreeState};
 use ::mutate::{mutate, add_gene};
 use ::crossover::crossover_rand;
 use ::selection::rank_sus_select;
@@ -19,11 +20,13 @@ const generation_count: usize = 90;
 pub type Fitness = f64;
 
 #[inline]
-fn fill_fitnesses(pop: &mut Vec<Genome>, opt: &Optimization) {
+fn fill_fitnesses(fitness_state: &TreeState, pop: &mut Vec<Genome>,
+                  opt: &Optimization) {
     for genome in pop.iter_mut() {
         match &genome.cached_fitness {
             &None => {
-                genome.cached_fitness = Some(opt.fitness(genome))
+                genome.cached_fitness = Some(
+                    fitness(fitness_state, opt, genome))
             },
             &Some(_) => ()
         }
@@ -69,7 +72,8 @@ fn crossover_all<R: Rng>(opt: &Optimization, rng: &mut R,
     }
 }
 
-fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
+fn evolve<R: Rng>(fitness_state: TreeState, mut prev_pop: Vec<Genome>,
+                  opt: &Optimization, rng: &mut R)
         -> Vec<Genome> {
 
     let mut pop = Vec::with_capacity(pop_size);
@@ -82,7 +86,7 @@ fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
 
     for _ in 0..generation_count {
         // fill in fitness into prev
-        fill_fitnesses(&mut prev_pop, opt);
+        fill_fitnesses(&fitness_state, &mut prev_pop, opt);
         //println!("iter: {:?}, best: {:?}, worst: {:?}",
         //         iter, prev_pop.first().unwrap().cached_fitness,
         //         prev_pop.last().unwrap().cached_fitness);
@@ -97,12 +101,12 @@ fn evolve<R: Rng>(mut prev_pop: Vec<Genome>, opt: &Optimization, rng: &mut R)
         }
         mutate_all(opt, &mut pop, rng);
 
-        for elite in prev_pop.drain().take(elite_count) {
+        for elite in prev_pop.drain(..).take(elite_count) {
             pop.push(elite);
         }
         mem::swap(&mut prev_pop, &mut pop);
     }
-    fill_fitnesses(&mut prev_pop, opt);
+    fill_fitnesses(&fitness_state, &mut prev_pop, opt);
 
     prev_pop
 }
@@ -135,7 +139,8 @@ fn generate_pop<R: Rng>(opt: &Optimization, rng: &mut R) -> Vec<Genome> {
         .collect::<Vec<Genome>>()
 }
 
-pub fn run(tree: &str, pop_str: Option<String>) -> Result<String,String> {
+pub fn run(tree: &str, log: &str, pop_str: Option<String>)
+        -> Result<String,String> {
     let tree = node_from_str(tree).unwrap();
 
     let now = UTC::now();
@@ -148,6 +153,7 @@ pub fn run(tree: &str, pop_str: Option<String>) -> Result<String,String> {
         tree
     );
     let mut rng = XorShiftRng::new_unseeded();
+    let fitness_state = try!(process_log(&opt, log));
     let initial_pop = match pop_str {
         None => {
             generate_pop(&opt, &mut rng)
@@ -166,7 +172,7 @@ pub fn run(tree: &str, pop_str: Option<String>) -> Result<String,String> {
         }
     };
 
-    let result_pop = evolve(initial_pop, &opt, &mut rng);
+    let result_pop = evolve(fitness_state, initial_pop, &opt, &mut rng);
 
     Ok(pop_to_str(&result_pop))
 }
