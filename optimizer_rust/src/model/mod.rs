@@ -8,4 +8,5 @@ macro_rules! tryline {
 }
 
 pub mod genome;
+pub mod log;
 mod parse_tree;

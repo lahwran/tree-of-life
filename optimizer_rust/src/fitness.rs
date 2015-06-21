@@ -7,15 +7,15 @@ use chrono::Duration;
 use ::model::genome::{Genome, Optimization, NodeRef, Node, NodeExt};
 use ::model::genome::ActivityType::{Nothing, WorkOn, Finish};
 use ::model::genome::NodeType::Project;
+use ::model::log::LogEntry;
+use ::model::log::LogKind::Activation;
+use ::model::log::LogNode::{Exists, Gone};
 
 
 // is f64 okay? do we want f32?
 pub type Fitness = f64;
 
-pub trait FitnessFunction {
-    fn fitness(&self, genome: &Genome) -> Fitness;
-}
-
+#[derive(Clone)]
 struct NodeState {
     focus_so_far: Duration,
 }
@@ -26,29 +26,34 @@ impl NodeState {
             focus_so_far: Duration::seconds(0)
         }
     }
+
+    fn add_time(&mut self, delta: Duration) {
+        self.focus_so_far = self.focus_so_far + delta;
+    }
 }
 
-struct TreeState {
+#[derive(Clone)]
+pub struct TreeState {
     nodestates: HashMap<NodeRef,NodeState>,
+    total_time_working: Duration
 }
 
 impl TreeState {
-    fn new(opt: &Optimization) -> TreeState {
+    pub fn new(opt: &Optimization) -> TreeState {
         let mut result = TreeState {
-            nodestates: HashMap::with_capacity(opt.tree.subtreesize)
+            nodestates: HashMap::with_capacity(opt.tree.subtreesize),
+            total_time_working: Duration::seconds(0)
         };
         for project in &opt.projects {
             result.get(project);
         }
-        return result;
+
+        result
     }
 
     fn get(&mut self, node: &Rc<Node>) -> &mut NodeState {
         let nref = node.id();
-        if !self.nodestates.contains_key(&nref) {
-            self.nodestates.insert(nref, NodeState::new());
-        }
-        self.nodestates.get_mut(&nref).unwrap()
+        self.nodestates.entry(nref).or_insert_with(|| NodeState::new())
     }
 
     fn balance_quality(&self, opt: &Optimization) -> Fitness {
@@ -129,52 +134,80 @@ pub fn vec_pairs() {
     println!("{:?}", y);
 }
 
-
-impl FitnessFunction for Optimization {
-    fn fitness(&self, genome: &Genome) -> Fitness {
-        let mut treestate = TreeState::new(self);
-        let mut fitness = 100f64;
-        let mut total_time_working = Duration::seconds(0);
-
-        for (first, second) in PairIter::new(genome.pool.iter()) {
-            let activity = match first.activitytype {
-                Nothing => { continue; },
-                Finish(_) => {
-                    fitness *= 0.95;
-                    continue;
-                },
-                WorkOn(ref a) => a
-            };
-            match second.activitytype {
-                WorkOn(ref second_a) if activity.id() == second_a.id() => {
-                    fitness *= 0.95;
-                },
-                _ => ()
-            };
-            if let Project = activity.nodetype {} else {
-                fitness *= 0.95;
-            }
-
-            let state = treestate.get(activity);
-            let delta = second.start.clone() - first.start.clone();
-            state.focus_so_far = state.focus_so_far + delta;
-            total_time_working = total_time_working + delta;
+fn last_project(e: &LogEntry) -> Option<&Rc<Node>> {
+    for lognode in e.nodes.iter().rev() {
+        let node = match lognode {
+            &Exists(ref node) => node,
+            &Gone => { continue; }
+        };
+        match &node.nodetype {
+            &Project => {
+                return Some(node);
+            },
+            _ => { continue; }
         }
-        //println!("fitness before total time scaling: {:?}", fitness);
-        fitness *= total_time_working.num_seconds() as f64
-                    / self.duration().num_seconds() as f64;
-        //println!("fitness before balance quality: {:?}", fitness);
-        fitness *= treestate.balance_quality(self);
-        //println!("final fitness: {:?}", fitness);
-
-        fitness
     }
+
+    None
+}
+
+pub fn prepare_state(log: Vec<LogEntry>, opt: &Optimization) -> TreeState {
+    let mut treestate = TreeState::new(opt);
+    let iterator = log.iter().filter(|x| x.kind == Activation);
+    for (first, second) in PairIter::new(iterator) {
+        let node = match last_project(first) {
+            None => { continue; },
+            Some(node) => node
+        };
+        let delta = first.time.clone() - second.time.clone();
+        treestate.total_time_working = treestate.total_time_working + delta;
+        treestate.get(node).add_time(delta);
+    }
+
+    treestate
+}
+
+pub fn fitness(initial_state: &TreeState, opt: &Optimization, genome: &Genome)
+        -> Fitness {
+    let mut treestate = initial_state.clone();
+    let mut fitness = 100f64;
+
+    for (first, second) in PairIter::new(genome.pool.iter()) {
+        let activity = match first.activitytype {
+            Nothing => { continue; },
+            Finish(_) => {
+                fitness *= 0.95;
+                continue;
+            },
+            WorkOn(ref a) => a
+        };
+        match second.activitytype {
+            WorkOn(ref second_a) if activity.id() == second_a.id() => {
+                fitness *= 0.95;
+            },
+            _ => ()
+        };
+        if let Project = activity.nodetype {} else {
+            fitness *= 0.95;
+        }
+
+        let delta = second.start.clone() - first.start.clone();
+        treestate.total_time_working = treestate.total_time_working + delta;
+        treestate.get(activity).add_time(delta);
+    }
+    //println!("fitness before total time scaling: {:?}", fitness);
+    fitness *= treestate.total_time_working.num_seconds() as f64
+                / opt.duration().num_seconds() as f64;
+    //println!("fitness before balance quality: {:?}", fitness);
+    fitness *= treestate.balance_quality(opt);
+    //println!("final fitness: {:?}", fitness);
+
+    fitness
 }
 
 #[cfg(test)]
 mod tests {
-    use super::FitnessFunction;
-
+    use super::{fitness,TreeState};
     use ::model::genome::{Genome, Optimization};
     use ::model::genome::testtree;
     use ::model::genome::ActivityType::{Nothing, WorkOn};
@@ -198,7 +231,8 @@ mod tests {
             tree.clone()
         );
 
-        let f1 = opt1.fitness(&genome1);
+        let treestate1 = TreeState::new(&opt1);
+        let f1 = fitness(&treestate1, &opt1, &genome1);
 
         let genome2 = Genome::preinit(vec![
             (2015, 1, 1, 15,  0, 0, WorkOn(tree.children[0].clone())),
@@ -211,7 +245,8 @@ mod tests {
             UTC.ymd(2015, 1, 1).and_hms(15, 50, 0),
             tree.clone()
         );
-        let f2 = opt2.fitness(&genome2);
+        let treestate2 = TreeState::new(&opt2);
+        let f2 = fitness(&treestate1, &opt2, &genome2);
         assert!(f1 > f2);
     }
 
@@ -229,7 +264,8 @@ mod tests {
             (2015, 1, 3,  0,  0, 0, WorkOn(tree.children[2].clone())),
             (2015, 1, 4,  0,  0, 0, Nothing)
         ]);
-        let f = opt.fitness(&genome);
+        let treestate = TreeState::new(&opt);
+        let f = fitness(&treestate, &opt, &genome);
         assert!((99.99 < f) && (f < 100.001));
     }
 
@@ -246,13 +282,14 @@ mod tests {
             (2015, 1, 1, 15, 20, 0, WorkOn(tree.children[0].clone())),
             (2015, 1, 1, 15, 50, 0, Nothing)
         ]);
-        let f1 = opt.fitness(&genome1);
+        let treestate = TreeState::new(&opt);
+        let f1 = fitness(&treestate, &opt, &genome1);
 
         let genome2 = Genome::preinit(vec![
             (2015, 1, 1, 15,  0, 0, WorkOn(tree.children[0].clone())),
             (2015, 1, 1, 15, 50, 0, Nothing)
         ]);
-        let f2 = opt.fitness(&genome2);
+        let f2 = fitness(&treestate, &opt, &genome2);
         assert!(f1 < f2);
     }
 
@@ -271,8 +308,9 @@ mod tests {
             (2015, 1, 1, 15, 50, 0, Nothing),
         ]);
 
+        let treestate = TreeState::new(&opt);
         bencher.iter(|| {
-            opt.fitness(&genome);
+            fitness(&treestate, &opt, &genome);
         });
     }
 
@@ -303,8 +341,9 @@ mod tests {
             (2015, 1, 1, 15, 50, 0, Nothing),
         ]);
 
+        let treestate = TreeState::new(&opt);
         bencher.iter(|| {
-            opt.fitness(&genome);
+            fitness(&treestate, &opt, &genome);
         });
     }
 }

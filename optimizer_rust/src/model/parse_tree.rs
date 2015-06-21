@@ -15,11 +15,11 @@ enum Parsing {
 
 #[derive(Debug)]
 pub struct ParsedLine {
-    indent: i32,
-    is_metadata: bool,
-    id: Option<String>,
-    node_type: String,
-    text: Option<String>
+    pub indent: i32,
+    pub is_metadata: bool,
+    pub id: Option<String>,
+    pub node_type: String,
+    pub text: Option<String>
 }
 
 // note: this does not include spaces.
@@ -68,7 +68,7 @@ pub fn parse_line(line: &str) -> Result<ParsedLine, &'static str> {
                     result.is_metadata = true;
                     continue;
                 } else if chr == '-' {
-                    result.node_type = String::from_str("-");
+                    result.node_type = "-".to_string();
                     parsing = Parsing::Sep;
                     continue;
                 }
@@ -188,7 +188,7 @@ impl ParserState {
         while parsed_indent <= self.last_indent {
             self.last_indent -= 1;
             let children = self.peers_stack.pop().unwrap();
-            let (lineidx, parsedline) = self.parent_stack.pop().unwrap();
+            let (_, parsedline) = self.parent_stack.pop().unwrap();
             let nodetype = match parsedline.node_type.parse() {
                 Ok(nt) => nt,
                 // TODO: do something better with ignored nodetypes?
@@ -469,11 +469,6 @@ mod tests {
     #[test]
     fn test_id_required() {
         assert_iserror("ID required", parse("task"));
-    }
-
-    #[test]
-    fn test_invalid_nodetype() {
-        assert_iserror("Invalid node type", parse("derp#abcde"));
     }
 
     #[test]

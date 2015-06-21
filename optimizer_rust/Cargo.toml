@@ -6,9 +6,10 @@ authors = ["Chris Horne <lahwran@lahwran.net>",
             "Melanie Heisey <mheisey.nox@gmail.com"]
 
 [dependencies]
-chrono = "0.2.10"
-rand = "0.3.7"
-argparse = "0.1.3"
+chrono = "0.2.14"
+rand = "0.3.8"
+argparse = "0.2.0"
+rustc-serialize = "0.3"
 
 [profile.release]
 opt-level = 3

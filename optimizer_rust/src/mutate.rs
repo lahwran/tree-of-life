@@ -27,7 +27,7 @@ pub fn mutate<R: Rng>(opt: &Optimization, genome: &mut Genome, rng: &mut R) {
     mem::swap(&mut prev_genome, genome);
     let prev_genome_len = prev_genome.pool.len();
 
-    for (index, gene) in prev_genome.pool.drain().enumerate() {
+    for (index, gene) in prev_genome.pool.drain(..).enumerate() {
         if index == prev_genome_len - 1 {
             genome.pool.push(gene);
             break;
