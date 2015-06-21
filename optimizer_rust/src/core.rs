@@ -153,7 +153,10 @@ pub fn run(tree: &str, log: &str, pop_str: Option<String>)
         tree
     );
     let mut rng = XorShiftRng::new_unseeded();
-    let fitness_state = try!(process_log(&opt, log));
+    let fitness_state = trylabel!("Parsing log", process_log(&opt, log));
+    let empty_genome = Genome::new(&opt);
+    println!("Fitness of empty genome: {}", fitness(&fitness_state, &opt,
+                                                    &empty_genome));
     let initial_pop = match pop_str {
         None => {
             generate_pop(&opt, &mut rng)
@@ -165,7 +168,7 @@ pub fn run(tree: &str, log: &str, pop_str: Option<String>)
                     continue;
                 }
                 let b = Genome::from_string(&opt, genome_string.trim());
-                let a = try!(b);
+                let a = trylabel!("Parsing genome", b);
                 pop.push(a);
             }
             pop

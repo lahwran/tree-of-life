@@ -46,10 +46,10 @@ impl LogEntry {
         let logkind_data = segment_split[1];
         let nodes_data = segment_split[2];
 
-        let date = match UTC.datetime_from_str(date_split[0],
+        let date = match UTC.datetime_from_str(date_split[1],
                                                "%Y-%m-%d %H:%M:%S") {
             Ok(x) => x,
-            Err(error) => return Err(format!("{}", error))
+            Err(error) => return Err(format!("Date parse: {} - {:?}", error, date_split))
         };
 
         let logkind = match logkind_data {
@@ -61,7 +61,8 @@ impl LogEntry {
         let mut nodes = Vec::new();
 
         for nodestring in nodestrings {
-            let parsed = try!(parse_tree::parse_line(&nodestring));
+            let parsed = trylabel!("Parsing node",
+                                   parse_tree::parse_line(&nodestring));
             if parsed.indent != 0 {
                 return Err("A node had nonzero indent in the json".to_string());
             }
